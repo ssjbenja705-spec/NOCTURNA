@@ -1,69 +1,32 @@
-# NOCTURNA - DEVELOPMENT PLAN
+# NOCTURNA - Plan de desarrollo
 
-## Phase 1: Architecture
-- Project configuration
-- Client/server architecture
-- Shared modules
-- Remote communication
-- Error handling
+## Objetivo
+Juego cooperativo de terror cinematográfico para PC, celular y tablet.
 
-## Phase 2: Player
-- First person camera
-- Movement
-- Sprint
-- Crouch
-- Stamina
-- Flashlight
-- Mobile controls
+## Capítulos
+1. El Descenso
+2. Los que escuchan
+3. El Organismo
+4. Lo que no debía existir
+5. Ella
 
-## Phase 3: Environment
-- Modular rooms
-- Corridors
-- Laboratories
-- Doors
-- Elevators
-- Random events
+## Criaturas
+- El Oyente: investiga sonidos.
+- El Imitador: usa voces falsas.
+- El Quieto: acecha cuando no lo observan.
+- El Trepador: se mueve por paredes y techos.
+- El Coloso: provoca cambios y persecuciones.
 
-## Phase 4: Monsters
-- The Listener
-- The Mimic
-- The Still
-- The Climber
-- The Colossus
+## Sistemas previstos
+- Movimiento, cámara y resistencia.
+- Linterna y batería.
+- Interfaz y controles móviles.
+- IA individual para cada criatura.
+- Misiones, objetos e inventario.
+- Cooperativo y sincronización.
+- Guardado de progreso.
+- Herramientas de administración.
+- Analítica y optimización.
 
-## Phase 5: Horror
-- Sound system
-- Atmosphere
-- Dynamic events
-- Chase sequences
-
-## Phase 6: Story
-- Five chapters
-- Missions
-- Dialogues
-- Cinematics
-- Multiple endings
-
-## Phase 7: Multiplayer
-- Cooperative sessions
-- Player synchronization
-- Revive system
-- Difficulty scaling
-
-## Phase 8: Progression
-- Data saving
-- Statistics
-- Unlockables
-
-## Phase 9: Administration
-- Secure admin permissions
-- Moderation
-- Activity logs
-- Analytics
-
-## Phase 10: Final integration
-- Asset integration
-- Roblox Studio import
-- Testing
-- Optimization
-- Publishing
+## Estado
+Esta entrega crea la base del proyecto. Los sistemas deberán probarse y ajustarse dentro de Roblox Studio antes de publicar.
