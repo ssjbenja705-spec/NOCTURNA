@@ -1,12 +1,21 @@
 # NOCTURNA: EL ÚLTIMO RECUERDO
 
-Proyecto de terror cooperativo para Roblox.
+Juego cooperativo de terror para Roblox.
 
-Este repositorio contiene la estructura y los primeros módulos de desarrollo. La validación final se realizará dentro de Roblox Studio.
+## Estructura
+- `src/client`: controles, cámara e interfaz.
+- `src/server`: sistemas del servidor, IA y progreso.
+- `src/shared`: configuraciones y módulos compartidos.
+- `assets`: recursos del juego.
+- `docs`: diseño y documentación.
+- `tests`: pruebas.
 
-## Plataforma de desarrollo
-- GitHub y Codespaces para organizar y editar el código.
-- Rojo para sincronizar los archivos con Roblox Studio.
-- Roblox Studio para probar, corregir y publicar.
+## Desarrollo
+El proyecto utiliza Rojo para sincronizar archivos con Roblox Studio.
 
-Consulta `docs/DEVELOPMENT_PLAN.md` para ver el plan.
+## Importante
+Los scripts son una base de desarrollo. Los modelos, mapas, animaciones,
+sonidos, comportamientos especializados y pruebas finales todavía deben
+completarse dentro del flujo de desarrollo de Roblox.
+
+Consulta `docs/Technical/SYSTEM_STATUS.md` para ver el estado de los sistemas.

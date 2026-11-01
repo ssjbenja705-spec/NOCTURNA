@@ -10,7 +10,19 @@ if not remoteFolder then
     remoteFolder.Parent = ReplicatedStorage
 end
 
-for _, name in ipairs({"SprintEvent", "FlashlightEvent", "PlayerStateEvent", "ObjectiveEvent", "AdminEvent"}) do
+for _, name in ipairs({
+    "SprintEvent",
+    "FlashlightEvent",
+    "PlayerStateEvent",
+    "ObjectiveEvent",
+    "AdminEvent",
+    "InventoryUpdate",
+    "ObjectiveUpdate",
+    "InteractionEvent",
+    "NoiseEvent",
+    "HealthUpdate",
+    "AdminMessage",
+}) do
     if not remoteFolder:FindFirstChild(name) then
         local event = Instance.new("RemoteEvent")
         event.Name = name
