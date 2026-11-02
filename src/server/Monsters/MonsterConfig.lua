@@ -1,0 +1,42 @@
+return {
+    ElOyente = {
+        Speed = 13,
+        DetectionRange = 100,
+        HearingRange = 130,
+        Damage = 20,
+        AttackRange = 5,
+        RepathTime = 1.2,
+    },
+    ElImitador = {
+        Speed = 15,
+        DetectionRange = 85,
+        HearingRange = 100,
+        Damage = 18,
+        AttackRange = 5,
+        RepathTime = 1.1,
+    },
+    ElQuieto = {
+        Speed = 17,
+        DetectionRange = 100,
+        HearingRange = 60,
+        Damage = 30,
+        AttackRange = 5,
+        RepathTime = 0.8,
+    },
+    ElTrepador = {
+        Speed = 19,
+        DetectionRange = 110,
+        HearingRange = 90,
+        Damage = 25,
+        AttackRange = 5,
+        RepathTime = 0.8,
+    },
+    ElColoso = {
+        Speed = 10,
+        DetectionRange = 140,
+        HearingRange = 150,
+        Damage = 45,
+        AttackRange = 8,
+        RepathTime = 1.5,
+    },
+}
