@@ -1,36 +1,37 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("NocturnaRemotes")
 local gui = player:WaitForChild("PlayerGui"):WaitForChild("NocturnaHUD")
 
-local objective = Instance.new("TextLabel")
-objective.Name = "ObjectiveLabel"
-objective.Size = UDim2.fromScale(0.42, 0.08)
-objective.Position = UDim2.fromScale(0.04, 0.78)
-objective.BackgroundTransparency = 0.35
-objective.BackgroundColor3 = Color3.fromRGB(10, 12, 15)
-objective.TextColor3 = Color3.fromRGB(220, 225, 225)
-objective.TextWrapped = true
-objective.TextScaled = true
-objective.Font = Enum.Font.Gotham
-objective.Text = "Buscando objetivo..."
-objective.Parent = gui
+local message = Instance.new("TextLabel")
+message.Name = "AdminMessageLabel"
+message.Size = UDim2.new(0.7, 0, 0, 42)
+message.Position = UDim2.new(0.15, 0, 0.88, 0)
+message.BackgroundColor3 = Color3.fromRGB(10, 12, 15)
+message.BackgroundTransparency = 1
+message.TextColor3 = Color3.fromRGB(220, 225, 225)
+message.TextTransparency = 1
+message.TextWrapped = true
+message.TextScaled = true
+message.Font = Enum.Font.Gotham
+message.Parent = gui
 
-remotes:WaitForChild("ObjectiveUpdate").OnClientEvent:Connect(function(data)
-    if type(data) ~= "table" then return end
-    local objectives = data.Objectives or {}
-    local current = data.Current or 1
-    local text = data.Chapter or "NOCTURNA"
-    if objectives[current] then
-        text ..= "\n" .. objectives[current]
-    else
-        text ..= "\nCapitulo completado"
-    end
-    objective.Text = text
-end)
+local messageToken = 0
+remotes:WaitForChild("AdminMessage").OnClientEvent:Connect(function(text)
+    messageToken += 1
+    local token = messageToken
+    message.Text = tostring(text)
+    message.BackgroundTransparency = 0.35
+    message.TextTransparency = 0
 
-remotes:WaitForChild("AdminMessage").OnClientEvent:Connect(function(message)
-    objective.Text = tostring(message)
+    task.delay(3.5, function()
+        if token ~= messageToken then return end
+        TweenService:Create(message, TweenInfo.new(0.6), {
+            BackgroundTransparency = 1,
+            TextTransparency = 1,
+        }):Play()
+    end)
 end)
