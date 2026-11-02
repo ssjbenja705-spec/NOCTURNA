@@ -126,7 +126,8 @@ actionRemote.OnServerEvent:Connect(function(player, action)
     elseif action == "Start" then
         startMatch(player)
     elseif action == "RequestUpdate" then
-        updateRemote:FireClient(player, getLobbyData())
+        broadcast()
+        return
     end
 end)
 
