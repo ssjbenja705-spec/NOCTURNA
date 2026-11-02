@@ -19,4 +19,9 @@ return {
         Stackable = false,
         MaxStack = 1,
     },
+    Keycard = {
+        DisplayName = "Tarjeta de acceso",
+        Stackable = false,
+        MaxStack = 1,
+    },
 }
