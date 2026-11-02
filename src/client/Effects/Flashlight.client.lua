@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
 local enabled = false
@@ -18,20 +17,14 @@ local function createLight(character)
         light.Enabled = false
         light.Parent = head
     end
+    enabled = player:GetAttribute("FlashlightEnabled") == true
     light.Enabled = enabled
 end
 
 if player.Character then createLight(player.Character) end
 player.CharacterAdded:Connect(createLight)
 
-local function toggle()
-    enabled = not enabled
+player:GetAttributeChangedSignal("FlashlightEnabled"):Connect(function()
+    enabled = player:GetAttribute("FlashlightEnabled") == true
     if light then light.Enabled = enabled end
-end
-
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Enum.KeyCode.F then toggle() end
 end)
-
-player:GetAttributeChangedSignal("ToggleFlashlight"):Connect(toggle)

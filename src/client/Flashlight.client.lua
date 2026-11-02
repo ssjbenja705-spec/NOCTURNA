@@ -35,14 +35,19 @@ local function findOrCreateLight()
         light.Enabled = false
         light.Parent = attachment
     end
+    enabled = player:GetAttribute("FlashlightEnabled") == true
+    light.Enabled = enabled
 end
 
 local function toggle()
-    if not light then findOrCreateLight() end
-    if not light then return end
-    enabled = not enabled
-    light.Enabled = enabled
+    player:SetAttribute("FlashlightEnabled", player:GetAttribute("FlashlightEnabled") ~= true)
 end
+
+player:GetAttributeChangedSignal("FlashlightEnabled"):Connect(function()
+    enabled = player:GetAttribute("FlashlightEnabled") == true
+    if not light then findOrCreateLight() end
+    if light then light.Enabled = enabled end
+end)
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "NocturnaMobileControls"
@@ -75,7 +80,6 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 player.CharacterAdded:Connect(function()
-    enabled = false
     light = nil
     task.wait(0.25)
     findOrCreateLight()
