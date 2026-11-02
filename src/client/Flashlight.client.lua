@@ -1,6 +1,5 @@
--- Linterna local inicial: tecla F en PC y botón táctil en móvil.
+-- Linterna local inicial con botón táctil en móvil.
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
@@ -71,13 +70,6 @@ corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = button
 
 button.Activated:Connect(toggle)
-
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    if input.KeyCode == Config.Flashlight.ToggleKey then
-        toggle()
-    end
-end)
 
 player.CharacterAdded:Connect(function()
     light = nil
