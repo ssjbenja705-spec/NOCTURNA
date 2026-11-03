@@ -1,17 +1,15 @@
--- Linterna local inicial con botón táctil en móvil.
+-- Linterna local para PC y dispositivos táctiles.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
-
-local enabled = false
 local light
 
 local function findOrCreateLight()
     local character = player.Character
     if not character then return end
-
     local head = character:FindFirstChild("Head")
     if not head then return end
 
@@ -31,11 +29,9 @@ local function findOrCreateLight()
         light.Range = Config.Flashlight.Range
         light.Angle = Config.Flashlight.Angle
         light.Shadows = true
-        light.Enabled = false
         light.Parent = attachment
     end
-    enabled = player:GetAttribute("FlashlightEnabled") == true
-    light.Enabled = enabled
+    light.Enabled = player:GetAttribute("FlashlightEnabled") == true
 end
 
 local function toggle()
@@ -43,9 +39,12 @@ local function toggle()
 end
 
 player:GetAttributeChangedSignal("FlashlightEnabled"):Connect(function()
-    enabled = player:GetAttribute("FlashlightEnabled") == true
     if not light then findOrCreateLight() end
-    if light then light.Enabled = enabled end
+    if light then light.Enabled = player:GetAttribute("FlashlightEnabled") == true end
+end)
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.F then toggle() end
 end)
 
 local gui = Instance.new("ScreenGui")
@@ -64,11 +63,9 @@ button.Text = "LUZ"
 button.TextScaled = true
 button.Font = Enum.Font.GothamBold
 button.Parent = gui
-
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = button
-
 button.Activated:Connect(toggle)
 
 player.CharacterAdded:Connect(function()
@@ -76,7 +73,4 @@ player.CharacterAdded:Connect(function()
     task.wait(0.25)
     findOrCreateLight()
 end)
-
-if player.Character then
-    findOrCreateLight()
-end
+if player.Character then findOrCreateLight() end
