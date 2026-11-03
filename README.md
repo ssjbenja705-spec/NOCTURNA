@@ -18,8 +18,9 @@ rojo build default.project.json -o NOCTURNA.rbxlx
 Abrí `NOCTURNA.rbxlx` en Roblox Studio y presioná Play. Para trabajar en vivo:
 `rojo serve` y conectá el plugin de Rojo.
 
-Todo (mapa, criaturas, interfaz y sonido) se genera por código: no hace falta
-importar modelos ni audio.
+El mapa, la interfaz y el sonido se generan por código. Las criaturas también
+funcionan así, con piezas simples. Para verlas con sus modelos de Blender hay
+que importarlas una vez en Studio: ver `assets/models/README.md`.
 
 ## Controles
 
@@ -40,6 +41,8 @@ importar modelos ni audio.
   inventario, guardado). La usan servidor, cliente y pruebas.
 - `src/server`: un único `Main.server.lua` que inicia todos los servicios en orden.
 - `src/client`: un único `Main.client.lua` que inicia la interfaz, la cámara, el audio y los efectos.
+- `assets/blender`: script de Blender que genera los modelos de las criaturas.
+- `assets/models`: modelos exportados (FBX), renders y escena `.blend`.
 - `tests/lune`: pruebas automáticas fuera de Roblox, con un motor simulado.
 - `tests/Studio`: prueba dentro del motor real (`test.project.json`).
 - `docs`: diseño y estado técnico.

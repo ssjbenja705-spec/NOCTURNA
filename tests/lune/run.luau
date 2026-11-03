@@ -1055,6 +1055,68 @@ T.Test("el casillero mira hacia la sala y deja al jugador afuera, enfrente", fun
     T.True((root.Position - camera.Position).Magnitude < 6, "sale frente al casillero")
 end)
 
+T.Test("criaturas: usan las mallas de Blender importadas y, si faltan, piezas simples", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local workspace = Engine.Workspace
+
+    -- Sin modelos importados: todo son Parts.
+    local plain = Factory.Build("ElOyente", workspace, 4)
+    for _, piece in ipairs(plain:GetChildren()) do
+        T.Equal(piece.ClassName, "Part", "sin modelos, " .. piece.Name .. " es una Part")
+    end
+    plain:Destroy()
+
+    -- Como deja el importador 3D de Studio: un modelo con una MeshPart por nombre.
+    local folder = Engine.New("Folder", "NocturnaModels")
+    folder.Parent = Engine.Services.ServerStorage
+    local set = Engine.New("Model", "ElQuieto")
+    set.Parent = folder
+    local inner = Engine.New("Model", "Imported")
+    inner.Parent = set
+    for _, name in ipairs({"Torso", "Head", "Arm", "Leg"}) do
+        local mesh = Engine.New("MeshPart", name)
+        mesh.Size = Vector3.new(9, 9, 9)
+        mesh.Anchored = true
+        mesh.Parent = inner
+        Engine.New("Attachment", "Stray").Parent = mesh
+    end
+
+    local quieto = Factory.Build("ElQuieto", workspace, 3.6)
+    local root = quieto.PrimaryPart
+    local meshes = 0
+    for _, piece in ipairs(quieto:GetChildren()) do
+        if piece ~= root then
+            local joint = piece:FindFirstChild(piece.Name .. "Joint")
+            T.True(joint ~= nil and joint.Part0 == root, piece.Name .. " sigue unida a la raíz")
+            if piece.Name == "Eye" then
+                T.Equal(piece.ClassName, "Part", "el ojo no tiene malla y queda como Part")
+            else
+                meshes += 1
+                T.Equal(piece.ClassName, "MeshPart", piece.Name .. " usa la malla")
+                T.False(piece.Anchored, piece.Name .. " no queda anclada")
+                T.True(piece.Size.Magnitude < 5, piece.Name .. " toma el tamaño de la pieza, no el de la plantilla")
+                T.Equal(piece.Material, roblox.Enum.Material.SmoothPlastic, "sin textura toma el material de la criatura")
+                T.True(piece:FindFirstChild("Stray") == nil, "no arrastra hijos de la plantilla")
+            end
+        end
+    end
+    T.Equal(meshes, 6, "torso, cabeza, dos brazos y dos piernas")
+    T.Equal(#inner:GetChildren(), 4, "las plantillas quedan intactas")
+
+    -- Los maniquíes del capítulo 5 son idénticos a El Quieto.
+    local mannequin = Factory.BuildMannequin(workspace, roblox.CFrame.new(0, 0, 0))
+    T.Equal(mannequin:FindFirstChild("Head").ClassName, "MeshPart", "el maniquí usa la misma malla")
+
+    -- TurnAround gira las mallas media vuelta sin mover la articulación.
+    folder:SetAttribute("TurnAround", true)
+    local turned = Factory.Build("ElQuieto", workspace, 3.6)
+    local head = turned:FindFirstChild("Head")
+    local joint = head:FindFirstChild("HeadJoint")
+    T.True(joint.C1.LookVector:Dot(Vector3.new(0, 0, 1)) > 0.99, "C1 gira media vuelta")
+    T.True((head.Position - (turned.PrimaryPart.CFrame * joint.C0).Position).Magnitude < 1e-3, "la cabeza queda en su lugar")
+end)
+
 T.Test("linterna: se gasta en el servidor, se apaga sola y se recarga con una batería", function()
     local players = bootServer(1)
     Engine.Run(1)

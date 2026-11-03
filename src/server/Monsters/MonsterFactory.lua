@@ -1,8 +1,47 @@
--- Construye las criaturas con piezas simples, sin depender de modelos externos.
--- La raíz va anclada y las extremidades cuelgan de Motor6D que el cliente anima.
+-- Construye las criaturas. La raíz va anclada y las extremidades cuelgan de
+-- Motor6D que el cliente anima.
+--
+-- Cada pieza usa la malla de Blender importada en ServerStorage.NocturnaModels
+-- (ver assets/models/README.md) si existe; si no, una Part simple del mismo tamaño.
+-- Así el juego funciona igual con o sin los modelos importados.
 local CollectionService = game:GetService("CollectionService")
+local ServerStorage = game:GetService("ServerStorage")
+
+local MODELS_FOLDER = "NocturnaModels"
 
 local MonsterFactory = {}
+
+local function meshTemplate(model, name)
+    local folder = ServerStorage:FindFirstChild(MODELS_FOLDER)
+    local set = folder and folder:FindFirstChild(model:GetAttribute("ModelSet") or "")
+    local template = set and set:FindFirstChild(name, true)
+    if template and template:IsA("MeshPart") then
+        -- TurnAround corrige un importador que deje las mallas mirando hacia atrás.
+        return template, folder:GetAttribute("TurnAround") == true
+    end
+    return nil, false
+end
+
+-- Una malla con textura propia conserva su aspecto; si no, toma color y material.
+local function hasOwnLook(part)
+    return part.TextureID ~= "" or part:FindFirstChildWhichIsA("SurfaceAppearance") ~= nil
+end
+
+local function newPart(model, name)
+    local template, turnAround = meshTemplate(model, name)
+    if not template then
+        return Instance.new("Part"), false, false
+    end
+
+    local part = template:Clone()
+    for _, child in ipairs(part:GetChildren()) do
+        if not child:IsA("SurfaceAppearance") then
+            child:Destroy()
+        end
+    end
+    part.Anchored = false
+    return part, hasOwnLook(part), turnAround
+end
 
 local function newRoot(parent, name, height)
     local model = Instance.new("Model")
@@ -25,12 +64,15 @@ local function newRoot(parent, name, height)
 end
 
 local function limb(model, root, name, size, offset, color, material, swing)
-    local part = Instance.new("Part")
+    local part, ownLook, turnAround = newPart(model, name)
+    local turn = turnAround and CFrame.Angles(0, math.pi, 0) or CFrame.identity
     part.Name = name
     part.Size = size
-    part.CFrame = root.CFrame * offset
-    part.Color = color
-    part.Material = material or Enum.Material.SmoothPlastic
+    part.CFrame = root.CFrame * offset * turn
+    if not ownLook then
+        part.Color = color
+        part.Material = material or Enum.Material.SmoothPlastic
+    end
     part.Massless = true
     part.CanCollide = false
     part.CanTouch = false
@@ -43,6 +85,7 @@ local function limb(model, root, name, size, offset, color, material, swing)
     joint.Part0 = root
     joint.Part1 = part
     joint.C0 = offset
+    joint.C1 = turn:Inverse()
     joint.Parent = part
 
     if swing then
@@ -145,6 +188,7 @@ function MonsterFactory.Build(kind, parent, height)
     assert(builder, "[NOCTURNA] Criatura sin modelo: " .. tostring(kind))
 
     local model, root = newRoot(parent, kind, height)
+    model:SetAttribute("ModelSet", kind)
     builder(model, root)
     model:SetAttribute("Kind", kind)
     model:SetAttribute("MoveSpeed", 0)
@@ -155,6 +199,7 @@ end
 -- Maniquí inerte, idéntico a El Quieto: el escenario esconde a la criatura.
 function MonsterFactory.BuildMannequin(parent, cframe)
     local model, root = newRoot(parent, "Mannequin", 3.6)
+    model:SetAttribute("ModelSet", "ElQuieto")
     root.CFrame = cframe * CFrame.new(0, 3.6, 0)
     buildMannequinBody(model, root)
     return model

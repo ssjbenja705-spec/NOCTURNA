@@ -12,6 +12,7 @@ Leyenda de verificación:
 | Mapa procedural de 5 capítulos | `Logic/MazeLayout`, `Logic/LayoutPlanner`, `World/RoomGenerator`, `World/WorldService` | Simulado (2000 mapas) + Studio (5 capítulos, piso, paredes que bloquean la visión) |
 | Objetivos y capítulos | `Logic/ObjectiveTracker`, `Story/StoryService`, `Config/ChapterConfig` | Simulado: campaña completa jugada por bots |
 | Cinco criaturas | `AI/MonsterController`, `AI/Behaviors/*`, `Monsters/*` | Simulado (comportamientos) + Studio (aparecen, se mueven, extremidades unidas) |
+| Modelos 3D de las criaturas | `assets/blender/build_creatures.py`, `assets/models`, `Monsters/MonsterFactory` | Generados y renderizados en Blender 4.5. Simulado (usa las mallas importadas, respeta tamaños y uniones, vuelve a Parts si faltan). Pendiente: importarlos en Studio y comprobar la orientación |
 | Navegación | `Logic/MazeNav` | Simulado + Studio |
 | Inventario, objetos, llaves, documentos, baterías | `Logic/InventoryModel`, `Inventory/InventoryService`, `World/InteractionService` | Simulado |
 | Linterna con batería | `Data/FlashlightService`, `client/Camera/FirstPerson` | Simulado (servidor). Pendiente: el haz siguiendo la cámara en Studio |
@@ -40,8 +41,11 @@ Leyenda de verificación:
 
 ## Limitaciones conocidas
 
-- Modelos, animaciones y sonidos son procedurales: piezas simples y sonidos
-  internos de Roblox deformados. Para una versión comercial conviene reemplazarlos
-  (`MonsterFactory`, `FeatureBuilder`, `AudioConfig`).
+- Las criaturas tienen modelos de Blender (`assets/models`). Hasta que se
+  importen en Studio el juego usa piezas simples. No tienen texturas pintadas:
+  usan los materiales de Roblox.
+- Las animaciones de las criaturas son procedurales (balanceo de extremidades),
+  y los objetos del escenario (`FeatureBuilder`) se arman con piezas simples. Los
+  sonidos son internos de Roblox deformados (`AudioConfig`).
 - El chat `!comando` depende de `Player.Chatted`. Si con TextChatService no
   llegara, el panel ADMIN ofrece las mismas acciones.

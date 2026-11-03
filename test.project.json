@@ -17,6 +17,14 @@
         "$path": "tests/Studio"
       }
     },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$ignoreUnknownInstances": true,
+      "NocturnaModels": {
+        "$path": "assets/models/rbxm",
+        "$ignoreUnknownInstances": true
+      }
+    },
     "StarterPlayer": {
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {

@@ -21,6 +21,9 @@ Studio o el panel de creador.
 
 ## Revisión recomendada
 
+- Importar los modelos de las criaturas (`assets/models/README.md`), guardar los
+  `.rbxm` y comprobar que miren hacia adelante. Sin este paso el juego funciona
+  con piezas simples.
 - Escuchar la mezcla de audio y ajustar volúmenes en `src/shared/Config/AudioConfig.lua`.
 - Mirar los cinco temas visuales con luz y sin luz; ajustar `ThemeConfig.lua`.
 - Ajustar dificultad (`MonsterConfig.lua`, `GameConfig.Match`) con jugadores reales.
@@ -30,7 +33,7 @@ Studio o el panel de creador.
 
 ## Verificación ya realizada
 
-- `lune run tests/lune/run.luau`: 79 pruebas, todas correctas, incluida una
+- `lune run tests/lune/run.luau`: 80 pruebas, todas correctas, incluida una
   campaña completa de 5 capítulos jugada por bots, guardado y recarga.
 - `luau-lsp analyze` con las definiciones oficiales de la API: sin errores.
 - `rojo build`: compila.

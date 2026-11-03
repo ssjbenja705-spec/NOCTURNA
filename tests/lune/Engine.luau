@@ -177,12 +177,17 @@ local function mockNew(className, name)
         Signals = {},
         PropertySignals = {},
         AttributeSignals = {},
-        Values = className == "Sound" and {IsPlaying = false} or {},
+        -- Lune no lee propiedades Content (MeshId, TextureID): se simulan vacías.
+        Values = className == "Sound" and {IsPlaying = false}
+            or className == "MeshPart" and {MeshId = "", TextureID = ""}
+            or {},
         Real = real,
         Destroyed = false,
     })
     return self
 end
+
+Engine.New = mockNew
 
 local function dataOf(instance)
     return rawget(instance, "__data")
@@ -332,6 +337,25 @@ function Methods:Destroy()
     if Engine.CollectionService then
         Engine.CollectionService:_forget(self)
     end
+end
+
+-- Copia propiedades, atributos e hijos. Las referencias a otras instancias
+-- (Part0, PrimaryPart...) no se copian: el juego sólo clona plantillas sueltas.
+function Methods:Clone()
+    local data = dataOf(self)
+    local copy = mockNew(data.ClassName, data.Name)
+    for key, value in pairs(data.Values) do
+        if not isMock(value) and not INSTANCE_PROPERTIES[key] then
+            copy[key] = value
+        end
+    end
+    for name, value in pairs(data.Attributes) do
+        copy:SetAttribute(name, value)
+    end
+    for _, child in ipairs(data.Children) do
+        child:Clone().Parent = copy
+    end
+    return copy
 end
 
 function Methods:ClearAllChildren()
@@ -814,6 +838,7 @@ function Engine.Reset(options)
     Engine.UserInput = service("UserInputService")
     service("ReplicatedStorage")
     service("ServerScriptService")
+    service("ServerStorage")
     service("StarterPlayer")
     service("Lighting")
     service("SoundService")
