@@ -972,6 +972,536 @@ T.Test("el grupo comparte objetos para abrir puertas", function()
     T.Equal(Inventory.CountParty("MemoryShard"), 0, "consumidos")
 end)
 
+T.Suite("Sistemas de juego en partida")
+
+local function firstLockerPrompt()
+    local hides = Engine.Workspace:FindFirstChild("NOCTURNA_MAP"):FindFirstChild("Hides")
+    return hides:GetChildren()[1]:FindFirstChild("Door"):FindFirstChild("NocturnaPrompt")
+end
+
+T.Test("escondites: entra, apaga la linterna, no hace ruido, y sale", function()
+    local players = bootServer(2)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    local Hiding = Engine.RequireServer("World.HidingService")
+    local Noise = Engine.RequireServer("AI.NoiseService")
+    local Flashlight = Engine.RequireServer("Data.FlashlightService")
+    local prompt = firstLockerPrompt()
+    local root = players[1].Character:FindFirstChild("HumanoidRootPart")
+
+    Flashlight.SetEnabled(players[1], true)
+    Bot.MoveTo(Engine, players[1], prompt.Parent.Position)
+    prompt:Fire(players[1])
+    Engine.Run(0.5)
+
+    T.True(Hiding.IsHidden(players[1]), "escondido")
+    T.True(root.Anchored, "fijo adentro")
+    T.False(Flashlight.IsOn(players[1]), "linterna apagada")
+    T.False(prompt.Enabled, "casillero ocupado")
+    T.Equal(Engine.LastSent("HideState", players[1])[1], true, "cliente avisado")
+
+    Bot.MoveTo(Engine, players[2], prompt.Parent.Position)
+    prompt:Fire(players[2])
+    Engine.Run(0.2)
+    T.False(Hiding.IsHidden(players[2]), "no entran dos")
+
+    Noise.Clear()
+    root.AssemblyLinearVelocity = Vector3.new(20, 0, 0)
+    Engine.Run(1)
+    local fromHidden = 0
+    for _, noise in ipairs(Noise.Recent()) do
+        if noise.Source == players[1] then
+            fromHidden += 1
+        end
+    end
+    T.Equal(fromHidden, 0, "escondido no hace ruido")
+
+    fire("ExitHiding", players[1])
+    Engine.Run(0.2)
+    T.False(Hiding.IsHidden(players[1]), "salió")
+    T.False(root.Anchored, "libre")
+    T.True(prompt.Enabled, "casillero libre")
+    T.Equal(Engine.LastSent("HideState", players[1])[1], false, "cliente avisado al salir")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("el casillero mira hacia la sala y deja al jugador afuera, enfrente", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    -- La orientación absoluta se comprueba en Studio: CFrame.lookAt de Lune no coincide
+    -- con el del motor. Acá se valida la posición relativa al casillero.
+    local plan = gameState().Plan
+    local Rooms = Engine.RequireServer("World.RoomGenerator")
+    local spot = plan.Hides[1]
+    local slot = Rooms.SlotCFrame(plan.Layout, spot.Cell, spot.Slot)
+
+    local prompt = firstLockerPrompt()
+    Bot.MoveTo(Engine, players[1], prompt.Parent.Position)
+    prompt:Fire(players[1])
+    Engine.Run(0.3)
+    local camera = Engine.LastSent("HideState", players[1])[2]
+    local relative = slot:ToObjectSpace(camera)
+    T.True(relative.Position.Z < -1.8, "la cámara queda del lado de la puerta")
+    T.True(camera.LookVector:Dot(slot.LookVector) > 0.99, "mira hacia donde mira la puerta")
+
+    fire("ExitHiding", players[1])
+    Engine.Run(0.3)
+    local root = players[1].Character:FindFirstChild("HumanoidRootPart")
+    T.True((root.Position - camera.Position).Magnitude < 6, "sale frente al casillero")
+end)
+
+T.Test("linterna: se gasta en el servidor, se apaga sola y se recarga con una batería", function()
+    local players = bootServer(1)
+    Engine.Run(1)
+    local player = players[1]
+    local Inventory = Engine.RequireServer("Inventory.InventoryService")
+
+    fire("FlashlightToggle", player)
+    Engine.Run(0.2)
+    T.Equal(player:GetAttribute("FlashlightEnabled"), true, "encendida")
+
+    local light = player.Character:FindFirstChild("Head"):FindFirstChild("NocturnaFlashlightAttachment"):FindFirstChild("NocturnaFlashlight")
+    T.True(light.Enabled, "la luz existe en el personaje y la ve todo el grupo")
+
+    Engine.Run(GameConfig.Flashlight.BatterySeconds + 2)
+    T.Equal(player:GetAttribute("FlashlightEnabled"), false, "se apagó")
+    T.Equal(player:GetAttribute("FlashlightBattery"), 0, "sin batería")
+    fire("FlashlightToggle", player)
+    Engine.Run(0.5)
+    T.Equal(player:GetAttribute("FlashlightEnabled"), false, "sin batería no enciende")
+
+    Inventory.AddItem(player, "Battery", 1)
+    fire("UseItem", player, "Battery")
+    Engine.Run(0.5)
+    T.Equal(player:GetAttribute("FlashlightBattery"), GameConfig.Flashlight.BatteryRecharge, "recargada")
+    T.False(Inventory.HasItem(player, "Battery"), "batería consumida")
+end)
+
+T.Test("botiquín: cura, y no se gasta con la vida llena", function()
+    local players = bootServer(1)
+    Engine.Run(1)
+    local player = players[1]
+    local Inventory = Engine.RequireServer("Inventory.InventoryService")
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+
+    Inventory.AddItem(player, "Medkit", 1)
+    fire("UseItem", player, "Medkit")
+    Engine.Run(0.5)
+    T.True(Inventory.HasItem(player, "Medkit"), "con vida llena no se gasta")
+
+    humanoid.Health = 30
+    Engine.Run(0.5)
+    fire("UseItem", player, "Medkit")
+    Engine.Run(0.5)
+    T.Equal(humanoid.Health, 80, "curó")
+    T.False(Inventory.HasItem(player, "Medkit"), "consumido")
+end)
+
+T.Test("la vida no se regenera sola: el script por defecto se elimina", function()
+    local players = bootServer(1)
+    Engine.Run(4)
+    T.True(players[1].Character:FindFirstChild("Health") == nil, "sin regeneración")
+end)
+
+T.Test("sprint y sigilo cambian la velocidad real desde el servidor", function()
+    local players = bootServer(1)
+    Engine.Run(1)
+    local player = players[1]
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+
+    fire("SprintRequest", player, true)
+    Engine.Run(0.2)
+    T.Equal(humanoid.WalkSpeed, GameConfig.Player.SprintSpeed, "corre")
+
+    fire("CrouchRequest", player, true)
+    Engine.Run(0.2)
+    T.Equal(humanoid.WalkSpeed, GameConfig.Player.CrouchSpeed, "sigilo")
+    T.Equal(player:GetAttribute("IsSprinting"), false, "dejó de correr")
+
+    fire("CrouchRequest", player, false)
+    Engine.Run(0.2)
+    T.Equal(humanoid.WalkSpeed, GameConfig.Player.WalkSpeed, "camina")
+end)
+
+T.Test("el ruido sale de la velocidad real: correr se oye más que caminar o ir en sigilo", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+
+    local Noise = Engine.RequireServer("AI.NoiseService")
+    local root = players[1].Character:FindFirstChild("HumanoidRootPart")
+
+    local function loudest()
+        Noise.Clear()
+        Engine.Run(1)
+        local radius = 0
+        for _, noise in ipairs(Noise.Recent()) do
+            radius = math.max(radius, noise.Radius)
+        end
+        return radius
+    end
+
+    T.Equal(loudest(), 0, "quieto no hace ruido")
+    root.AssemblyLinearVelocity = Vector3.new(10, 0, 0)
+    T.Equal(loudest(), GameConfig.Noise.Walk, "caminar")
+    root.AssemblyLinearVelocity = Vector3.new(17, 0, 0)
+    T.Equal(loudest(), GameConfig.Noise.Sprint, "correr")
+    fire("CrouchRequest", players[1], true)
+    Engine.Run(0.1)
+    T.Equal(loudest(), GameConfig.Noise.Crouch, "sigilo")
+end)
+
+T.Test("puertas: la cerrada pide su objeto, bloquea a los monstruos y se abre una vez", function()
+    local players = bootServer(1)
+    startMatch(players, 1)
+    T.True(waitForPhase("Playing", 60), "partida")
+
+    local Admin = Engine.RequireServer("Multiplayer.MatchService")
+    Admin.SetChapter(2)
+    T.True(Engine.RunUntil(function()
+        return gameState().Chapter == 2 and gameState().Phase == "Playing"
+    end, 30), "capítulo 2")
+    Engine.Run(1)
+
+    local Doors = Engine.RequireServer("World.DoorService")
+    local Inventory = Engine.RequireServer("Inventory.InventoryService")
+    local position = Doors.PositionOf("RESEARCH_DOOR")
+    local plan = gameState().Plan
+    local spec = nil
+    for _, door in ipairs(plan.Doors) do
+        if door.Id == "RESEARCH_DOOR" then
+            spec = door
+        end
+    end
+
+    T.True(gameState().Nav:IsBlocked(spec.A, spec.B), "los monstruos no pasan")
+    Bot.Use(Engine, players[1], position)
+    Engine.Run(0.5)
+    T.True(Doors.IsLocked("RESEARCH_DOOR"), "sin tarjeta sigue cerrada")
+
+    Inventory.AddItem(players[1], "Keycard", 1)
+    Bot.Use(Engine, players[1], position)
+    Engine.Run(0.5)
+    T.False(Doors.IsLocked("RESEARCH_DOOR"), "abierta")
+    T.False(Inventory.HasItem(players[1], "Keycard"), "tarjeta consumida")
+    T.False(gameState().Nav:IsBlocked(spec.A, spec.B), "navegación habilitada")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("generador: necesita fusibles y enciende las luces del capítulo", function()
+    local players = bootServer(1)
+    startMatch(players, 1)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    local state = gameState()
+    local Mechanisms = Engine.RequireServer("World.MechanismService")
+    local Inventory = Engine.RequireServer("Inventory.InventoryService")
+    local position = Mechanisms.PositionsFor("GEN_MAIN")[1]
+    T.False(state.Powered, "empieza sin energía")
+
+    local prompt = Bot.Use(Engine, players[1], position)
+    Engine.Run(0.3)
+    T.False(state.HasFlag("POWER"), "sin fusibles no arranca")
+
+    Inventory.AddItem(players[1], "Fuse", 3)
+    for _ = 1, 3 do
+        Engine.Run(0.5)
+        Bot.Use(Engine, players[1], position)
+    end
+    Engine.Run(0.5)
+    T.Equal(prompt.ActionText, "Arrancar", "listo para arrancar")
+    T.False(state.HasFlag("POWER"), "falta arrancarlo")
+
+    Bot.Use(Engine, players[1], position)
+    Engine.Run(0.5)
+    T.True(state.HasFlag("POWER"), "energía")
+    T.True(state.Powered, "luces encendidas")
+    T.False(prompt.Enabled, "ya no se usa")
+end)
+
+T.Test("una salida no se puede usar antes de tiempo", function()
+    local players = bootServer(1)
+    startMatch(players, 1)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    local Mechanisms = Engine.RequireServer("World.MechanismService")
+    local position = Mechanisms.PositionsFor("ELEVATOR")[1]
+    Bot.Use(Engine, players[1], position)
+    Engine.Run(0.5)
+    T.False(gameState().Tracker:IsDone("C1_ELEVATOR"), "no saltea la historia")
+    T.Equal(gameState().Phase, "Playing", "sigue el capítulo")
+end)
+
+T.Test("derrumbes del Coloso: nunca aíslan el mapa y se despejan", function()
+    local players = bootServer(1)
+    startMatch(players, 4)
+    Engine.Run(1)
+
+    local Match = Engine.RequireServer("Multiplayer.MatchService")
+    Match.SetChapter(4)
+    T.True(Engine.RunUntil(function()
+        return gameState().Chapter == 4 and gameState().Phase == "Playing"
+    end, 30), "capítulo 4")
+
+    local state = gameState()
+    local Environment = Engine.RequireServer("World.EnvironmentService")
+    local center = state.Nav:Center(state.Layout.Exit, 3)
+    local collapsed = 0
+    for _ = 1, 5 do
+        if Environment.Collapse(center, 5) then
+            collapsed += 1
+        end
+    end
+    T.True(collapsed >= 1 and collapsed <= 2, "derrumbes acotados: " .. collapsed)
+
+    local blocked = table.clone(state.Nav.Blocked)
+    for key in pairs(state.Plan.LockedEdges) do
+        blocked[key] = nil
+    end
+    T.True(MazeLayout.IsConnected(state.Layout, blocked), "el mapa sigue conectado")
+
+    Engine.Run(6)
+    local remaining = 0
+    for key in pairs(state.Nav.Blocked) do
+        if not state.Plan.LockedEdges[key] then
+            remaining += 1
+        end
+    end
+    T.Equal(remaining, 0, "los escombros se despejan")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Suite("Cooperativo y reconexión")
+
+T.Test("reintentos según jugadores y dificultad", function()
+    local players = bootServer(4)
+    startMatch(players, 1, "Pesadilla")
+    T.True(waitForPhase("Playing", 60), "partida")
+    local expected = GameConfig.Match.LivesPerChapter + 3 * GameConfig.Match.LivesPerExtraPlayer + GameConfig.Difficulties.Pesadilla.ExtraLives
+    T.Equal(gameState().MaxLives, expected, "reintentos")
+    T.Equal(gameState().Difficulty, "Pesadilla", "dificultad")
+end)
+
+T.Test("se puede entrar o volver con la partida en curso", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(2)
+
+    local joiner = Engine.AddPlayer("Llega", 3001)
+    Engine.Run(2)
+    T.True(joiner.Character ~= nil, "tiene personaje")
+    T.Equal(Engine.Kicked[3001], nil, "no fue expulsado")
+    T.True(Engine.LastSent("ObjectiveUpdate", joiner) ~= nil, "recibe el objetivo")
+
+    local root = joiner.Character:FindFirstChild("HumanoidRootPart")
+    T.True(root.Position.Z > -600, "aparece en el mapa, no en el lobby")
+
+    Engine.RemovePlayer(joiner)
+    Engine.Run(1)
+    local back = Engine.AddPlayer("Llega", 3001)
+    Engine.Run(2)
+    T.True(back.Character ~= nil, "volvió a entrar")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("si se va quien lleva objetos de misión, quedan para el grupo", function()
+    local players = bootServer(2)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    local Inventory = Engine.RequireServer("Inventory.InventoryService")
+    local Interaction = Engine.RequireServer("World.InteractionService")
+    Inventory.AddItem(players[2], "Fuse", 2)
+    local before = #Interaction.ItemPositions("Fuse")
+    Engine.RemovePlayer(players[2])
+    Engine.Run(1)
+    T.Equal(#Interaction.ItemPositions("Fuse"), before + 1, "no se pierden")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("si se va el líder, otro toma el mando", function()
+    local players = bootServer(2)
+    Engine.RemovePlayer(players[1])
+    Engine.Run(1)
+    local lobby = Engine.LastSent("LobbyUpdate")[1]
+    T.Equal(lobby.LeaderUserId, players[2].UserId, "nuevo líder")
+end)
+
+T.Test("si se van todos, el servidor vuelve al lobby y limpia el mapa", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.RemovePlayer(players[1])
+    Engine.Run(2)
+    T.Equal(gameState().Phase, "Lobby", "lobby")
+    T.True(Engine.Workspace:FindFirstChild("NOCTURNA_MAP") == nil, "mapa eliminado")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("un capítulo desbloqueado por un amigo se puede jugar en grupo", function()
+    local players = bootServer(2)
+    local Progression = Engine.RequireServer("Data.ProgressionService")
+    for chapter = 2, 3 do
+        Progression.UnlockChapter(players[2], chapter)
+    end
+
+    fire("LobbyAction", players[1], "SetChapter", 3)
+    Engine.Run(0.3)
+    T.Equal(Engine.LastSent("LobbyUpdate")[1].Chapter, 3, "capítulo elegido")
+    fire("LobbyAction", players[1], "SetChapter", 4)
+    Engine.Run(0.3)
+    T.Equal(Engine.LastSent("LobbyUpdate")[1].Chapter, 3, "no pasa del desbloqueado")
+end)
+
+T.Suite("Controles del cliente")
+
+local function clientWithMatch(options)
+    local players = bootServer(1, options)
+    Engine.StartClient(players[1])
+    Engine.Run(2)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(0.5)
+    return players[1]
+end
+
+T.Test("teclado: Shift corre, C agacha y F enciende la linterna", function()
+    local player = clientWithMatch()
+    local Key = roblox.Enum.KeyCode
+
+    Engine.Input("InputBegan", {KeyCode = Key.LeftShift})
+    Engine.Run(0.2)
+    T.Equal(player:GetAttribute("IsSprinting"), true, "corre")
+
+    Engine.Input("InputEnded", {KeyCode = Key.LeftShift})
+    Engine.Run(0.2)
+    T.Equal(player:GetAttribute("IsSprinting"), false, "suelta")
+
+    Engine.Input("InputBegan", {KeyCode = Key.C})
+    Engine.Run(0.2)
+    T.Equal(player:GetAttribute("IsCrouching"), true, "agachado")
+
+    Engine.Input("InputBegan", {KeyCode = Key.F})
+    Engine.Run(0.3)
+    T.Equal(player:GetAttribute("FlashlightEnabled"), true, "linterna")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("teclado: I abre el inventario, J el diario y P los ajustes", function()
+    local player = clientWithMatch()
+    local Key = roblox.Enum.KeyCode
+    local gui = player:FindFirstChild("PlayerGui")
+
+    local inventory = gui:FindFirstChild("NocturnaInventory"):FindFirstChild("Root"):FindFirstChild("InventoryPanel")
+    T.False(inventory.Visible, "cerrado")
+    Engine.Input("InputBegan", {KeyCode = Key.I})
+    Engine.Run(0.1)
+    T.True(inventory.Visible, "abierto")
+
+    local journal = gui:FindFirstChild("NocturnaJournal"):FindFirstChild("Root"):FindFirstChild("Journal")
+    Engine.Input("InputBegan", {KeyCode = Key.J})
+    Engine.Run(0.1)
+    T.True(journal.Visible, "diario")
+
+    local settings = gui:FindFirstChild("NocturnaSettings"):FindFirstChild("Root"):FindFirstChild("Settings")
+    Engine.Input("InputBegan", {KeyCode = Key.P})
+    Engine.Run(0.1)
+    T.True(settings.Visible, "ajustes")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("táctil: mantener CORRER corre, SIGILO alterna y LUZ enciende", function()
+    local player = clientWithMatch({Touch = true, Viewport = roblox.Vector2.new(812, 375)})
+    local holder = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaTouch"):FindFirstChild("Root"):FindFirstChild("TouchActions")
+    local touch = {UserInputType = roblox.Enum.UserInputType.Touch}
+
+    local buttons = {}
+    for _, child in ipairs(holder:GetChildren()) do
+        if child:IsA("TextButton") then
+            buttons[child.Text] = child
+        end
+    end
+
+    Engine.GuiInput(buttons.CORRER, "InputBegan", touch)
+    Engine.Run(0.2)
+    T.Equal(player:GetAttribute("IsSprinting"), true, "corre mientras mantiene")
+    Engine.GuiInput(buttons.CORRER, "InputEnded", touch)
+    Engine.Run(0.2)
+    T.Equal(player:GetAttribute("IsSprinting"), false, "suelta")
+
+    Engine.GuiInput(buttons.SIGILO, "Activated")
+    Engine.Run(0.2)
+    T.Equal(player:GetAttribute("IsCrouching"), true, "sigilo")
+
+    Engine.GuiInput(buttons.LUZ, "Activated")
+    Engine.Run(0.3)
+    T.Equal(player:GetAttribute("FlashlightEnabled"), true, "linterna")
+    T.True(holder.Visible, "visibles en partida")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("la interfaz sigue el estado: el lobby se oculta y el HUD aparece", function()
+    local player = clientWithMatch()
+    local gui = player:FindFirstChild("PlayerGui")
+    T.False(gui:FindFirstChild("NocturnaLobby"):FindFirstChild("Root"):FindFirstChild("LobbyPanel").Visible, "lobby oculto")
+
+    local objective = gui:FindFirstChild("NocturnaHUD"):FindFirstChild("Root"):FindFirstChild("Objective")
+    T.True(objective.Visible, "objetivo visible")
+
+    local shown = false
+    for _, child in ipairs(objective:GetChildren()) do
+        if child:IsA("TextLabel") and string.find(child.Text, "vestíbulo", 1, true) then
+            shown = true
+        end
+    end
+    T.True(shown, "muestra el objetivo con su texto, no el identificador")
+end)
+
+T.Test("el lector muestra el documento y el diario lo conserva", function()
+    local player = clientWithMatch()
+    local Interaction = Engine.RequireServer("World.InteractionService")
+    local gui = player:FindFirstChild("PlayerGui")
+    local reader = gui:FindFirstChild("NocturnaJournal"):FindFirstChild("Root"):FindFirstChild("Reader")
+
+    local plan = gameState().Plan
+    local entry = plan.Documents[1]
+    Bot.Use(Engine, player, entry.Part.Position)
+    Engine.Run(0.5)
+
+    T.True(reader.Visible, "lector abierto")
+    T.Equal(reader:GetChildren()[2].Text, DocumentConfig[entry.DocumentId].Title, "título del documento")
+    T.True(Interaction ~= nil, "servicio")
+    T.True(Engine.RequireServer("Data.ProgressionService").HasDocument(player, entry.DocumentId), "guardado en el perfil")
+end)
+
+T.Test("el texto tachado del diario usa RichText válido", function()
+    local players = bootServer(1)
+    Engine.StartClient(players[1])
+    Engine.Run(1)
+    local folder = players[1]:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaJournal"):FindFirstChild("Root"):FindFirstChild("Reader")
+    local remote = Engine.Services.ReplicatedStorage:FindFirstChild("NocturnaRemotes"):FindFirstChild("DocumentOpen")
+    remote:FireClient(players[1], "DOC_5B")
+    Engine.Run(0.1)
+
+    local found = false
+    for _, descendant in ipairs(folder:GetDescendants()) do
+        if descendant:IsA("TextLabel") and string.find(descendant.Text, "<s>", 1, true) then
+            found = true
+            T.False(string.find(descendant.Text, "~~", 1, true), "sin marcas crudas")
+        end
+    end
+    T.True(found, "tachado convertido")
+end)
+
 T.Suite("Guardado")
 
 T.Test("el progreso se guarda al salir y se carga al volver", function()

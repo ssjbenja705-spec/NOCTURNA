@@ -138,8 +138,11 @@ function InventoryService.Start()
     Remotes.OnServer("UseItem", 5, useItem)
 
     Players.PlayerAdded:Connect(setupPlayer)
+    -- Se borra después, para que los objetos de misión alcancen a caer al suelo.
     Players.PlayerRemoving:Connect(function(player)
-        inventories[player] = nil
+        task.defer(function()
+            inventories[player] = nil
+        end)
     end)
     for _, player in ipairs(Players:GetPlayers()) do
         setupPlayer(player)

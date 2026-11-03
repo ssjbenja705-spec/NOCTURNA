@@ -502,6 +502,11 @@ function MockMeta.__index(self, key)
         end
     end
 
+    -- Position es un alias de CFrame que Lune no expone por sí sola.
+    if key == "Position" and self:IsA("BasePart") then
+        return self.CFrame.Position
+    end
+
     local child = self:FindFirstChild(key)
     if child then
         return child
@@ -913,7 +918,7 @@ function Engine.Reset(options)
         return setmetatable({Target = target, Goal = goal, Completed = Signal.new()}, TweenStub)
     end)
 
-    Engine.Stores = options.Stores or Engine.Stores or {}
+    Engine.Stores = options.Stores or {}
     rawset(dataStores, "GetDataStore", function(_, name)
         if Engine.Options.DataStoreOffline then
             error("You must publish this place to the web to access DataStore.")
@@ -1134,6 +1139,15 @@ end
 
 function Engine.Clock()
     return clockValue
+end
+
+-- Simula una tecla o un toque tal como los entrega UserInputService.
+function Engine.Input(signalName, input)
+    signalFor(dataOf(Engine.UserInput), signalName):Fire(input, false)
+end
+
+function Engine.GuiInput(button, signalName, input)
+    signalFor(dataOf(button), signalName):Fire(input)
 end
 
 function Engine.Failures()

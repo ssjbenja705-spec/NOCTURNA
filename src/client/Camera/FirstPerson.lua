@@ -93,6 +93,17 @@ local function applyShake(camera)
     )
 end
 
+-- El servidor sólo conoce el giro del cuerpo. Localmente el haz sigue a la cámara,
+-- para poder apuntar también hacia arriba, donde anda El Trepador.
+local function aimFlashlight(camera)
+    local character = player.Character
+    local head = character and character:FindFirstChild("Head")
+    local attachment = head and head:FindFirstChild("NocturnaFlashlightAttachment")
+    if attachment then
+        attachment.WorldCFrame = camera.CFrame
+    end
+end
+
 local function setHidden(hidden, cframe, ejected)
     local camera = workspace.CurrentCamera
     if hidden then
@@ -153,6 +164,7 @@ function FirstPerson.Start()
             local humanoid = currentHumanoid()
             if humanoid and humanoid.Health > 0 then
                 updateBob(deltaTime, humanoid)
+                aimFlashlight(camera)
             end
             updateFieldOfView(deltaTime, camera)
         end

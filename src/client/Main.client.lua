@@ -3,34 +3,49 @@ if not game:IsLoaded() then
     game.Loaded:Wait()
 end
 
-local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Remotes = require(Shared.Modules.RemoteHelper)
+-- Roblox copia PlayerScripts de a poco: este script puede correr antes de que
+-- existan sus módulos hermanos. Se espera cada uno antes de cargar nada.
+local root = script.Parent
 
-local ClientState = require(script.Parent.Core.ClientState)
-ClientState.Connect()
-
-local CONTROLLERS = {
-    require(script.Parent.UI.HUD),
-    require(script.Parent.UI.StoryUI),
-    require(script.Parent.UI.SettingsUI),
-    require(script.Parent.UI.InventoryUI),
-    require(script.Parent.UI.JournalUI),
-    require(script.Parent.UI.LobbyUI),
-    require(script.Parent.UI.StatusUI),
-    require(script.Parent.UI.EndingUI),
-    require(script.Parent.UI.CutsceneUI),
-    require(script.Parent.UI.AdminUI),
-    require(script.Parent.Movement.MovementInput),
-    require(script.Parent.UI.MobileControls),
-    require(script.Parent.Camera.FirstPerson),
-    require(script.Parent.Effects.AudioController),
-    require(script.Parent.Effects.HorrorEffects),
-    require(script.Parent.Effects.MonsterAnimator),
-    require(script.Parent.Effects.QualityController),
+local MODULES = {
+    {"Core", "ClientState"},
+    {"UI", "Theme"},
+    {"UI", "HUD"},
+    {"UI", "StoryUI"},
+    {"UI", "SettingsUI"},
+    {"UI", "InventoryUI"},
+    {"UI", "JournalUI"},
+    {"UI", "LobbyUI"},
+    {"UI", "StatusUI"},
+    {"UI", "EndingUI"},
+    {"UI", "CutsceneUI"},
+    {"UI", "AdminUI"},
+    {"Movement", "MovementInput"},
+    {"UI", "MobileControls"},
+    {"Camera", "FirstPerson"},
+    {"Effects", "AudioController"},
+    {"Effects", "HorrorEffects"},
+    {"Effects", "MonsterAnimator"},
+    {"Effects", "QualityController"},
 }
 
-for _, controller in ipairs(CONTROLLERS) do
-    controller.Start()
+local function waitForModule(folderName, moduleName)
+    return root:WaitForChild(folderName):WaitForChild(moduleName)
+end
+
+for _, path in ipairs(MODULES) do
+    waitForModule(path[1], path[2])
+end
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Remotes = require(Shared:WaitForChild("Modules"):WaitForChild("RemoteHelper"))
+
+local ClientState = require(waitForModule("Core", "ClientState"))
+ClientState.Connect()
+
+for index = 3, #MODULES do
+    local path = MODULES[index]
+    require(waitForModule(path[1], path[2])).Start()
 end
 
 Remotes.FireServer("LobbyAction", "RequestUpdate")

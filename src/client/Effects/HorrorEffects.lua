@@ -190,6 +190,26 @@ local function buildVignette()
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
     }, root)
+
+    -- Desde el casillero sólo se ve lo que entra por las rendijas de la puerta.
+    local slits = {}
+    for _, anchor in ipairs({0, 1}) do
+        table.insert(slits, Theme.New("Frame", {
+            Name = "LockerSlit",
+            AnchorPoint = Vector2.new(0, anchor),
+            Position = UDim2.fromScale(0, anchor),
+            Size = UDim2.fromScale(1, 0.42),
+            BackgroundColor3 = Color3.new(0, 0, 0),
+            BorderSizePixel = 0,
+            Visible = false,
+        }, root))
+    end
+
+    Remotes.OnClient("HideState", function(hidden)
+        for _, slit in ipairs(slits) do
+            slit.Visible = hidden
+        end
+    end)
 end
 
 local function watchHealth(character)

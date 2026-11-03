@@ -31,9 +31,11 @@ function Bot.NearestPrompt(Engine, position)
     return best, bestDistance
 end
 
+-- El bot se teletransporta: el antitrampas lo trataría (con razón) como un tramposo.
 function Bot.MoveTo(Engine, player, position)
     local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if root then
+        Engine.RequireServer("Security.AntiCheat").Grace(player, 3)
         root.CFrame = Engine.Roblox.CFrame.new(position.X, 3, position.Z)
     end
 end

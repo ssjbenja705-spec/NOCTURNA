@@ -123,8 +123,7 @@ function FeatureBuilder.Generator(parent, feature, cframe)
         Vector3.new(1.2, 3, 1.2),
         cframe * CFrame.new(-2, 6, 1),
         Color3.fromRGB(40, 40, 42),
-        Enum.Material.Metal,
-        Enum.PartType.Cylinder
+        Enum.Material.Metal
     )
     local indicator = part(
         holder,

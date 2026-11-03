@@ -72,8 +72,9 @@ function HidingService.Populate(plan, map)
         local locker = {
             Prompt = prompt,
             InsideCFrame = cframe * CFrame.new(0, 3, 0.3),
-            CameraCFrame = cframe * CFrame.new(0, 6, -1.2) * CFrame.Angles(0, math.rad(180), 0),
-            ExitCFrame = cframe * CFrame.new(0, 3, -4.5) * CFrame.Angles(0, math.rad(180), 0),
+            -- La cámara queda a la altura de las rendijas, mirando hacia la sala.
+            CameraCFrame = cframe * CFrame.new(0, 5.8, -2.05),
+            ExitCFrame = cframe * CFrame.new(0, 3, -4.5),
             Occupant = nil,
         }
         table.insert(lockers, locker)
