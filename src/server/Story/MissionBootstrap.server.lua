@@ -26,45 +26,100 @@ local missionUpdate = remotes:FindFirstChild("MissionUpdate") or Instance.new("R
 missionUpdate.Name = "MissionUpdate"
 missionUpdate.Parent = remotes
 
-local function startCampaign(player)
-    for chapterNumber, chapter in ipairs(chapters) do
-        local ids = {}
-        for _, objective in ipairs(chapter.Objectives) do
-            table.insert(ids, objective.Id)
-        end
-        MissionService.StartMission(player, "CHAPTER_" .. chapterNumber, ids)
+local function objectiveIds(chapter)
+    local ids = {}
+    for _, objective in ipairs(chapter.Objectives) do
+        table.insert(ids, objective.Id)
     end
-    local current = math.clamp(tonumber(player:GetAttribute("LastChapter")) or 1, 1, #chapters)
-    local progress = MissionService.GetProgress(player, "CHAPTER_" .. current)
-    if progress then missionUpdate:FireClient(player, progress) end
+    return ids
+end
+
+local function sendProgress(player, chapterNumber)
+    local missionId = "CHAPTER_" .. chapterNumber
+    local data = MissionService.GetProgress(player, missionId)
+    if data then missionUpdate:FireClient(player, data) end
+end
+
+local function startChapter(player, chapterNumber)
+    if not player.Parent or not chapters[chapterNumber] then return end
+    local missionId = "CHAPTER_" .. chapterNumber
+    local existing = MissionService.GetProgress(player, missionId)
+    if not existing then
+        local success, reason = MissionService.StartMission(
+            player,
+            missionId,
+            objectiveIds(chapters[chapterNumber])
+        )
+        if not success then
+            warn("[NOCTURNA] No se pudo iniciar misión:", reason)
+            return
+        end
+    end
+    player:SetAttribute("ActiveMission", missionId)
+    sendProgress(player, chapterNumber)
 end
 
 startMission.Event:Connect(function(player, missionId, objectives)
     if not player or not player:IsA("Player") then return end
     local success, reason = MissionService.StartMission(player, missionId, objectives)
     if not success then warn("[NOCTURNA] No se pudo iniciar misión:", reason) end
-    local data = MissionService.GetProgress(player, missionId)
-    if data then missionUpdate:FireClient(player, data) end
+    local chapterNumber = tonumber(string.match(missionId, "^CHAPTER_(%d+)$"))
+    if chapterNumber then sendProgress(player, chapterNumber) end
 end)
 
 completeObjective.Event:Connect(function(player, missionId, objectiveId)
     if not player or not player:IsA("Player") then return end
+    local chapterNumber = tonumber(string.match(missionId, "^CHAPTER_(%d+)$"))
+    local currentChapter = math.clamp(tonumber(player:GetAttribute("LastChapter")) or 1, 1, #chapters)
+    if not chapterNumber or chapterNumber ~= currentChapter then return end
+    if player:GetAttribute("ActiveMission") ~= missionId then return end
+
     local success, finished = MissionService.CompleteObjective(player, missionId, objectiveId)
     if not success then return end
-    local data = MissionService.GetProgress(player, missionId)
-    if data then missionUpdate:FireClient(player, data) end
+    sendProgress(player, chapterNumber)
+
     if finished then
-        local chapterNumber = tonumber(string.match(missionId, "^CHAPTER_(%d+)$"))
-        if chapterNumber and chapterNumber < #chapters then
-            player:SetAttribute("LastChapter", math.max(player:GetAttribute("LastChapter") or 1, chapterNumber + 1))
+        local nextChapter = chapterNumber + 1
+        if nextChapter <= #chapters then
+            player:SetAttribute("LastChapter", nextChapter)
+            task.delay(2, function()
+                if player.Parent then
+                    startChapter(player, nextChapter)
+                    missionUpdate:FireClient(player, {
+                        missionId = missionId,
+                        completed = #chapters[chapterNumber].Objectives,
+                        total = #chapters[chapterNumber].Objectives,
+                        finished = true,
+                        objectives = {},
+                    })
+                end
+            end)
+            print("[NOCTURNA] Capítulo completado:", player.Name, missionId)
+        else
+            player:SetAttribute("CampaignCompleted", true)
+            print("[NOCTURNA] Campaña completada:", player.Name)
         end
-        print("[NOCTURNA] Capítulo completado:", player.Name, missionId)
     end
 end)
 
-Players.PlayerAdded:Connect(function(player)
-    task.defer(startCampaign, player)
-end)
-for _, player in ipairs(Players:GetPlayers()) do task.defer(startCampaign, player) end
+local function startCampaign(player)
+    if player:GetAttribute("DataLoaded") ~= true then
+        local deadline = os.clock() + 20
+        while player.Parent and player:GetAttribute("DataLoaded") ~= true and os.clock() < deadline do
+            task.wait(0.25)
+        end
+    end
+    if not player.Parent then return end
+    if player:GetAttribute("DataLoaded") ~= true then
+        warn("[NOCTURNA] Progreso no cargado; se inicia capítulo 1 temporalmente:", player.Name)
+    end
+    local current = math.clamp(tonumber(player:GetAttribute("LastChapter")) or 1, 1, #chapters)
+    startChapter(player, current)
+end
 
-print("[NOCTURNA] Misiones de campaña inicializadas.")
+Players.PlayerAdded:Connect(function(player)
+    task.spawn(startCampaign, player)
+end)
+for _, player in ipairs(Players:GetPlayers()) do task.spawn(startCampaign, player) end
+
+print("[NOCTURNA] Campaña individual y progresión por capítulos inicializadas.")
