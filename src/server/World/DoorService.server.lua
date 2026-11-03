@@ -1,9 +1,9 @@
 local CollectionService = game:GetService("CollectionService")
 
 local function configureDoor(door)
-    if not door:IsA("BasePart") then return end
-    if door:GetAttribute("DoorConfigured") then return end
-
+    if not door:IsA("BasePart") or door:GetAttribute("DoorConfigured") then
+        return
+    end
     door:SetAttribute("DoorConfigured", true)
 
     local prompt = door:FindFirstChildOfClass("ProximityPrompt")
@@ -12,32 +12,41 @@ local function configureDoor(door)
         prompt.ActionText = "Abrir"
         prompt.ObjectText = "Puerta"
         prompt.HoldDuration = 0.5
+        prompt.MaxActivationDistance = 10
         prompt.Parent = door
     end
 
     local requiredItem = door:GetAttribute("RequiredItem")
-    local opened = false
+    local opened = door:GetAttribute("Opened") == true
+    prompt.Enabled = not opened
 
     prompt.Triggered:Connect(function(player)
-        if opened then return end
+        if opened or not door.Parent then return end
 
-        if requiredItem then
+        -- Revalidar y consumir en el servidor. No abrir si el objeto no pudo
+        -- descontarse del inventario (por ejemplo, dos jugadores a la vez).
+        if requiredItem ~= nil then
+            if typeof(requiredItem) ~= "string" then return end
             local inventory = _G.NocturnaInventory
             if not inventory or not inventory.HasItem(player, requiredItem) then
                 prompt.ActionText = "Acceso denegado"
-                task.wait(1)
-                prompt.ActionText = "Abrir"
+                task.delay(1, function()
+                    if prompt.Parent and not opened then
+                        prompt.ActionText = "Abrir"
+                    end
+                end)
                 return
             end
-
-            inventory.RemoveItem(player, requiredItem, 1)
+            if not inventory.RemoveItem(player, requiredItem, 1) then
+                return
+            end
         end
 
         opened = true
+        door:SetAttribute("Opened", true)
         prompt.Enabled = false
         door.CanCollide = false
-        door.Transparency = 0.7
-        door:SetAttribute("Opened", true)
+        door.Transparency = math.max(door.Transparency, 0.7)
     end)
 end
 
