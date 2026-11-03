@@ -15,10 +15,18 @@ local function getRemote(name)
         remote.Name = name
         remote.Parent = folder
     end
+    if not remote:IsA("RemoteEvent") then
+        error("[NOCTURNA] " .. name .. " debe ser RemoteEvent, no " .. remote.ClassName)
+    end
     return remote
 end
 
-local noiseRemote = getRemote("PlayerNoise")
+-- PlayerNoise es el nombre canonico. NoiseEvent se conserva como alias
+-- porque algunas versiones del cliente envian ese nombre.
+local noiseRemotes = {
+    getRemote("PlayerNoise"),
+    getRemote("NoiseEvent"),
+}
 local lookRemote = getRemote("PlayerLook")
 getRemote("MonsterEffect")
 
@@ -28,14 +36,17 @@ _G.NocturnaRecentNoise = {}
 
 local function pruneNoises(now)
     for index = #_G.NocturnaRecentNoise, 1, -1 do
-        if now - _G.NocturnaRecentNoise[index].Time > 5 then
+        local noise = _G.NocturnaRecentNoise[index]
+        if now - noise.Time > 5 then
             table.remove(_G.NocturnaRecentNoise, index)
         end
     end
 end
 
-noiseRemote.OnServerEvent:Connect(function(player, position, intensity)
-    if typeof(position) ~= "Vector3" or typeof(intensity) ~= "number" then return end
+local function handleNoise(player, position, intensity)
+    if typeof(position) ~= "Vector3" or typeof(intensity) ~= "number" then
+        return
+    end
 
     local character = player.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -54,7 +65,11 @@ noiseRemote.OnServerEvent:Connect(function(player, position, intensity)
         Time = now,
         Player = player,
     })
-end)
+end
+
+for _, remote in ipairs(noiseRemotes) do
+    remote.OnServerEvent:Connect(handleNoise)
+end
 
 lookRemote.OnServerEvent:Connect(function(player, direction)
     if typeof(direction) ~= "Vector3" then return end
@@ -76,4 +91,4 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
-print("[NOCTURNA] Señales de monstruos preparadas.")
+print("[NOCTURNA] Señales de monstruos preparadas (PlayerNoise/NoiseEvent).")
