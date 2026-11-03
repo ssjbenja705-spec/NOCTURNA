@@ -12,15 +12,24 @@
       "$className": "ServerScriptService",
       "Server": {
         "$path": "src/server"
-      },
-      "Tests": {
-        "$path": "tests/Server"
       }
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {
         "$path": "src/client"
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Technology": "ShadowMap"
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "StreamingEnabled": false
       }
     }
   }

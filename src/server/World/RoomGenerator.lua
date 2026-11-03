@@ -1,3 +1,12 @@
+-- Convierte un plan de capítulo en geometría. Todas las piezas son anclas simples
+-- para mantener el mapa liviano en celulares.
+local CollectionService = game:GetService("CollectionService")
+
+local Shared = game:GetService("ReplicatedStorage").Shared
+local GameConfig = require(Shared.Config.GameConfig)
+
+local MAP = GameConfig.Map
+
 local RoomGenerator = {}
 
 local function createPart(parent, name, size, position, color, material)
@@ -10,83 +19,26 @@ local function createPart(parent, name, size, position, color, material)
     part.Material = material or Enum.Material.Concrete
     part.TopSurface = Enum.SurfaceType.Smooth
     part.BottomSurface = Enum.SurfaceType.Smooth
+    part.CanTouch = false
     part.Parent = parent
     return part
 end
 
-local function cellKey(x, z)
-    return tostring(x) .. "_" .. tostring(z)
-end
+RoomGenerator.CreatePart = createPart
 
-local function buildMaze(width, depth, seed)
-    local random = Random.new(seed)
-    local cells = {}
-
-    for x = 1, width do
-        for z = 1, depth do
-            cells[cellKey(x, z)] = {
-                x = x,
-                z = z,
-                visited = false,
-                openings = {
-                    North = false,
-                    South = false,
-                    East = false,
-                    West = false,
-                },
-            }
-        end
-    end
-
-    local directions = {
-        {dx = 0, dz = -1, from = "North", to = "South"},
-        {dx = 0, dz = 1, from = "South", to = "North"},
-        {dx = 1, dz = 0, from = "East", to = "West"},
-        {dx = -1, dz = 0, from = "West", to = "East"},
-    }
-
-    local stack = {}
-    local start = cells[cellKey(1, 1)]
-    start.visited = true
-    table.insert(stack, start)
-
-    while #stack > 0 do
-        local current = stack[#stack]
-        local available = {}
-
-        for _, direction in ipairs(directions) do
-            local neighbor = cells[cellKey(
-                current.x + direction.dx,
-                current.z + direction.dz
-            )]
-
-            if neighbor and not neighbor.visited then
-                table.insert(available, {cell = neighbor, direction = direction})
-            end
-        end
-
-        if #available == 0 then
-            table.remove(stack)
-        else
-            local choice = available[random:NextInteger(1, #available)]
-            current.openings[choice.direction.from] = true
-            choice.cell.openings[choice.direction.to] = true
-            choice.cell.visited = true
-            table.insert(stack, choice.cell)
-        end
-    end
-
-    return cells
-end
-
-local function buildWall(parent, center, width, height, thickness, opening, horizontal, color, openingWidth)
+local function buildWall(parent, center, width, opening, horizontal, theme)
+    local height = MAP.WallHeight
+    local thickness = MAP.WallThickness
+    local openingWidth = MAP.CorridorWidth
+    local color = theme.Wall
+    local material = Enum.Material[theme.WallMaterial]
     local wallY = center.Y + height / 2
 
     if not opening then
         local wallSize = horizontal
             and Vector3.new(width, height, thickness)
             or Vector3.new(thickness, height, width)
-        createPart(parent, "ConcreteWall", wallSize, Vector3.new(center.X, wallY, center.Z), color)
+        createPart(parent, "Wall", wallSize, Vector3.new(center.X, wallY, center.Z), color, material)
         return
     end
 
@@ -99,164 +51,165 @@ local function buildWall(parent, center, width, height, thickness, opening, hori
         local segmentPosition = horizontal
             and Vector3.new(center.X + offset, wallY, center.Z)
             or Vector3.new(center.X, wallY, center.Z + offset)
-        createPart(parent, "ConcreteWall", segmentSize, segmentPosition, color)
+        createPart(parent, "Wall", segmentSize, segmentPosition, color, material)
     end
 
+    local headerHeight = height - MAP.OpeningHeight
     local headerSize = horizontal
-        and Vector3.new(openingWidth, 4, thickness)
-        or Vector3.new(thickness, 4, openingWidth)
+        and Vector3.new(openingWidth, headerHeight, thickness)
+        or Vector3.new(thickness, headerHeight, openingWidth)
     createPart(
         parent,
         "OpeningHeader",
         headerSize,
-        Vector3.new(center.X, center.Y + height - 2, center.Z),
-        color
+        Vector3.new(center.X, center.Y + height - headerHeight / 2, center.Z),
+        color,
+        material
     )
 end
 
-local function addLight(parent, position, config)
+-- Las celdas "Corridor" se vuelven pasillos en cruz con cuatro bloques macizos.
+local function buildCorridorBlocks(parent, center, theme)
+    local block = (MAP.CellSize - MAP.CorridorWidth) / 2 - MAP.WallThickness / 2
+    local offset = MAP.CorridorWidth / 2 + block / 2
+    local material = Enum.Material[theme.WallMaterial]
+
+    for _, sideX in ipairs({-1, 1}) do
+        for _, sideZ in ipairs({-1, 1}) do
+            createPart(
+                parent,
+                "CorridorBlock",
+                Vector3.new(block, MAP.WallHeight, block),
+                center + Vector3.new(sideX * offset, MAP.WallHeight / 2, sideZ * offset),
+                theme.Wall,
+                material
+            )
+        end
+    end
+end
+
+local function addLight(parent, position, cellIndex, theme)
     local fixture = createPart(
         parent,
         "CeilingLight",
-        Vector3.new(7, 0.5, 3),
+        Vector3.new(6, 0.5, 2.5),
         position,
         Color3.fromRGB(105, 125, 135),
-        Enum.Material.Metal
+        Enum.Material.SmoothPlastic
     )
+    fixture.CanCollide = false
+    fixture.CastShadow = false
+    fixture:SetAttribute("Cell", cellIndex)
 
     local light = Instance.new("PointLight")
-    light.Color = config.Colors.Light
-    light.Brightness = 0.7
-    light.Range = 28
-    light.Shadows = true
+    light.Color = theme.Light
+    light.Brightness = 0.9
+    light.Range = 26
+    light.Shadows = false
     light.Parent = fixture
+
+    CollectionService:AddTag(fixture, "NocturnaLight")
+    return fixture
 end
 
-function RoomGenerator.Generate(config)
-    assert(typeof(config) == "table", "Map configuration must be a table")
-    assert(config.Width >= 1 and config.Width % 1 == 0, "Map width must be a positive integer")
-    assert(config.Depth >= 1 and config.Depth % 1 == 0, "Map depth must be a positive integer")
-    assert(config.CorridorWidth > 0 and config.CorridorWidth < config.CellSize, "Corridor width must fit inside a cell")
+-- Posición del rincón de una celda. Los rincones nunca tapan una abertura.
+function RoomGenerator.SlotCFrame(layout, cellIndex, slot)
+    local cell = layout.Cells[cellIndex]
+    local size = MAP.CellSize
+    local inset = size / 2 - MAP.SlotInset
+    local center = Vector3.new((cell.X - 1) * size, 0, (cell.Z - 1) * size)
+    local sideX = string.find(slot, "E") and 1 or -1
+    local sideZ = string.find(slot, "S") and 1 or -1
+    local position = center + Vector3.new(sideX * inset, 0, sideZ * inset)
+    return CFrame.lookAt(position, Vector3.new(center.X, 0, center.Z))
+end
+
+-- Centro y orientación de la abertura entre dos celdas vecinas.
+function RoomGenerator.EdgeInfo(layout, a, b)
+    local cellA, cellB = layout.Cells[a], layout.Cells[b]
+    local size = MAP.CellSize
+    local midpoint = Vector3.new(
+        ((cellA.X + cellB.X) / 2 - 1) * size,
+        0,
+        ((cellA.Z + cellB.Z) / 2 - 1) * size
+    )
+    return midpoint, cellA.Z ~= cellB.Z
+end
+
+function RoomGenerator.Build(plan, theme)
+    local layout = plan.Layout
 
     local oldMap = workspace:FindFirstChild("NOCTURNA_MAP")
-    if oldMap then oldMap:Destroy() end
+    if oldMap then
+        oldMap:Destroy()
+    end
 
     local map = Instance.new("Folder")
     map.Name = "NOCTURNA_MAP"
-    map.Parent = workspace
 
-    local rooms = Instance.new("Folder")
-    rooms.Name = "Sectors"
-    rooms.Parent = map
+    local sectors = Instance.new("Folder")
+    sectors.Name = "Sectors"
+    sectors.Parent = map
 
-    local markers = Instance.new("Folder")
-    markers.Name = "MonsterSpawns"
-    markers.Parent = map
+    local size = MAP.CellSize
+    local height = MAP.WallHeight
+    local floorMaterial = Enum.Material[theme.FloorMaterial]
 
-    local width = config.Width
-    local depth = config.Depth
-    local size = config.CellSize
-    local wallHeight = config.WallHeight
-    local thickness = config.WallThickness
-    local cells = buildMaze(width, depth, config.Seed or 0)
+    for _, cell in ipairs(layout.Cells) do
+        local centerX = (cell.X - 1) * size
+        local centerZ = (cell.Z - 1) * size
+        local center = Vector3.new(centerX, 0, centerZ)
 
-    for x = 1, width do
-        for z = 1, depth do
-            local cell = cells[cellKey(x, z)]
-            local centerX = (x - 1) * size
-            local centerZ = (z - 1) * size
-            local sector = Instance.new("Model")
-            sector.Name = string.format("Sector_%02d_%02d", x, z)
-            sector.Parent = rooms
-            sector:SetAttribute("GridX", x)
-            sector:SetAttribute("GridZ", z)
+        local sector = Instance.new("Model")
+        sector.Name = string.format("Sector_%02d_%02d", cell.X, cell.Z)
+        sector:SetAttribute("GridX", cell.X)
+        sector:SetAttribute("GridZ", cell.Z)
+        sector:SetAttribute("Role", cell.Role)
 
-            createPart(
-                sector,
-                "Floor",
-                Vector3.new(size, config.FloorThickness, size),
-                Vector3.new(centerX, -config.FloorThickness / 2, centerZ),
-                config.Colors.Floor
-            )
-            createPart(
-                sector,
-                "Ceiling",
-                Vector3.new(size, 2, size),
-                Vector3.new(centerX, wallHeight + 1, centerZ),
-                config.Colors.Ceiling
-            )
+        createPart(
+            sector,
+            "Floor",
+            Vector3.new(size, MAP.FloorThickness, size),
+            Vector3.new(centerX, -MAP.FloorThickness / 2, centerZ),
+            theme.Floor,
+            floorMaterial
+        )
+        createPart(
+            sector,
+            "Ceiling",
+            Vector3.new(size, 2, size),
+            Vector3.new(centerX, height + 1, centerZ),
+            theme.Ceiling
+        )
 
-            local northCenter = Vector3.new(centerX, 0, centerZ - size / 2)
-            local westCenter = Vector3.new(centerX - size / 2, 0, centerZ)
+        buildWall(sector, Vector3.new(centerX, 0, centerZ - size / 2), size, cell.Open.N, true, theme)
+        buildWall(sector, Vector3.new(centerX - size / 2, 0, centerZ), size, cell.Open.W, false, theme)
 
-            buildWall(sector, northCenter, size, wallHeight, thickness, cell.openings.North, true, config.Colors.Wall, config.CorridorWidth)
-            buildWall(sector, westCenter, size, wallHeight, thickness, cell.openings.West, false, config.Colors.Wall, config.CorridorWidth)
-
-            if z == depth then
-                buildWall(
-                    sector,
-                    Vector3.new(centerX, 0, centerZ + size / 2),
-                    size,
-                    wallHeight,
-                    thickness,
-                    false,
-                    true,
-                    config.Colors.Wall,
-                    config.CorridorWidth
-                )
-            end
-            if x == width then
-                buildWall(
-                    sector,
-                    Vector3.new(centerX + size / 2, 0, centerZ),
-                    size,
-                    wallHeight,
-                    thickness,
-                    false,
-                    false,
-                    config.Colors.Wall,
-                    config.CorridorWidth
-                )
-            end
-
-            addLight(sector, Vector3.new(centerX, wallHeight - 1, centerZ), config)
+        if cell.Z == layout.Depth then
+            buildWall(sector, Vector3.new(centerX, 0, centerZ + size / 2), size, false, true, theme)
         end
+        if cell.X == layout.Width then
+            buildWall(sector, Vector3.new(centerX + size / 2, 0, centerZ), size, false, false, theme)
+        end
+
+        if cell.Role == "Corridor" then
+            buildCorridorBlocks(sector, center, theme)
+        end
+
+        addLight(sector, Vector3.new(centerX, height - 0.3, centerZ), cell.Index, theme)
+        sector.Parent = sectors
     end
 
-    local spawn = Instance.new("SpawnLocation")
-    spawn.Name = "PlayerSpawn"
-    spawn.Size = Vector3.new(8, 1, 8)
-    spawn.Position = Vector3.new(0, 1, 0)
-    spawn.Anchored = true
-    spawn.Neutral = true
-    spawn.Material = Enum.Material.Metal
-    spawn.Color = Color3.fromRGB(45, 55, 60)
-    spawn.Parent = map
-
-    local monsterPositions = {
-        ElOyente = Vector3.new(size * 2, 2, size * 2),
-        ElImitador = Vector3.new(size * 4, 2, size),
-        ElQuieto = Vector3.new(size * 3, 2, size * 4),
-        ElTrepador = Vector3.new(size, 2, size * 4),
-        ElColoso = Vector3.new(size * 4, 2, size * 4),
-    }
-
-    for monsterName, position in pairs(monsterPositions) do
-        local marker = Instance.new("Part")
-        marker.Name = monsterName
-        marker.Size = Vector3.new(3, 1, 3)
-        marker.Position = position
-        marker.Anchored = true
-        marker.CanCollide = false
-        marker.CanTouch = false
-        marker.Transparency = 1
-        marker:SetAttribute("MonsterType", monsterName)
-        marker.Parent = markers
-    end
-
+    map:SetAttribute("SectorCount", #layout.Cells)
+    map.Parent = workspace
     map:SetAttribute("Generated", true)
-    map:SetAttribute("SectorCount", width * depth)
     return map
+end
+
+function RoomGenerator.StartCFrame(layout, index)
+    local cell = layout.Cells[layout.Start]
+    local offsetX = ((index or 1) - 2.5) * 3
+    return CFrame.new((cell.X - 1) * MAP.CellSize + offsetX, 3.5, (cell.Z - 1) * MAP.CellSize)
 end
 
 return RoomGenerator
