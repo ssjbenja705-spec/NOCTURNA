@@ -1117,6 +1117,59 @@ T.Test("criaturas: usan las mallas de Blender importadas y, si faltan, piezas si
     T.True((head.Position - (turned.PrimaryPart.CFrame * joint.C0).Position).Magnitude < 1e-3, "la cabeza queda en su lugar")
 end)
 
+T.Test("criaturas realistas: piezas cortadas con sus medidas, sin ojos de neón", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local CreatureMeshes = Engine.RequireServer("Monsters.CreatureMeshes")
+
+    -- Lo que escribe prepare_ai_models.py para un modelo cortado.
+    local shift = Vector3.new(0.1, -0.2, 0.3)
+    local fits = {}
+    for _, key in ipairs({"Body1", "Head1", "Leg1", "Leg2", "Leg3", "Leg4", "Leg5", "Leg6"}) do
+        fits[key] = {Size = Vector3.new(1, 2, 3), Shift = shift}
+    end
+    CreatureMeshes.ElTrepador = fits
+
+    local folder = Engine.New("Folder", "NocturnaModels")
+    folder.Parent = Engine.Services.ServerStorage
+    local set = Engine.New("Model", "ElTrepador")
+    set.Parent = folder
+    for key in pairs(fits) do
+        local mesh = Engine.New("MeshPart", key)
+        mesh:SetAttribute("Source", key)
+        mesh.Parent = set
+    end
+    Engine.New("SurfaceAppearance", "Skin").Parent = set
+
+    local monster = Factory.Build("ElTrepador", Engine.Workspace, 2)
+    local root = monster.PrimaryPart
+    T.True(monster:FindFirstChild("Eye") == nil, "sin ojos de neón")
+
+    local legs = {}
+    for _, piece in ipairs(monster:GetChildren()) do
+        if piece ~= root then
+            local joint = piece:FindFirstChild(piece.Name .. "Joint")
+            T.Equal(piece.ClassName, "MeshPart", piece.Name .. " usa la pieza cortada")
+            T.Equal(piece.Size, Vector3.new(1, 2, 3), piece.Name .. " conserva su tamaño real")
+            local expected = (root.CFrame * joint.C0 * roblox.CFrame.new(shift)).Position
+            T.True((piece.Position - expected).Magnitude < 1e-3, piece.Name .. " corre su centro como en Blender")
+            T.True(piece:FindFirstChildWhichIsA("SurfaceAppearance") ~= nil, piece.Name .. " lleva la textura de la criatura")
+            if piece.Name == "Leg" then
+                table.insert(legs, piece:GetAttribute("Source"))
+            end
+        end
+    end
+    T.Equal(table.concat(legs, ","), "Leg1,Leg2,Leg3,Leg4,Leg5,Leg6", "cada pata usa su propio corte, en orden")
+
+    -- Si falta el modelo cortado, las medidas se ignoran y vuelve a la Part simple.
+    set:Destroy()
+    local plain = Factory.Build("ElTrepador", Engine.Workspace, 2)
+    T.Equal(plain:FindFirstChild("Body").ClassName, "Part", "sin modelo importado usa la Part")
+    T.Equal(plain:FindFirstChild("Body").Size, Vector3.new(3, 1.4, 4), "con el tamaño de siempre")
+    T.True(plain:FindFirstChild("Eye") ~= nil, "y con sus ojos")
+    CreatureMeshes.ElTrepador = nil
+end)
+
 T.Test("linterna: se gasta en el servidor, se apaga sola y se recarga con una batería", function()
     local players = bootServer(1)
     Engine.Run(1)

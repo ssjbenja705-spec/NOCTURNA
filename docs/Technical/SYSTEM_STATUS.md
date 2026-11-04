@@ -13,6 +13,7 @@ Leyenda de verificación:
 | Objetivos y capítulos | `Logic/ObjectiveTracker`, `Story/StoryService`, `Config/ChapterConfig` | Simulado: campaña completa jugada por bots |
 | Cinco criaturas | `AI/MonsterController`, `AI/Behaviors/*`, `Monsters/*` | Simulado (comportamientos) + Studio (aparecen, se mueven, extremidades unidas) |
 | Modelos 3D de las criaturas | `assets/blender/build_creatures.py`, `assets/models`, `Monsters/MonsterFactory` | Generados y renderizados en Blender 4.5. Simulado (usa las mallas importadas, respeta tamaños y uniones, vuelve a Parts si faltan). Pendiente: importarlos en Studio y comprobar la orientación |
+| Criaturas realistas con IA | `assets/models/ai`, `assets/blender/prepare_ai_models.py`, `Monsters/CreatureMeshes` | Preparación probada en Blender con modelos de prueba (GLB texturizado: reduce, escala, corta y rearma con error menor al 3%). Simulado (piezas cortadas con sus medidas, textura compartida, sin ojos de neón). Pendiente: generar los modelos en Meshy e importarlos en Studio |
 | Navegación | `Logic/MazeNav` | Simulado + Studio |
 | Inventario, objetos, llaves, documentos, baterías | `Logic/InventoryModel`, `Inventory/InventoryService`, `World/InteractionService` | Simulado |
 | Linterna con batería | `Data/FlashlightService`, `client/Camera/FirstPerson` | Simulado (servidor). Pendiente: el haz siguiendo la cámara en Studio |

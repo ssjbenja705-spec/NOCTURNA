@@ -1,25 +1,64 @@
 -- Construye las criaturas. La raíz va anclada y las extremidades cuelgan de
 -- Motor6D que el cliente anima.
 --
--- Cada pieza usa la malla de Blender importada en ServerStorage.NocturnaModels
--- (ver assets/models/README.md) si existe; si no, una Part simple del mismo tamaño.
+-- Cada pieza usa, en este orden, lo que encuentre en ServerStorage.NocturnaModels/<Criatura>:
+--   1. La pieza cortada del modelo realista (Arm1, Arm2...), con su tamaño y
+--      desplazamiento reales de CreatureMeshes (ver assets/models/ai/README.md).
+--   2. La malla de Blender con el nombre de la pieza (Arm), estirada a su caja
+--      (ver assets/models/README.md).
+--   3. Una Part simple del mismo tamaño.
 -- Así el juego funciona igual con o sin los modelos importados.
 local CollectionService = game:GetService("CollectionService")
 local ServerStorage = game:GetService("ServerStorage")
+
+local CreatureMeshes = require(script.Parent.CreatureMeshes)
 
 local MODELS_FOLDER = "NocturnaModels"
 
 local MonsterFactory = {}
 
-local function meshTemplate(model, name)
+local function modelSet(model)
+    local kind = model:GetAttribute("ModelSet") or ""
     local folder = ServerStorage:FindFirstChild(MODELS_FOLDER)
-    local set = folder and folder:FindFirstChild(model:GetAttribute("ModelSet") or "")
-    local template = set and set:FindFirstChild(name, true)
-    if template and template:IsA("MeshPart") then
-        -- TurnAround corrige un importador que deje las mallas mirando hacia atrás.
-        return template, folder:GetAttribute("TurnAround") == true
+    return folder, folder and folder:FindFirstChild(kind), CreatureMeshes[kind]
+end
+
+local function findMesh(set, name)
+    local found = set:FindFirstChild(name, true)
+    return found and found:IsA("MeshPart") and found or nil
+end
+
+-- Con el modelo realista importado, la criatura usa su propia cara y no los ojos de neón.
+local function usesCuts(model)
+    local _, set, cuts = modelSet(model)
+    if not (set and cuts) then
+        return false
     end
-    return nil, false
+    for key in pairs(cuts) do
+        if findMesh(set, key) then
+            return true
+        end
+    end
+    return false
+end
+
+local function meshTemplate(model, name, index)
+    local folder, set, cuts = modelSet(model)
+    if not set then
+        return nil
+    end
+    -- TurnAround corrige un importador que deje las mallas mirando hacia atrás.
+    local turnAround = folder:GetAttribute("TurnAround") == true
+    local fit = cuts and cuts[name .. index]
+    local cut = fit and findMesh(set, name .. index)
+    if cut then
+        return cut, fit, turnAround, set
+    end
+    local template = findMesh(set, name)
+    if template then
+        return template, nil, turnAround, set
+    end
+    return nil
 end
 
 -- Una malla con textura propia conserva su aspecto; si no, toma color y material.
@@ -27,10 +66,20 @@ local function hasOwnLook(part)
     return part.TextureID ~= "" or part:FindFirstChildWhichIsA("SurfaceAppearance") ~= nil
 end
 
+local function nextIndex(model, name)
+    local count = 0
+    for _, child in ipairs(model:GetChildren()) do
+        if child.Name == name then
+            count += 1
+        end
+    end
+    return count + 1
+end
+
 local function newPart(model, name)
-    local template, turnAround = meshTemplate(model, name)
+    local template, fit, turnAround, set = meshTemplate(model, name, nextIndex(model, name))
     if not template then
-        return Instance.new("Part"), false, false
+        return Instance.new("Part"), false, false, nil
     end
 
     local part = template:Clone()
@@ -39,8 +88,13 @@ local function newPart(model, name)
             child:Destroy()
         end
     end
+    -- Una sola SurfaceAppearance en la carpeta de la criatura viste todas sus piezas.
+    local shared = set:FindFirstChildWhichIsA("SurfaceAppearance")
+    if shared and not part:FindFirstChildWhichIsA("SurfaceAppearance") then
+        shared:Clone().Parent = part
+    end
     part.Anchored = false
-    return part, hasOwnLook(part), turnAround
+    return part, hasOwnLook(part), turnAround, fit
 end
 
 local function newRoot(parent, name, height)
@@ -64,11 +118,13 @@ local function newRoot(parent, name, height)
 end
 
 local function limb(model, root, name, size, offset, color, material, swing)
-    local part, ownLook, turnAround = newPart(model, name)
-    local turn = turnAround and CFrame.Angles(0, math.pi, 0) or CFrame.identity
+    local part, ownLook, turnAround, fit = newPart(model, name)
+    -- La pieza cortada conserva sus medidas: su centro se corre respecto de la caja.
+    local place = (fit and CFrame.new(fit.Shift) or CFrame.identity)
+        * (turnAround and CFrame.Angles(0, math.pi, 0) or CFrame.identity)
     part.Name = name
-    part.Size = size
-    part.CFrame = root.CFrame * offset * turn
+    part.Size = fit and fit.Size or size
+    part.CFrame = root.CFrame * offset * place
     if not ownLook then
         part.Color = color
         part.Material = material or Enum.Material.SmoothPlastic
@@ -85,7 +141,7 @@ local function limb(model, root, name, size, offset, color, material, swing)
     joint.Part0 = root
     joint.Part1 = part
     joint.C0 = offset
-    joint.C1 = turn:Inverse()
+    joint.C1 = place:Inverse()
     joint.Parent = part
 
     if swing then
@@ -98,6 +154,9 @@ local function limb(model, root, name, size, offset, color, material, swing)
 end
 
 local function eye(model, root, offset, color)
+    if usesCuts(model) then
+        return nil
+    end
     return limb(model, root, "Eye", Vector3.new(0.3, 0.2, 0.15), offset, color, Enum.Material.Neon)
 end
 

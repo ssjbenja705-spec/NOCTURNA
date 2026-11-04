@@ -1,5 +1,8 @@
 # Modelos de las criaturas
 
+> Para criaturas realistas generadas con IA (Meshy), ver [`ai/README.md`](ai/README.md).
+> Esos modelos tienen prioridad sobre los de esta página.
+
 ![Las cinco criaturas junto a una persona de 5 studs](previews/Lineup.png)
 
 Modelados en Blender 4.5 LTS con `assets/blender/build_creatures.py`. Cada

@@ -667,4 +667,6 @@ def main():
     print("[NOCTURNA] Listo:", OUT)
 
 
-main()
+# prepare_ai_models.py importa este archivo para reusar CREATURES sin ejecutarlo.
+if __name__ == "__main__":
+    main()
