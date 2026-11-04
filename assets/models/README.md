@@ -13,10 +13,10 @@ siguen iguales.
 
 | Archivo | Piezas | Triángulos |
 |---|---|---|
-| `fbx/ElOyente.fbx` | Torso, Head, Mouth, Ear, Arm, Leg | 11.904 |
+| `fbx/ElOyente.fbx` | Torso, Head, Arm, Leg | 9.672 |
 | `fbx/ElImitador.fbx` | Torso, Head, Jaw, Arm, Leg | 8.168 |
 | `fbx/ElQuieto.fbx` | Torso, Head, Arm, Leg | 3.360 |
-| `fbx/ElTrepador.fbx` | Body, Head, Leg | 4.640 |
+| `fbx/ElTrepador.fbx` | Torso, Head, Arm, Leg | 7.655 |
 | `fbx/ElColoso.fbx` | Torso, Plate, Head, Arm, Leg | 4.984 |
 
 Los ojos siguen siendo Parts de neón. El color y el material (Slate, Fabric,

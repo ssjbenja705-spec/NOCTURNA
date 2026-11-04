@@ -100,7 +100,8 @@ local function runMonsterChecks()
             for _, part in ipairs(entry.Model:GetDescendants()) do
                 if part:IsA("Motor6D") then
                     limbs += 1
-                    local gap = (part.Part1.Position - (part.Part0.CFrame * part.C0).Position).Magnitude
+                    local rest = part.Part0.CFrame * part.C0 * part.Transform * part.C1:Inverse()
+                    local gap = (part.Part1.Position - rest.Position).Magnitude
                     if gap > 0.1 then
                         check(kind .. " extremidad unida", false, part.Name .. " separada " .. gap)
                     end

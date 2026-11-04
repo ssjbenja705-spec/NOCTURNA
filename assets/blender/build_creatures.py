@@ -98,23 +98,6 @@ def oyente_head():
     return s
 
 
-def oyente_mouth():
-    s = Skel()
-    s.chain([((-0.45, 0.08, 0), 0.18), ((0, -0.05, 0), 0.24), ((0.45, 0.08, 0), 0.18)])
-    return s
-
-
-def oyente_ear():
-    s = Skel()
-    # Abanico de membrana con nervaduras, como la oreja de un murciélago.
-    base = s.add((0, -0.7, 0.1), 0.2)
-    membrane = s.add((0, 0.0, 0.0), 0.62, base)
-    s.add((0, 0.45, 0.15), 0.55, membrane)
-    for y, z in ((0.95, 0.6), (0.9, -0.1), (0.5, -0.65), (-0.2, -0.75)):
-        s.chain([((0, y * 0.75, z * 0.75), 0.16), ((0, y, z), 0.07)], membrane)
-    return s
-
-
 def oyente_arm():
     s = Skel()
     wrist = s.chain([
@@ -221,30 +204,47 @@ def quieto_leg():
     return s
 
 
-def trepador_body():
+def segmented(points, thick, thin):
+    """Cadena con anillos alternados, como un exoesqueleto."""
+    result = []
+    for (a, b) in zip(points, points[1:]):
+        for t in (0.0, 0.5):
+            pos = tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
+            result.append((pos, thick if t == 0 else thin))
+    result.append((points[-1], thick))
+    return result
+
+
+def trepador_torso():
     s = Skel()
-    back = s.chain([((0, 0, 1.6), 0.55), ((0, 0.1, 1.0), 0.9)])
-    mid = s.chain([((0, 0, 0.2), 0.75)], back)
-    s.chain([((0, 0, -0.6), 0.65), ((0, 0, -1.6), 0.45)], mid)
-    s.add((0, 0.85, 1.1), 0.08, back)
-    s.add((0, 0.7, 0.3), 0.08, mid)
+    top = s.chain(segmented([(0, -1.2, 0), (0, -0.6, 0), (0, 0, 0), (0, 0.6, 0), (0, 1.2, 0)], 0.42, 0.3))
+    for side in (-1, 1):
+        s.add((side * 0.5, 1.0, 0), 0.25, top)
     return s
 
 
 def trepador_head():
     s = Skel()
-    front = s.chain([((0, 0, 0.6), 0.45), ((0, 0.05, -0.1), 0.5), ((0, -0.1, -0.6), 0.3)])
+    face = s.chain([((0, 0.1, 0.6), 0.35), ((0, 0.15, 0), 0.42), ((0, 0, -0.5), 0.33)])
+    s.add((0, -0.25, -0.75), 0.18, face)
     for side in (-1, 1):
-        s.chain([((side * 0.35, -0.25, -0.7), 0.1), ((side * 0.25, -0.35, -0.85), 0.05)], front)
+        s.add((side * 0.2, -0.35, -0.7), 0.06, face)
+    return s
+
+
+def trepador_arm():
+    s = Skel()
+    wrist = s.chain(segmented([(0, 3.0, 0), (0, 1.6, 0), (0, 0.2, 0), (0, -1.2, 0), (0, -2.4, 0)], 0.22, 0.16))
+    for x in (-0.3, -0.1, 0.1, 0.3):
+        s.chain([((x * 0.6, -2.7, -0.08), 0.06), ((x, -3.1, -0.2), 0.035)], wrist)
     return s
 
 
 def trepador_leg():
     s = Skel()
-    s.chain([
-        ((-2.2, -0.15, 0), 0.07), ((-1.1, 0.1, 0), 0.12), ((0, 0.18, 0), 0.16),
-        ((1.1, 0.1, 0), 0.12), ((2.2, -0.15, 0), 0.07),
-    ])
+    ankle = s.chain(segmented([(0, 1.8, 0), (0, 0.2, -0.3), (0, -1.4, 0.25)], 0.26, 0.18))
+    for x in (-0.2, 0, 0.2):
+        s.add((x, -1.85, -0.45), 0.05, ankle)
     return s
 
 
@@ -305,11 +305,9 @@ def oyente():
     parts = [
         ("Torso", (1.6, 4.6, 1), (0, 0.6, 0), (0.25, 0, 0), oyente_torso, skin, SLATE, 0.06),
         ("Head", (1.3, 2, 1.4), (0, 3.4, -0.9), (0, 0, 0), oyente_head, skin, SLATE, 0.05),
-        ("Mouth", (0.9, 0.5, 0.2), (0, 3, -1.6), (0, 0, 0), oyente_mouth, dark, PLASTIC, 0.02),
     ]
     for side in (-1, 1):
         parts += [
-            ("Ear", (0.3, 2, 1.6), (side * 0.9, 3.8, -0.8), (0, 0, side * 0.3), oyente_ear, skin, SLATE, 0.03),
             ("Arm", (0.5, 5.4, 0.5), (side * 1.2, -0.4, -0.2), (0, 0, 0), oyente_arm, dark, SLATE, 0.02),
             ("Leg", (0.6, 3.4, 0.6), (side * 0.5, -2.3, 0), (0, 0, 0), oyente_leg, dark, SLATE, 0.02),
         ]
@@ -347,31 +345,33 @@ def quieto():
 
 
 def trepador():
-    flesh, legs, eye = rgb(70, 24, 30), rgb(40, 16, 20), rgb(230, 200, 60)
+    shell, eye = rgb(38, 36, 38), rgb(230, 200, 60)
     parts = [
-        ("Body", (3, 1.4, 4), (0, 0, 0), (0, 0, 0), trepador_body, flesh, SLATE, 0.1),
-        ("Head", (1.4, 1, 1.6), (0, 0.1, -2.6), (0, 0, 0), trepador_head, flesh, SLATE, 0.05),
+        ("Torso", (1.2, 2.6, 1), (0, 1.5, 0.15), (0.35, 0, 0), trepador_torso, shell, SLATE, 0.04),
+        ("Head", (0.9, 1.1, 1.6), (0, 2.9, -0.8), (0, 0, 0), trepador_head, shell, SLATE, 0.04),
     ]
     for side in (-1, 1):
-        parts.append(("Eye", (0.3, 0.2, 0.15), (side * 0.4, 0.3, -3.4), (0, 0, 0), None, eye, NEON, 0.0))
-    for row in (-1, 0, 1):
-        for side in (-1, 1):
-            parts.append(("Leg", (4.4, 0.4, 0.4), (side * 3, -0.5, row * 1.5), (0, 0, side * 0.35), trepador_leg, legs, SLATE, 0.02))
+        parts.append(("Eye", (0.3, 0.2, 0.15), (side * 0.22, 3, -1.6), (0, 0, 0), None, eye, NEON, 0.0))
+    for side in (-1, 1):
+        parts += [
+            ("Arm", (0.9, 6.2, 0.9), (side * 1.7, -0.3, -0.3), (0, 0, side * 0.2), trepador_arm, shell, SLATE, 0.02),
+            ("Leg", (0.8, 3.8, 1.2), (side * 0.7, -1.6, 0.15), (0, 0, side * 0.12), trepador_leg, shell, SLATE, 0.02),
+        ]
     return parts
 
 
 def coloso():
     hide, plate, eye = rgb(44, 42, 46), rgb(66, 62, 58), rgb(240, 110, 40)
     parts = [
-        ("Torso", (7, 5, 4), (0, 1, 0), (0.2, 0, 0), coloso_torso, hide, SLATE, 0.15),
-        ("Plate", (7.6, 2.4, 4.6), (0, 2.8, 0.2), (0.2, 0, 0), "dome", plate, METAL, 0.12),
-        ("Head", (2.4, 2, 2.4), (0, 2.2, -2.8), (0, 0, 0), coloso_head, plate, METAL, 0.06),
+        ("Torso", (4.4, 4.4, 3), (0, 1.8, 0), (0.15, 0, 0), coloso_torso, hide, SLATE, 0.15),
+        ("Plate", (5.6, 2.6, 3.8), (0, 3.7, 0.3), (0.2, 0, 0), "dome", plate, METAL, 0.12),
+        ("Head", (1.8, 1.8, 2), (0, 3.3, -1.5), (0, 0, 0), coloso_head, plate, METAL, 0.06),
     ]
     for side in (-1, 1):
         parts += [
-            ("Eye", (0.3, 0.2, 0.15), (side * 0.6, 2.3, -4.05), (0, 0, 0), None, eye, NEON, 0.0),
-            ("Arm", (1.9, 6.4, 1.9), (side * 4.4, -0.8, -0.4), (0, 0, 0), coloso_arm, hide, SLATE, 0.1),
-            ("Leg", (2.2, 3.6, 2.2), (side * 1.9, -3.2, 0), (0, 0, 0), coloso_leg, hide, SLATE, 0.1),
+            ("Eye", (0.3, 0.2, 0.15), (side * 0.45, 3.4, -2.55), (0, 0, 0), None, eye, NEON, 0.0),
+            ("Arm", (1.6, 8.4, 1.8), (side * 2.8, -0.8, -0.2), (0, 0, 0), coloso_arm, hide, SLATE, 0.1),
+            ("Leg", (1.9, 5.6, 2), (side * 1.15, -2.7, 0.1), (0, 0, 0), coloso_leg, hide, SLATE, 0.1),
         ]
     return parts
 

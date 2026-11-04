@@ -21,12 +21,12 @@ Studio o el panel de creador.
 
 ## Revisión recomendada
 
-- Generar las criaturas realistas en Meshy y prepararlas (`assets/models/ai/README.md`),
-  o importar los modelos de Blender (`assets/models/README.md`). Guardar los
-  `.rbxm` y comprobar que miren hacia adelante. Sin este paso el juego funciona
+- Importar las cinco criaturas realistas (`assets/models/fbx/<Criatura>_AI.fbx`,
+  pasos en `assets/models/ai/README.md`), guardar los `.rbxm` y comprobar que
+  miren hacia adelante y que la textura se vea. Sin este paso el juego funciona
   con piezas simples.
-- Si se usan modelos del plan gratis de Meshy: poner el crédito *"Modelos de
-  criaturas creados con Meshy (CC BY 4.0)"* en la descripción de la experiencia.
+- Poner el crédito *"Modelos de criaturas creados con Meshy (CC BY 4.0)"* en la
+  descripción de la experiencia: los modelos salieron del plan gratis.
 - Escuchar la mezcla de audio y ajustar volúmenes en `src/shared/Config/AudioConfig.lua`.
 - Mirar los cinco temas visuales con luz y sin luz; ajustar `ThemeConfig.lua`.
 - Ajustar dificultad (`MonsterConfig.lua`, `GameConfig.Match`) con jugadores reales.

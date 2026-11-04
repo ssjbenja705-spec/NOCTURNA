@@ -42,6 +42,74 @@ SKIP = {"Eye"}
 # mirando a un costado. El frente correcto es -Z de Roblox.
 TURN = {}
 
+# Altura total en studs y altura de los pies respecto de la raíz (-BodyHeight de
+# MonsterConfig). Las puertas miden 9 studs y el techo 13.
+FIT = {
+    "ElOyente": (8.4, -4.0),
+    "ElImitador": (7.2, -3.2),
+    "ElQuieto": (7.2, -3.6),
+    "ElTrepador": (7.0, -3.5),
+    "ElColoso": (9.0, -5.5),
+}
+
+
+def pair(name, size, pos, angles=(0, 0, 0)):
+    """Pieza izquierda (x negativa) y derecha, en el orden de MonsterFactory."""
+    x, y, z = pos
+    rx, ry, rz = angles
+    return [(name, size, (-x, y, z), (rx, -ry, -rz)), (name, size, (x, y, z), (rx, ry, rz))]
+
+
+def limbs(arm, leg):
+    """Brazo y pierna izquierdos, después los derechos (como MonsterFactory)."""
+    left_arm, right_arm = pair(*arm)
+    left_leg, right_leg = pair(*leg)
+    return [left_arm, left_leg, right_arm, right_leg]
+
+
+# Piezas de cada modelo realista, medidas sobre su silueta (altura de FIT, pies en
+# el piso). (nombre, tamaño, posición, ángulos) en studs de Roblox, frente -Z. Los
+# brazos y piernas giran desde el borde superior de su caja.
+AI_BOXES = {
+    "ElOyente": [
+        ("Torso", (1.8, 2.7, 1.1), (0, 2.1, 0.2), (0, 0, 0)),
+        ("Head", (0.9, 1.0, 1.1), (0, 3.95, -0.35), (0, 0, 0)),
+    ] + limbs(
+        ("Arm", (0.75, 5.3, 0.9), (1.25, 0.7, 0.1)),
+        ("Leg", (0.8, 4.8, 1.6), (0.6, -1.6, 0.0)),
+    ),
+    "ElImitador": [
+        ("Torso", (2.0, 2.4, 1.1), (0, 2.05, 0.15), (0, 0, 0)),
+        ("Head", (0.9, 0.9, 1.0), (0, 3.6, -0.45), (0, 0, 0)),
+        ("Jaw", (0.6, 0.5, 0.3), (0, 3.4, -0.85), (0, 0, 0)),
+    ] + limbs(
+        ("Arm", (0.7, 4.2, 0.9), (1.3, 0.9, 0.0)),
+        ("Leg", (0.9, 4.1, 1.5), (0.7, -1.15, 0.0), (0, 0, 0.1)),
+    ),
+    "ElQuieto": [
+        ("Torso", (1.5, 2.8, 0.95), (0, 1.4, 0), (0, 0, 0)),
+        ("Head", (0.8, 0.85, 0.9), (0, 3.2, -0.05), (0, 0, 0)),
+    ] + limbs(
+        ("Arm", (0.4, 3.4, 0.6), (0.93, 0.7, 0)),
+        ("Leg", (0.6, 3.65, 0.9), (0.52, -1.78, 0)),
+    ),
+    "ElTrepador": [
+        ("Torso", (1.4, 3.6, 1.6), (0, 1.6, 0.0), (0.3, 0, 0)),
+        ("Head", (0.9, 1.6, 0.9), (0, 1.8, -1.2), (0, 0, 0)),
+    ] + limbs(
+        ("Arm", (1.4, 5.8, 1.0), (1.35, -0.7, -1.0), (0.25, 0, 0)),
+        ("Leg", (0.9, 3.4, 1.0), (0.8, -1.95, 0.75), (-0.48, 0, 0)),
+    ),
+    "ElColoso": [
+        ("Torso", (3.6, 3.2, 2.6), (0, 0.3, 0.4), (0, 0, 0)),
+        ("Plate", (4.4, 2.2, 3.4), (0, 2.5, 0.2), (0, 0, 0)),
+        ("Head", (1.4, 1.4, 1.2), (0, 2.3, -1.2), (0, 0, 0)),
+    ] + limbs(
+        ("Arm", (1.4, 7.4, 1.6), (1.7, -1.8, -0.9), (0.17, 0, 0)),
+        ("Leg", (1.4, 4.4, 1.6), (1.2, -3.3, 0.9)),
+    ),
+}
+
 TO_BLENDER = creatures.TO_BLENDER
 TO_ROBLOX = TO_BLENDER.inverted()
 
@@ -53,6 +121,9 @@ class Box:
     def __init__(self, key, name, size, pos, angles):
         self.key = key
         self.name = name
+        self.size = Vector(size)
+        self.pos = Vector(pos)
+        self.angles = angles
         self.half = Vector(size) / 2
         rx, ry, rz = angles
         rotation = Matrix.Rotation(rx, 4, "X") @ Matrix.Rotation(ry, 4, "Y") @ Matrix.Rotation(rz, 4, "Z")
@@ -77,7 +148,8 @@ class Box:
 def boxes_for(kind):
     counts = {}
     result = []
-    for name, size, pos, angles, *_ in creatures.CREATURES[kind]():
+    layout = AI_BOXES.get(kind) or creatures.CREATURES[kind]()
+    for name, size, pos, angles, *_ in layout:
         counts[name] = counts.get(name, 0) + 1
         if name not in SKIP:
             result.append(Box(f"{name}{counts[name]}", name, size, pos, angles))
@@ -155,18 +227,23 @@ def to_roblox_space(obj, kind, boxes):
     if TURN.get(kind):
         mesh.transform(Matrix.Rotation(math.radians(TURN[kind]), 4, "Y"))
 
-    # Mismo volumen que la criatura simple y apoyada en el mismo piso.
     lo, hi = bounds(v.co for v in mesh.vertices)
-    target_lo, target_hi = bounds(c for box in boxes for c in box.corners())
-    extent, target = hi - lo, target_hi - target_lo
-    ratio = (target.x / extent.x * target.y / extent.y * target.z / extent.z) ** (1 / 3)
+    if kind in FIT:
+        # Altura fija, centrada y con los pies donde la raíz espera el piso.
+        height, feet = FIT[kind]
+        ratio = height / (hi.y - lo.y)
+        floor, center_x, center_z = feet, 0.0, 0.0
+    else:
+        # Mismo volumen que la criatura simple y apoyada en el mismo piso.
+        target_lo, target_hi = bounds(c for box in boxes for c in box.corners())
+        extent, target = hi - lo, target_hi - target_lo
+        ratio = (target.x / extent.x * target.y / extent.y * target.z / extent.z) ** (1 / 3)
+        floor = target_lo.y
+        center_x = (target_lo.x + target_hi.x) / 2
+        center_z = (target_lo.z + target_hi.z) / 2
     mesh.transform(Matrix.Scale(ratio, 4))
     lo, hi = bounds(v.co for v in mesh.vertices)
-    move = Vector((
-        (target_lo.x + target_hi.x) / 2 - (lo.x + hi.x) / 2,
-        target_lo.y - lo.y,
-        (target_lo.z + target_hi.z) / 2 - (lo.z + hi.z) / 2,
-    ))
+    move = Vector((center_x - (lo.x + hi.x) / 2, floor - lo.y, center_z - (lo.z + hi.z) / 2))
     mesh.transform(Matrix.Translation(move))
     for polygon in mesh.polygons:
         polygon.use_smooth = True
@@ -347,23 +424,45 @@ def render_preview(kind, objects, pieces, boxes):
     scene.render.filepath = os.path.join(OUT, "previews", f"{kind}_AI.png")
     bpy.ops.render.render(write_still=True)
 
+    # Un color por pieza, para revisar por dónde cortó.
+    palette = [(0.9, 0.3, 0.3), (0.3, 0.8, 0.3), (0.3, 0.45, 0.95), (0.95, 0.85, 0.25),
+               (0.85, 0.35, 0.9), (0.3, 0.9, 0.9), (0.95, 0.6, 0.2), (0.6, 0.6, 0.6)]
+    for index, obj in enumerate(objects):
+        obj.color = (*palette[index % len(palette)], 1)
+    shading.color_type = "OBJECT"
+    scene.render.filepath = os.path.join(OUT, "previews", f"{kind}_AI_pieces.png")
+    bpy.ops.render.render(write_still=True)
+
 
 def luau_vector(v):
     return "Vector3.new({:.4f}, {:.4f}, {:.4f})".format(*v)
 
 
+def luau_cframe(box):
+    x, y, z = box.pos
+    rx, ry, rz = box.angles
+    position = "CFrame.new({:.4f}, {:.4f}, {:.4f})".format(x, y, z)
+    if (rx, ry, rz) == (0, 0, 0):
+        return position
+    return position + " * CFrame.Angles({:.4f}, {:.4f}, {:.4f})".format(rx, ry, rz)
+
+
 def write_config(results):
     lines = [
         "-- Generado por assets/blender/prepare_ai_models.py: no editar a mano.",
-        "-- Medidas de las piezas cortadas de los modelos realistas (assets/models/ai).",
+        "-- Piezas cortadas de los modelos realistas (assets/models/ai).",
+        "-- Offset y Box: ubicación y tamaño de la caja de la pieza sobre la raíz.",
         "-- Size: tamaño real de la MeshPart. Shift: centro de la malla respecto del",
-        "-- centro de la pieza simple, en los ejes de esa pieza.",
+        "-- centro de la caja, en los ejes de la caja.",
         "return {",
     ]
     for kind in sorted(results):
         lines.append(f"    {kind} = {{")
-        for key, size, shift in results[kind]:
-            lines.append(f"        {key} = {{Size = {luau_vector(size)}, Shift = {luau_vector(shift)}}},")
+        for box, size, shift in results[kind]:
+            lines.append(
+                f"        {box.key} = {{Offset = {luau_cframe(box)}, Box = {luau_vector(box.size)}, "
+                f"Size = {luau_vector(size)}, Shift = {luau_vector(shift)}}},"
+            )
         lines.append("    },")
     lines.append("}")
     with open(CONFIG, "w", encoding="utf-8", newline="\n") as handle:
@@ -402,7 +501,8 @@ def main():
 
         objects = export_fbx(kind, pieces)
         render_preview(kind, objects, pieces, boxes)
-        results[kind] = [(key, size, shift) for key, (_, size, shift) in pieces.items()]
+        by_key = {box.key: box for box in boxes}
+        results[kind] = [(by_key[key], size, shift) for key, (_, size, shift) in pieces.items()]
 
         counts = ", ".join(f"{key}:{triangles(mesh)}" for key, (mesh, _, _) in pieces.items())
         print(f"[NOCTURNA] {kind}: {original} -> {sum(triangles(m) for m, _, _ in pieces.values())} triángulos; {counts}")

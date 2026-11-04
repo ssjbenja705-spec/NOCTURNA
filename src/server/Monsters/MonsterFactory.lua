@@ -119,9 +119,15 @@ end
 
 local function limb(model, root, name, size, offset, color, material, swing)
     local part, ownLook, turnAround, fit = newPart(model, name)
+    if fit then
+        -- El modelo realista trae su propia caja, medida sobre su anatomía.
+        offset, size = fit.Offset, fit.Box
+    end
     -- La pieza cortada conserva sus medidas: su centro se corre respecto de la caja.
     local place = (fit and CFrame.new(fit.Shift) or CFrame.identity)
         * (turnAround and CFrame.Angles(0, math.pi, 0) or CFrame.identity)
+    -- Lo que se balancea gira desde el borde de arriba (hombro, cadera), no desde el centro.
+    local pivot = swing and CFrame.new(0, size.Y / 2, 0) or CFrame.identity
     part.Name = name
     part.Size = fit and fit.Size or size
     part.CFrame = root.CFrame * offset * place
@@ -140,8 +146,8 @@ local function limb(model, root, name, size, offset, color, material, swing)
     joint.Name = name .. "Joint"
     joint.Part0 = root
     joint.Part1 = part
-    joint.C0 = offset
-    joint.C1 = place:Inverse()
+    joint.C0 = offset * pivot
+    joint.C1 = place:Inverse() * pivot
     joint.Parent = part
 
     if swing then
@@ -167,10 +173,8 @@ function BUILDERS.ElOyente(model, root)
     local dark = Color3.fromRGB(48, 44, 42)
     limb(model, root, "Torso", Vector3.new(1.6, 4.6, 1), CFrame.new(0, 0.6, 0) * CFrame.Angles(0.25, 0, 0), skin, Enum.Material.Slate)
     limb(model, root, "Head", Vector3.new(1.3, 2, 1.4), CFrame.new(0, 3.4, -0.9), skin, Enum.Material.Slate)
-    limb(model, root, "Mouth", Vector3.new(0.9, 0.5, 0.2), CFrame.new(0, 3, -1.6), dark, Enum.Material.SmoothPlastic)
 
     for _, side in ipairs({-1, 1}) do
-        limb(model, root, "Ear", Vector3.new(0.3, 2, 1.6), CFrame.new(side * 0.9, 3.8, -0.8) * CFrame.Angles(0, 0, side * 0.3), skin, Enum.Material.Slate, {Amount = 0.1, Axis = "Z", Phase = side})
         limb(model, root, "Arm", Vector3.new(0.5, 5.4, 0.5), CFrame.new(side * 1.2, -0.4, -0.2), dark, Enum.Material.Slate, {Amount = 0.4, Phase = side})
         limb(model, root, "Leg", Vector3.new(0.6, 3.4, 0.6), CFrame.new(side * 0.5, -2.3, 0), dark, Enum.Material.Slate, {Amount = 0.5, Phase = -side})
     end
@@ -204,41 +208,34 @@ function BUILDERS.ElQuieto(model, root)
     eye(model, root, CFrame.new(0.3, 2.9, -0.68), Color3.fromRGB(20, 20, 20))
 end
 
+-- Alto y encorvado, con brazos que llegan al piso. En el techo cuelga boca abajo
+-- con los pies arriba, así que su altura total (7) deja pasar a un jugador debajo.
 function BUILDERS.ElTrepador(model, root)
-    local flesh = Color3.fromRGB(70, 24, 30)
-    limb(model, root, "Body", Vector3.new(3, 1.4, 4), CFrame.new(0, 0, 0), flesh, Enum.Material.Slate)
-    limb(model, root, "Head", Vector3.new(1.4, 1, 1.6), CFrame.new(0, 0.1, -2.6), flesh, Enum.Material.Slate)
-    eye(model, root, CFrame.new(-0.4, 0.3, -3.4), Color3.fromRGB(230, 200, 60))
-    eye(model, root, CFrame.new(0.4, 0.3, -3.4), Color3.fromRGB(230, 200, 60))
+    local shell = Color3.fromRGB(38, 36, 38)
+    limb(model, root, "Torso", Vector3.new(1.2, 2.6, 1), CFrame.new(0, 1.5, 0.15) * CFrame.Angles(0.35, 0, 0), shell, Enum.Material.Slate)
+    limb(model, root, "Head", Vector3.new(0.9, 1.1, 1.6), CFrame.new(0, 2.9, -0.8), shell, Enum.Material.Slate)
+    eye(model, root, CFrame.new(-0.22, 3, -1.6), Color3.fromRGB(230, 200, 60))
+    eye(model, root, CFrame.new(0.22, 3, -1.6), Color3.fromRGB(230, 200, 60))
 
-    for row = -1, 1 do
-        for _, side in ipairs({-1, 1}) do
-            limb(
-                model,
-                root,
-                "Leg",
-                Vector3.new(4.4, 0.4, 0.4),
-                CFrame.new(side * 3, -0.5, row * 1.5) * CFrame.Angles(0, 0, side * 0.35),
-                Color3.fromRGB(40, 16, 20),
-                Enum.Material.Slate,
-                {Amount = 0.45, Axis = "Y", Phase = row + side}
-            )
-        end
+    for _, side in ipairs({-1, 1}) do
+        limb(model, root, "Arm", Vector3.new(0.9, 6.2, 0.9), CFrame.new(side * 1.7, -0.3, -0.3) * CFrame.Angles(0, 0, side * 0.2), shell, Enum.Material.Slate, {Amount = 0.35, Phase = side})
+        limb(model, root, "Leg", Vector3.new(0.8, 3.8, 1.2), CFrame.new(side * 0.7, -1.6, 0.15) * CFrame.Angles(0, 0, side * 0.12), shell, Enum.Material.Slate, {Amount = 0.4, Phase = -side})
     end
 end
 
 function BUILDERS.ElColoso(model, root)
     local hide = Color3.fromRGB(44, 42, 46)
     local plate = Color3.fromRGB(66, 62, 58)
-    limb(model, root, "Torso", Vector3.new(7, 5, 4), CFrame.new(0, 1, 0) * CFrame.Angles(0.2, 0, 0), hide, Enum.Material.Slate)
-    limb(model, root, "Plate", Vector3.new(7.6, 2.4, 4.6), CFrame.new(0, 2.8, 0.2) * CFrame.Angles(0.2, 0, 0), plate, Enum.Material.CorrodedMetal)
-    limb(model, root, "Head", Vector3.new(2.4, 2, 2.4), CFrame.new(0, 2.2, -2.8), plate, Enum.Material.CorrodedMetal)
-    eye(model, root, CFrame.new(-0.6, 2.3, -4.05), Color3.fromRGB(240, 110, 40))
-    eye(model, root, CFrame.new(0.6, 2.3, -4.05), Color3.fromRGB(240, 110, 40))
+    -- Cubierto de placas, encorvado, con brazos largos que cuelgan junto a las piernas.
+    limb(model, root, "Torso", Vector3.new(4.4, 4.4, 3), CFrame.new(0, 1.8, 0) * CFrame.Angles(0.15, 0, 0), hide, Enum.Material.Slate)
+    limb(model, root, "Plate", Vector3.new(5.6, 2.6, 3.8), CFrame.new(0, 3.7, 0.3) * CFrame.Angles(0.2, 0, 0), plate, Enum.Material.CorrodedMetal)
+    limb(model, root, "Head", Vector3.new(1.8, 1.8, 2), CFrame.new(0, 3.3, -1.5), plate, Enum.Material.CorrodedMetal)
+    eye(model, root, CFrame.new(-0.45, 3.4, -2.55), Color3.fromRGB(240, 110, 40))
+    eye(model, root, CFrame.new(0.45, 3.4, -2.55), Color3.fromRGB(240, 110, 40))
 
     for _, side in ipairs({-1, 1}) do
-        limb(model, root, "Arm", Vector3.new(1.9, 6.4, 1.9), CFrame.new(side * 4.4, -0.8, -0.4), hide, Enum.Material.Slate, {Amount = 0.28, Phase = side})
-        limb(model, root, "Leg", Vector3.new(2.2, 3.6, 2.2), CFrame.new(side * 1.9, -3.2, 0), hide, Enum.Material.Slate, {Amount = 0.32, Phase = -side})
+        limb(model, root, "Arm", Vector3.new(1.6, 8.4, 1.8), CFrame.new(side * 2.8, -0.8, -0.2), hide, Enum.Material.Slate, {Amount = 0.28, Phase = side})
+        limb(model, root, "Leg", Vector3.new(1.9, 5.6, 2), CFrame.new(side * 1.15, -2.7, 0.1), hide, Enum.Material.Slate, {Amount = 0.32, Phase = -side})
     end
 end
 

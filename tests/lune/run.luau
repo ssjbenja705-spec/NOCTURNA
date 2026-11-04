@@ -698,7 +698,9 @@ T.Test("El Trepador anda por el techo, cae sobre el jugador y la linterna lo esp
     local world = fakeWorld({target})
     local monster = newMonster("ElTrepador", world)
 
-    T.True(monster.Position.Y > 10, "arranca en el techo")
+    local settings = MonsterConfig.ElTrepador
+    T.Equal(monster.Position.Y, GameConfig.Map.WallHeight - settings.BodyHeight, "arranca con los pies en el techo")
+    T.True(monster.Position.Y - settings.BodyHeight > 5.5, "colgado, deja pasar a un jugador por debajo")
     T.True(monster.Up.Y < 0, "boca abajo")
 
     tick(monster, 6)
@@ -1122,11 +1124,17 @@ T.Test("criaturas realistas: piezas cortadas con sus medidas, sin ojos de neón"
     local Factory = Engine.RequireServer("Monsters.MonsterFactory")
     local CreatureMeshes = Engine.RequireServer("Monsters.CreatureMeshes")
 
-    -- Lo que escribe prepare_ai_models.py para un modelo cortado.
+    -- Lo que escribe prepare_ai_models.py para un modelo cortado: cada pieza con su
+    -- propia caja (Offset, Box), distinta de la de la versión simple.
     local shift = Vector3.new(0.1, -0.2, 0.3)
     local fits = {}
-    for _, key in ipairs({"Body1", "Head1", "Leg1", "Leg2", "Leg3", "Leg4", "Leg5", "Leg6"}) do
-        fits[key] = {Size = Vector3.new(1, 2, 3), Shift = shift}
+    for index, key in ipairs({"Torso1", "Head1", "Arm1", "Arm2", "Leg1", "Leg2"}) do
+        fits[key] = {
+            Offset = roblox.CFrame.new(index, -index, 0.5) * roblox.CFrame.Angles(0.2, 0, 0),
+            Box = Vector3.new(0.8, 4, 0.9),
+            Size = Vector3.new(1, 2, 3),
+            Shift = shift,
+        }
     end
     CreatureMeshes.ElTrepador = fits
 
@@ -1149,23 +1157,30 @@ T.Test("criaturas realistas: piezas cortadas con sus medidas, sin ojos de neón"
     for _, piece in ipairs(monster:GetChildren()) do
         if piece ~= root then
             local joint = piece:FindFirstChild(piece.Name .. "Joint")
+            local fit = fits[piece:GetAttribute("Source")]
             T.Equal(piece.ClassName, "MeshPart", piece.Name .. " usa la pieza cortada")
             T.Equal(piece.Size, Vector3.new(1, 2, 3), piece.Name .. " conserva su tamaño real")
-            local expected = (root.CFrame * joint.C0 * roblox.CFrame.new(shift)).Position
-            T.True((piece.Position - expected).Magnitude < 1e-3, piece.Name .. " corre su centro como en Blender")
+            local expected = (root.CFrame * fit.Offset * roblox.CFrame.new(shift)).Position
+            T.True((piece.Position - expected).Magnitude < 1e-3, piece.Name .. " va en su caja, corrida como en Blender")
+            local held = root.CFrame * joint.C0 * joint.C1:Inverse()
+            T.True((held.Position - piece.Position).Magnitude < 1e-3, piece.Name .. " la articulación la sostiene ahí")
+            if piece.Name == "Arm" or piece.Name == "Leg" then
+                local top = (root.CFrame * fit.Offset * roblox.CFrame.new(0, 2, 0)).Position
+                T.True(((root.CFrame * joint.C0).Position - top).Magnitude < 1e-3, piece.Name .. " gira desde arriba de su caja")
+            end
             T.True(piece:FindFirstChildWhichIsA("SurfaceAppearance") ~= nil, piece.Name .. " lleva la textura de la criatura")
             if piece.Name == "Leg" then
                 table.insert(legs, piece:GetAttribute("Source"))
             end
         end
     end
-    T.Equal(table.concat(legs, ","), "Leg1,Leg2,Leg3,Leg4,Leg5,Leg6", "cada pata usa su propio corte, en orden")
+    T.Equal(table.concat(legs, ","), "Leg1,Leg2", "cada pierna usa su propio corte, en orden")
 
     -- Si falta el modelo cortado, las medidas se ignoran y vuelve a la Part simple.
     set:Destroy()
     local plain = Factory.Build("ElTrepador", Engine.Workspace, 2)
-    T.Equal(plain:FindFirstChild("Body").ClassName, "Part", "sin modelo importado usa la Part")
-    T.Equal(plain:FindFirstChild("Body").Size, Vector3.new(3, 1.4, 4), "con el tamaño de siempre")
+    T.Equal(plain:FindFirstChild("Torso").ClassName, "Part", "sin modelo importado usa la Part")
+    T.Equal(plain:FindFirstChild("Torso").Size, Vector3.new(1.2, 2.6, 1), "con el tamaño de siempre")
     T.True(plain:FindFirstChild("Eye") ~= nil, "y con sus ojos")
     CreatureMeshes.ElTrepador = nil
 end)

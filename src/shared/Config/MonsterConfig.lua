@@ -69,7 +69,7 @@ return {
         RepelRange = 28,
         RepelDot = 0.8,
         RepelTime = 6,
-        BodyHeight = 2,
+        BodyHeight = 3.5,
     },
     ElColoso = {
         DisplayName = "El Coloso",

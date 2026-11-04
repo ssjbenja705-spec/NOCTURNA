@@ -2,10 +2,9 @@
 -- vuelve a subir. La linterna apuntada lo hace huir.
 local Behavior = {}
 
-local CEILING_MARGIN = 1.5
-
+-- Boca abajo, con los pies apoyados en el techo.
 local function ceilingHeight(monster)
-    return monster.World.CeilingHeight - CEILING_MARGIN
+    return monster.World.CeilingHeight - monster.Settings.BodyHeight
 end
 
 local function climb(monster)

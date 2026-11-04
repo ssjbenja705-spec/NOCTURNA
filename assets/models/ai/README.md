@@ -1,102 +1,62 @@
 # Criaturas realistas generadas con IA
 
-Los modelos se generan en [Meshy](https://www.meshy.ai) con tu cuenta. El plan
-gratis da 100 créditos por mes y licencia CC BY 4.0, que permite uso comercial
-dando crédito a Meshy. Después el script `assets/blender/prepare_ai_models.py`
-los deja listos para Roblox.
+![El Oyente, El Imitador, El Quieto, El Trepador y El Coloso](../previews/Lineup_AI.png)
 
-## 1. Generar en Meshy
+Las cinco criaturas (`<Criatura>.glb` en esta carpeta) se generaron en
+[Meshy](https://www.meshy.ai) con **Image to 3D**, a partir de las láminas de
+concepto de `concept/`. Se usó el modelo **Meshy 6 Lite** (el único que el plan
+gratis deja descargar) con textura PBR. Licencia: **CC BY 4.0**, con uso
+comercial permitido dando crédito a Meshy.
 
-En **Text to 3D**, para cada criatura:
+`assets/blender/prepare_ai_models.py` las deja listas para Roblox. Las vistas
+previas están en `../previews/<Criatura>_AI.png` y, con un color por pieza, en
+`../previews/<Criatura>_AI_pieces.png`.
 
-| Opción | Valor |
-|---|---|
-| Modelo | **Meshy 6 Lite**: el plan gratis sólo deja descargar los modelos de esta versión |
-| Simetría | Activada (salvo en El Trepador, si no sale bien) |
-| Pose | De pie, normal; **no** en T: los brazos tienen que colgar a los costados |
-| Textura | Activada, PBR si aparece la opción |
-| Polígonos | Lo que venga por defecto; el script los reduce |
-
-Cada criatura gasta unos 20 créditos (10 de forma y 10 de textura), así que las
-cinco usan los 100 del mes. Si alguna sale mal, se puede repetir en
-[Tripo](https://www.tripo3d.ai) con el mismo texto.
-
-Los textos van en inglés porque los generadores responden mejor así.
-
-### ElOyente — ciego, se guía por el ruido
-
-```text
-Photorealistic horror creature, full body, standing upright. Gaunt emaciated humanoid, pale grey cracked skin stretched over visible ribs and spine. Eyeless smooth elongated head with a wide lipless mouth full of thin teeth. Two huge bat-like ears with veined translucent membranes. Very long thin arms hanging down past the knees, three long clawed fingers. Thin digitigrade legs. Slightly hunched. Symmetrical, neutral pose, no clothes, no base.
-```
-
-### ElImitador — imita voces
-
-```text
-Photorealistic horror creature, full body, standing upright. Tall thin humanoid shadow made of matted wet black fur and torn black skin. Featureless black head with a vertical split jaw opening into a red glistening mouth lined with needle teeth. Long arms hanging at its sides with four elongated black fingers. Symmetrical, neutral pose, no base.
-```
-
-### ElQuieto — maniquí que se mueve en la oscuridad
-
-```text
-Photorealistic old department store mannequin, full body, standing upright. Cracked off-white plastic with yellowed stains, dirt and chipped paint. Smooth faceless egg-shaped head with two small black hollow eye holes. Visible joint seams at shoulders, elbows, hips and knees. Arms hanging straight at its sides. Unsettling, symmetrical, no clothes, no base.
-```
-
-### ElTrepador — anda por el techo
-
-```text
-Photorealistic horror creature, full body. Large spider-like creature made of raw skinless flesh, six long jointed legs spread wide. Dark crimson body with exposed muscle and veins, segmented abdomen with bone spikes along the back. Small head with two glowing yellow eyes and sharp mandibles. Symmetrical, seen from above it is wide and flat, no base.
-```
-
-### ElColoso — enorme, rompe puertas
-
-```text
-Photorealistic horror creature, full body, standing. Massive hulking titan like a giant gorilla. Dark grey scarred hide with thick rusted iron armor plates fused into its back and shoulders. Small head sunk between the shoulders with two glowing orange eyes and broken horns. Enormous long arms with huge knuckles hanging at its sides, short thick legs. Symmetrical, neutral pose, no base.
-```
-
-## 2. Descargar
-
-Bajá cada modelo en formato **GLB** y guardalo en esta carpeta con el nombre exacto:
-
-```text
-assets/models/ai/ElOyente.glb
-assets/models/ai/ElImitador.glb
-assets/models/ai/ElQuieto.glb
-assets/models/ai/ElTrepador.glb
-assets/models/ai/ElColoso.glb
-```
-
-También sirven `.fbx` u `.obj` con el mismo nombre.
-
-## 3. Preparar para Roblox
+## Qué hace la preparación
 
 ```bash
 blender --background --factory-startup --python assets/blender/prepare_ai_models.py -- assets/models
 ```
 
-Por cada criatura que encuentre:
+1. Reduce cada malla a 18.000 triángulos y las texturas a 1024 px, los límites
+   de Roblox.
+2. La escala a una altura fija (`FIT`), centrada y con los pies en el piso. Las
+   puertas miden 9 studs y el techo 13.
+3. La corta en las piezas que anima el juego (torso, cabeza, brazos, piernas...)
+   según `AI_BOXES`. Esas cajas se midieron sobre la silueta de cada modelo para
+   que los cortes caigan en el hombro, la cadera y el cuello.
+4. Escribe `../fbx/<Criatura>_AI.fbx` con las texturas adentro, los mapas sueltos
+   en `../ai_textures/<Criatura>/` y, en `src/server/Monsters/CreatureMeshes.lua`,
+   dónde va cada pieza (`Offset`, `Box`) y su tamaño real (`Size`, `Shift`).
 
-- Reduce la malla a 18.000 triángulos como máximo y las texturas a 1024 px, los
-  límites de Roblox.
-- La pone a la escala de la criatura del juego, con los pies en el piso.
-- La corta en las mismas piezas que anima el juego (torso, cabeza, brazos,
-  piernas...). Cada corte va a la pieza más cercana, así se siguen moviendo las
-  extremidades.
-- Escribe `fbx/<Criatura>_AI.fbx` con las texturas adentro, una vista previa en
-  `previews/<Criatura>_AI.png` y las medidas en
-  `src/server/Monsters/CreatureMeshes.lua`.
+En el juego, los brazos y las piernas giran desde el hombro y la cadera.
 
-## 4. Importar en Studio
+| Criatura | Altura | Triángulos (original → final) |
+|---|---|---|
+| El Oyente | 8,4 | 48.518 → 17.459 |
+| El Imitador | 7,2 | 76.780 → 17.459 |
+| El Quieto | 7,2 | 37.822 → 17.459 |
+| El Trepador | 7,0 | 102.296 → 17.459 |
+| El Coloso | 9,0 | 195.538 → 17.460 |
 
-Igual que los otros modelos (`assets/models/README.md`), pero con el archivo
-`fbx/<Criatura>_AI.fbx`. El modelo importado va en
-`ServerStorage/NocturnaModels/<Criatura>` y reemplaza al anterior. El juego
-reconoce las piezas cortadas (`Torso1`, `Arm1`, `Arm2`...) y usa sus medidas
-reales en lugar de estirarlas. Con un modelo realista importado, los ojos de neón
-de la versión simple ya no se agregan.
+## Importar en Studio (una sola vez)
 
-**Si el importador no aplica las texturas**, agregá una sola
-**SurfaceAppearance** dentro de `NocturnaModels/<Criatura>` y cargale los cuatro
-mapas de `assets/models/ai_textures/<Criatura>/`:
+1. En `ServerStorage` creá la carpeta `NocturnaModels`. Si usás Rojo, ya está.
+2. **Home → Import 3D** y elegí `assets/models/fbx/ElOyente_AI.fbx`. Dejá
+   *Merge Meshes* desactivado.
+3. Mové el modelo importado a `ServerStorage/NocturnaModels` y llamalo `ElOyente`.
+4. Repetí con las otras cuatro (`ElImitador_AI.fbx`, `ElQuieto_AI.fbx`,
+   `ElTrepador_AI.fbx`, `ElColoso_AI.fbx`).
+5. Para que Rojo los incluya: clic derecho → **Save to File** →
+   `assets/models/rbxm/<Criatura>.rbxm`.
+
+El juego reconoce las piezas (`Torso1`, `Arm1`, `Arm2`...) y las ubica con las
+medidas de `CreatureMeshes.lua`. Los maniquíes del capítulo 5 usan las mismas
+mallas que El Quieto.
+
+**Si el importador no aplica las texturas**, agregá una **SurfaceAppearance**
+dentro de `NocturnaModels/<Criatura>` con los mapas de
+`assets/models/ai_textures/<Criatura>/`:
 
 | Propiedad | Archivo |
 |---|---|
@@ -107,11 +67,18 @@ mapas de `assets/models/ai_textures/<Criatura>/`:
 
 El juego la copia a todas las piezas de esa criatura.
 
-Al cortar el modelo puede verse una costura donde se separan las piezas cuando
-se mueven las extremidades. Si molesta en alguna criatura, se puede reducir el
-balanceo (`SwingAmount`) de esa pieza en `MonsterFactory`.
+**Si una criatura aparece mirando hacia atrás**, poné `TurnAround = true` en la
+carpeta `NocturnaModels`.
+
+## Rehacer una criatura
+
+Generala de nuevo en Meshy desde `concept/para_meshy/<Criatura>.png` (Image to
+3D, Meshy 6 Lite, con textura), descargala en GLB como `<Criatura>.glb` en esta
+carpeta y volvé a correr la preparación. Si el modelo nuevo tiene otras
+proporciones, conviene ajustar sus cajas en `AI_BOXES` y revisar
+`<Criatura>_AI_pieces.png`.
 
 ## Crédito obligatorio
 
-Con el plan gratis hay que dar crédito, por ejemplo en la descripción de la
-experiencia: *"Modelos de criaturas creados con Meshy (CC BY 4.0)"*.
+Con el plan gratis de Meshy hay que dar crédito, por ejemplo en la descripción
+de la experiencia: *"Modelos de criaturas creados con Meshy (CC BY 4.0)"*.
