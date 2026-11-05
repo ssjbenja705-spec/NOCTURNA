@@ -41,6 +41,11 @@ En el juego, los brazos y las piernas giran desde el hombro y la cadera.
 
 ## Importar en Studio (una sola vez)
 
+**Ya están importadas.** Las cinco se subieron a Roblox desde Studio y quedaron
+en `../rbxm/<Criatura>.rbxmx`, con sus mallas y su SurfaceAppearance. Rojo las
+pone en `ServerStorage/NocturnaModels` en cada build. Los pasos de abajo sólo
+hacen falta si rehacés una criatura.
+
 1. En `ServerStorage` creá la carpeta `NocturnaModels`. Si usás Rojo, ya está.
 2. **Home → Import 3D** y elegí `assets/models/fbx/ElOyente_AI.fbx`. Dejá
    *Merge Meshes* desactivado.
@@ -48,7 +53,7 @@ En el juego, los brazos y las piernas giran desde el hombro y la cadera.
 4. Repetí con las otras cuatro (`ElImitador_AI.fbx`, `ElQuieto_AI.fbx`,
    `ElTrepador_AI.fbx`, `ElColoso_AI.fbx`).
 5. Para que Rojo los incluya: clic derecho → **Save to File** →
-   `assets/models/rbxm/<Criatura>.rbxm`.
+   `assets/models/rbxm/<Criatura>.rbxmx` (reemplazá el anterior).
 
 El juego reconoce las piezas (`Torso1`, `Arm1`, `Arm2`...) y las ubica con las
 medidas de `CreatureMeshes.lua`. Los maniquíes del capítulo 5 usan las mismas

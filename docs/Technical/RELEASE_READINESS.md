@@ -5,26 +5,20 @@ Studio o el panel de creador.
 
 ## Obligatorio
 
-1. **Probar el cliente en Studio.** Construir `test.project.json`, dar Play y
-   confirmar en Output que aparece `[NOCTURNA] Cliente iniciado.` sin errores.
-   Esa corrección (`Main.client` esperando sus módulos) se verificó en el
-   simulador, no en Studio.
-2. **Publicar y activar API Services** (Game Settings → Security → *Enable Studio
+1. **Publicar y activar API Services** (Game Settings → Security → *Enable Studio
    Access to API Services*). Sin esto el guardado funciona en modo sesión y el lobby lo avisa.
-3. **Máximo de jugadores = 4** (Game Settings → Places). El servidor ya rechaza al
+2. **Máximo de jugadores = 4** (Game Settings → Places). El servidor ya rechaza al
    quinto, pero Roblox debe saber que el servidor es de cuatro.
-4. **Administradores**: el dueño de la experiencia (o el rango 255 del grupo) ya
+3. **Administradores**: el dueño de la experiencia (o el rango 255 del grupo) ya
    es administrador. Para sumar a otros, agregar su UserId en
    `src/server/Admin/AdminConfig.lua`.
-5. **Jugar una partida con 2 o más clientes** (Test → Clients and Servers) y una
+4. **Jugar una partida con 2 o más clientes** (Test → Clients and Servers) y una
    en el emulador de dispositivos (teléfono y tablet).
 
 ## Revisión recomendada
 
-- Importar las cinco criaturas realistas (`assets/models/fbx/<Criatura>_AI.fbx`,
-  pasos en `assets/models/ai/README.md`), guardar los `.rbxm` y comprobar que
-  miren hacia adelante y que la textura se vea. Sin este paso el juego funciona
-  con piezas simples.
+- Ver a las criaturas caminar y atacar en una partida real (ya están importadas
+  y se ven bien quietas).
 - Poner el crédito *"Modelos de criaturas creados con Meshy (CC BY 4.0)"* en la
   descripción de la experiencia: los modelos salieron del plan gratis.
 - Escuchar la mezcla de audio y ajustar volúmenes en `src/shared/Config/AudioConfig.lua`.
@@ -42,3 +36,7 @@ Studio o el panel de creador.
 - `rojo build`: compila.
 - Roblox Studio 0.745 (Play Solo, servidor): 49 de 49 comprobaciones de
   `tests/Studio/SmokeTest` correctas.
+- Roblox Studio, 4 de noviembre: las cinco criaturas realistas importadas en
+  `ServerStorage/NocturnaModels`. En Play arrancan servidor y cliente
+  (`[NOCTURNA] Cliente iniciado.`), aparece el lobby y `MonsterFactory.Build`
+  arma las cinco con sus mallas y texturas.

@@ -18,9 +18,13 @@ rojo build default.project.json -o NOCTURNA.rbxlx
 Abrí `NOCTURNA.rbxlx` en Roblox Studio y presioná Play. Para trabajar en vivo:
 `rojo serve` y conectá el plugin de Rojo.
 
-El mapa, la interfaz y el sonido se generan por código. Las criaturas también
-funcionan así, con piezas simples. Para verlas con sus modelos de Blender hay
-que importarlas una vez en Studio: ver `assets/models/README.md`.
+El mapa, la interfaz y el sonido se generan por código. Las cinco criaturas usan
+modelos realistas con textura, ya subidos a Roblox, que el build incluye desde
+`assets/models/rbxm/` (ver `assets/models/ai/README.md`). Si falta alguno, esa
+criatura se arma con piezas simples.
+
+Los modelos se crearon con Meshy (CC BY 4.0): al publicar, poné en la
+descripción *"Modelos de criaturas creados con Meshy (CC BY 4.0)"*.
 
 ## Controles
 
