@@ -1,7 +1,8 @@
 # NOCTURNA — antes de publicar
 
 El código del juego está completo. Estos pasos sólo se pueden hacer desde Roblox
-Studio o el panel de creador.
+Studio o el panel de creador. La descripción y los ajustes para copiar están en
+`docs/PUBLICACION.md`.
 
 ## Obligatorio
 
@@ -17,8 +18,8 @@ Studio o el panel de creador.
 
 ## Revisión recomendada
 
-- Ver a las criaturas caminar y atacar en una partida real (ya están importadas
-  y se ven bien quietas).
+- Ver de cerca cómo atacan las criaturas (ya se comprobó que cada una aparece en
+  su capítulo y recorre el mapa).
 - Poner el crédito *"Modelos de criaturas creados con Meshy (CC BY 4.0)"* en la
   descripción de la experiencia: los modelos salieron del plan gratis.
 - Escuchar la mezcla de audio y ajustar volúmenes en `src/shared/Config/AudioConfig.lua`.
@@ -40,3 +41,7 @@ Studio o el panel de creador.
   `ServerStorage/NocturnaModels`. En Play arrancan servidor y cliente
   (`[NOCTURNA] Cliente iniciado.`), aparece el lobby y `MonsterFactory.Build`
   arma las cinco con sus mallas y texturas.
+- Roblox Studio, 5 de noviembre: partida desde el lobby (Estoy listo → Iniciar)
+  y capítulos 2 a 5 con `setchapter` del panel de admin. En cada capítulo su
+  criatura aparece con malla y recorre el mapa (Oyente, Imitador, Trepador,
+  Coloso, Quieto), sin errores ni avisos de IA.
