@@ -1,6 +1,15 @@
 -- Modelos procedurales de objetos, máquinas, escondites y utilería.
+-- Los modelos detallados viven en ItemModels, MachineModels, HideModels y RoomDecor;
+-- este módulo es la puerta de entrada que usan los servicios.
 local Shared = game:GetService("ReplicatedStorage").Shared
 local ItemConfig = require(Shared.Config.ItemConfig)
+local Rng = require(Shared.Logic.Rng)
+
+local HideModels = require(script.Parent.HideModels)
+local ItemModels = require(script.Parent.ItemModels)
+local MachineModels = require(script.Parent.MachineModels)
+local PropKit = require(script.Parent.PropKit)
+local RoomDecor = require(script.Parent.RoomDecor)
 
 local FeatureBuilder = {}
 
@@ -30,216 +39,24 @@ local function model(parent, name)
     return item
 end
 
-function FeatureBuilder.AddPrompt(host, actionText, objectText, holdDuration)
-    local prompt = Instance.new("ProximityPrompt")
-    prompt.Name = "NocturnaPrompt"
-    prompt.ActionText = actionText
-    prompt.ObjectText = objectText or ""
-    prompt.HoldDuration = holdDuration or 0
-    prompt.MaxActivationDistance = 9
-    prompt.RequiresLineOfSight = false
-    prompt.KeyboardKeyCode = Enum.KeyCode.E
-    prompt.Parent = host
-    return prompt
-end
+FeatureBuilder.AddPrompt = PropKit.AddPrompt
 
 function FeatureBuilder.Pickup(parent, itemId, cframe)
-    local definition = ItemConfig[itemId]
-    local holder = part(
-        parent,
-        "Pickup_" .. itemId,
-        Vector3.new(1.2, 1.2, 1.2),
-        cframe * CFrame.new(0, 1.2, 0),
-        definition.Color,
-        Enum.Material.Neon
-    )
-    holder.CanCollide = false
-
-    local stand = part(
-        holder,
-        "Stand",
-        Vector3.new(2, 0.5, 2),
-        cframe * CFrame.new(0, 0.25, 0),
-        Color3.fromRGB(45, 46, 50),
-        Enum.Material.Metal
-    )
-    stand.CanCollide = false
-
-    local glow = Instance.new("PointLight")
-    glow.Color = definition.Color
-    glow.Brightness = 0.6
-    glow.Range = 7
-    glow.Shadows = false
-    glow.Parent = holder
-
-    return holder, FeatureBuilder.AddPrompt(holder, "Recoger", definition.DisplayName, 0.3)
+    local holder = ItemModels.Build(parent, itemId, cframe)
+    return holder, PropKit.AddPrompt(holder, "Recoger", ItemConfig[itemId].DisplayName, 0.3)
 end
 
 function FeatureBuilder.Document(parent, title, cframe)
-    local holder = model(parent, "Document")
-    part(
-        holder,
-        "Table",
-        Vector3.new(3, 2.4, 2),
-        cframe * CFrame.new(0, 1.2, 0),
-        Color3.fromRGB(58, 50, 42),
-        Enum.Material.Wood
-    )
-    local sheet = part(
-        holder,
-        "Sheet",
-        Vector3.new(1.3, 0.1, 1.7),
-        cframe * CFrame.new(0, 2.5, 0) * CFrame.Angles(0, 0.3, 0),
-        Color3.fromRGB(225, 218, 190),
-        Enum.Material.SmoothPlastic
-    )
-    sheet.CanCollide = false
-    holder.PrimaryPart = sheet
-
-    local glow = Instance.new("PointLight")
-    glow.Color = Color3.fromRGB(240, 225, 180)
-    glow.Brightness = 0.4
-    glow.Range = 6
-    glow.Shadows = false
-    glow.Parent = sheet
-
-    return holder, FeatureBuilder.AddPrompt(sheet, "Leer", title, 0.2)
+    return MachineModels.Document(parent, title, cframe)
 end
 
-function FeatureBuilder.Generator(parent, feature, cframe)
-    local holder = model(parent, feature.Id)
-    local body = part(
-        holder,
-        "Body",
-        Vector3.new(6, 5, 4),
-        cframe * CFrame.new(0, 2.5, 0),
-        Color3.fromRGB(62, 66, 58),
-        Enum.Material.DiamondPlate
-    )
-    holder.PrimaryPart = body
-    part(
-        holder,
-        "Exhaust",
-        Vector3.new(1.2, 3, 1.2),
-        cframe * CFrame.new(-2, 6, 1),
-        Color3.fromRGB(40, 40, 42),
-        Enum.Material.Metal
-    )
-    local indicator = part(
-        holder,
-        "Indicator",
-        Vector3.new(1, 1, 0.3),
-        cframe * CFrame.new(0, 3.6, -2.1),
-        Color3.fromRGB(190, 40, 35),
-        Enum.Material.Neon
-    )
-    indicator.CanCollide = false
-
-    return holder, FeatureBuilder.AddPrompt(body, "Insertar fusible", feature.Label, 1), indicator
-end
-
-function FeatureBuilder.Terminal(parent, feature, cframe)
-    local holder = model(parent, feature.Id)
-    local desk = part(
-        holder,
-        "Desk",
-        Vector3.new(5, 2.6, 2.5),
-        cframe * CFrame.new(0, 1.3, 0),
-        Color3.fromRGB(52, 54, 60),
-        Enum.Material.Metal
-    )
-    holder.PrimaryPart = desk
-    local screen = part(
-        holder,
-        "Screen",
-        Vector3.new(3, 2, 0.3),
-        cframe * CFrame.new(0, 3.8, 0.4),
-        Color3.fromRGB(70, 170, 130),
-        Enum.Material.Neon
-    )
-    screen.CanCollide = false
-
-    return holder, FeatureBuilder.AddPrompt(desk, feature.Prompt or "Usar", feature.Label, feature.Hold), screen
-end
-
-function FeatureBuilder.Valve(parent, feature, cframe)
-    local holder = model(parent, feature.Id)
-    local pipe = part(
-        holder,
-        "Pipe",
-        Vector3.new(1.4, 6, 1.4),
-        cframe * CFrame.new(0, 3, 0),
-        Color3.fromRGB(80, 62, 58),
-        Enum.Material.Metal
-    )
-    holder.PrimaryPart = pipe
-    local wheel = part(
-        holder,
-        "Wheel",
-        Vector3.new(0.5, 3, 3),
-        cframe * CFrame.new(0, 3.6, -1) * CFrame.Angles(0, math.rad(90), 0),
-        Color3.fromRGB(170, 50, 45),
-        Enum.Material.Metal,
-        Enum.PartType.Cylinder
-    )
-    wheel.CanCollide = false
-
-    return holder, FeatureBuilder.AddPrompt(pipe, feature.Prompt or "Cerrar", "Válvula de contención", feature.Hold), wheel
-end
-
-function FeatureBuilder.Core(parent, feature, cframe)
-    local holder = model(parent, feature.Id)
-    local base = part(
-        holder,
-        "Base",
-        Vector3.new(7, 1.5, 7),
-        cframe * CFrame.new(0, 0.75, 0),
-        Color3.fromRGB(44, 46, 56),
-        Enum.Material.DiamondPlate
-    )
-    holder.PrimaryPart = base
-    local column = part(
-        holder,
-        "Column",
-        Vector3.new(3, 9, 3),
-        cframe * CFrame.new(0, 6, 0),
-        Color3.fromRGB(120, 60, 170),
-        Enum.Material.Neon
-    )
-    column.CanCollide = false
-
-    local glow = Instance.new("PointLight")
-    glow.Color = Color3.fromRGB(150, 90, 230)
-    glow.Brightness = 1.2
-    glow.Range = 22
-    glow.Shadows = false
-    glow.Parent = column
-
-    return holder, FeatureBuilder.AddPrompt(base, feature.Prompt, feature.Label, feature.Hold), column
-end
+FeatureBuilder.Generator = MachineModels.Generator
+FeatureBuilder.Terminal = MachineModels.Terminal
+FeatureBuilder.Valve = MachineModels.Valve
+FeatureBuilder.Core = MachineModels.Core
 
 function FeatureBuilder.Exit(parent, feature, cframe)
-    local holder = model(parent, feature.Id)
-    local frame = part(
-        holder,
-        "Frame",
-        Vector3.new(7, 8, 1.5),
-        cframe * CFrame.new(0, 4, 0),
-        Color3.fromRGB(70, 72, 78),
-        Enum.Material.Metal
-    )
-    holder.PrimaryPart = frame
-    local panel = part(
-        holder,
-        "Panel",
-        Vector3.new(0.8, 1.2, 0.3),
-        cframe * CFrame.new(2.6, 3.8, -0.9),
-        Color3.fromRGB(200, 170, 60),
-        Enum.Material.Neon
-    )
-    panel.CanCollide = false
-
-    return holder, FeatureBuilder.AddPrompt(frame, feature.Prompt, feature.Id == "ELEVATOR" and "Ascensor de servicio" or "Salida", feature.Hold), panel
+    return MachineModels.Exit(parent, feature, cframe)
 end
 
 function FeatureBuilder.Sister(parent, feature, cframe)
@@ -286,82 +103,42 @@ function FeatureBuilder.Sister(parent, feature, cframe)
 end
 
 function FeatureBuilder.Locker(parent, cframe)
-    local holder = model(parent, "Locker")
-    local shell = Color3.fromRGB(70, 78, 80)
-    local back = part(holder, "Back", Vector3.new(4, 7.5, 0.4), cframe * CFrame.new(0, 3.75, 1.6), shell)
-    holder.PrimaryPart = back
-    part(holder, "Left", Vector3.new(0.4, 7.5, 3.4), cframe * CFrame.new(-1.8, 3.75, 0), shell)
-    part(holder, "Right", Vector3.new(0.4, 7.5, 3.4), cframe * CFrame.new(1.8, 3.75, 0), shell)
-    part(holder, "Top", Vector3.new(4, 0.4, 3.6), cframe * CFrame.new(0, 7.7, 0), shell)
-    local door = part(holder, "Door", Vector3.new(3.2, 7.5, 0.25), cframe * CFrame.new(0, 3.75, -1.7), Color3.fromRGB(58, 66, 68))
-    door.CanCollide = false
-
-    for index = 1, 3 do
-        local slit = part(
-            holder,
-            "Slit",
-            Vector3.new(2.2, 0.12, 0.05),
-            cframe * CFrame.new(0, 5.4 + index * 0.3, -1.85),
-            Color3.fromRGB(8, 8, 9),
-            Enum.Material.SmoothPlastic
-        )
-        slit.CanCollide = false
-    end
-
-    return holder, FeatureBuilder.AddPrompt(door, "Esconderse", "Casillero", 0.25)
+    local holder, prompt = HideModels.Build(parent, "Locker", cframe)
+    return holder, prompt
 end
 
-local PROPS = {}
+-- Escondite de cualquier tipo (Locker, Wardrobe, Desk, Bed, Vent): devuelve el
+-- modelo, el prompt y la especificación de cámara, interior y salida.
+FeatureBuilder.Hide = HideModels.Build
 
-function PROPS.Crate(parent, cframe)
-    part(parent, "Crate", Vector3.new(4, 3, 4), cframe * CFrame.new(0, 1.5, 0), Color3.fromRGB(74, 58, 42), Enum.Material.Wood)
-    part(parent, "CrateSmall", Vector3.new(2.5, 2, 2.5), cframe * CFrame.new(0.4, 4, 0.2) * CFrame.Angles(0, 0.5, 0), Color3.fromRGB(64, 50, 38), Enum.Material.Wood)
-end
+-- Nombre de la malla de NocturnaProps que reemplaza a cada utilería de rincón.
+local CORNER_MESHES = {
+    Pipe = "CornerPipe",
+    Growth = "GrowthMass",
+    Tank = "SpecimenTank",
+}
 
-function PROPS.Barrel(parent, cframe)
-    part(parent, "Barrel", Vector3.new(4.5, 3, 3), cframe * CFrame.new(0, 2.25, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(70, 50, 42), Enum.Material.Metal, Enum.PartType.Cylinder)
-end
-
-function PROPS.Pipe(parent, cframe)
-    part(parent, "Pipe", Vector3.new(1.2, 12, 1.2), cframe * CFrame.new(0, 6, 1), Color3.fromRGB(60, 62, 64), Enum.Material.Metal)
-    part(parent, "PipeJoint", Vector3.new(2, 0.8, 2), cframe * CFrame.new(0, 4, 1), Color3.fromRGB(80, 60, 45), Enum.Material.Metal)
-end
-
-function PROPS.Desk(parent, cframe)
-    part(parent, "Desk", Vector3.new(5, 2.5, 2.5), cframe * CFrame.new(0, 1.25, 0), Color3.fromRGB(86, 80, 70), Enum.Material.Wood)
-    part(parent, "Chair", Vector3.new(1.6, 2.6, 1.6), cframe * CFrame.new(0.6, 1.3, -2.4) * CFrame.Angles(0, 0.7, 0), Color3.fromRGB(44, 46, 50), Enum.Material.Fabric)
-end
-
-function PROPS.Cabinet(parent, cframe)
-    part(parent, "Cabinet", Vector3.new(4.5, 7, 2), cframe * CFrame.new(0, 3.5, 0.6), Color3.fromRGB(84, 88, 92), Enum.Material.Metal)
-end
-
-function PROPS.Growth(parent, cframe)
-    part(parent, "Growth", Vector3.new(5, 4, 5), cframe * CFrame.new(0, 1.2, 0) * CFrame.Angles(0.2, 0.6, 0.1), Color3.fromRGB(120, 40, 55), Enum.Material.Slate, Enum.PartType.Ball)
-    part(parent, "Vein", Vector3.new(0.6, 9, 0.6), cframe * CFrame.new(0.8, 5, 0.6) * CFrame.Angles(0.15, 0, 0.2), Color3.fromRGB(160, 50, 70), Enum.Material.Neon)
-end
-
-function PROPS.Table(parent, cframe)
-    part(parent, "TableTop", Vector3.new(4, 0.4, 3), cframe * CFrame.new(0, 2.6, 0), Color3.fromRGB(98, 72, 48), Enum.Material.Wood)
-    part(parent, "TableLeg", Vector3.new(2.6, 2.4, 1.6), cframe * CFrame.new(0, 1.2, 0), Color3.fromRGB(78, 58, 40), Enum.Material.Wood)
-end
-
-function PROPS.Chair(parent, cframe)
-    part(parent, "Seat", Vector3.new(2, 2, 2), cframe * CFrame.new(0, 1, 0), Color3.fromRGB(90, 70, 52), Enum.Material.Wood)
-    part(parent, "Backrest", Vector3.new(2, 2.4, 0.4), cframe * CFrame.new(0, 3.2, 0.8), Color3.fromRGB(90, 70, 52), Enum.Material.Wood)
-end
-
-function FeatureBuilder.Prop(parent, kind, cframe)
-    local builder = PROPS[kind]
+-- Utilería de rincón. `theme` y `rng` son opcionales.
+function FeatureBuilder.Prop(parent, kind, cframe, theme, rng)
+    local builder = RoomDecor.Corner[kind]
     if not builder then
         return nil
     end
 
     local holder = model(parent, kind)
-    builder(holder, cframe)
+    local palette = RoomDecor.Palette(theme or {})
+    rng = rng or Rng.new(math.floor(cframe.Position.X * 31 + cframe.Position.Z))
+    local meshName = CORNER_MESHES[kind] or kind
+    if PropKit.Boxes[meshName] then
+        PropKit.Visual(holder, meshName, cframe, function(target)
+            builder(target, cframe, palette, rng)
+        end)
+    else
+        builder(holder, cframe, palette, rng)
+    end
     return holder
 end
 
-FeatureBuilder.PropKinds = PROPS
+FeatureBuilder.PropKinds = RoomDecor.Corner
 
 return FeatureBuilder

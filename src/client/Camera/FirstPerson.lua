@@ -1,8 +1,10 @@
 -- Cámara en primera persona con balanceo al caminar, sacudidas, vista desde el
 -- escondite y modo espectador.
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
@@ -13,11 +15,25 @@ local player = Players.LocalPlayer
 local CONFIG = GameConfig.Player
 local CROUCH_OFFSET = Vector3.new(0, -1.6, 0)
 
+-- Desde el escondite se puede espiar un poco hacia los costados.
+local HIDE_YAW = math.rad(26)
+local HIDE_PITCH = math.rad(12)
+local HIDE_TOUCH_SPEED = 1 / 260
+-- Ojos acostumbrados a la oscuridad: adentro se ve un poco más.
+local HIDE_EXPOSURE = 0.6
+-- Teclas para salir del escondite (además del botón SALIR en pantalla).
+local EXIT_KEYS = {Enum.KeyCode.E, Enum.KeyCode.ButtonB}
+local EXIT_COOLDOWN = 0.4
+
 local FirstPerson = {}
 local shakeUntil = 0
 local shakeStrength = 0
 local bobClock = 0
 local hideCFrame = nil
+local hideLook = Vector2.zero
+local hideAim = Vector2.zero
+local exposureBefore = nil
+local lastExitRequest = -math.huge
 local spectating = false
 local spectateReadyAt = 0
 local SPECTATE_DELAY = 2.5
@@ -107,17 +123,93 @@ local function aimFlashlight(camera)
     end
 end
 
+local function setPromptsEnabled(enabled)
+    -- Mientras está escondido no se ven ni se disparan los demás prompts: así la
+    -- tecla E queda libre para salir.
+    pcall(function()
+        ProximityPromptService.Enabled = enabled
+    end)
+end
+
 local function setHidden(hidden, cframe, ejected)
     local camera = workspace.CurrentCamera
-    if hidden then
+    if hidden and cframe then
         hideCFrame = cframe
+        hideLook = Vector2.zero
+        hideAim = Vector2.zero
         camera.CameraType = Enum.CameraType.Scriptable
-        TweenService:Create(camera, TweenInfo.new(0.35), {CFrame = cframe}):Play()
-    else
-        hideCFrame = nil
+        camera.CFrame = cframe
+        if exposureBefore == nil then
+            exposureBefore = Lighting.ExposureCompensation
+            Lighting.ExposureCompensation = exposureBefore + HIDE_EXPOSURE
+        end
+        setPromptsEnabled(false)
+        return
+    end
+
+    local wasHidden = hideCFrame ~= nil
+    hideCFrame = nil
+    if exposureBefore ~= nil then
+        Lighting.ExposureCompensation = exposureBefore
+        exposureBefore = nil
+    end
+    setPromptsEnabled(true)
+    if wasHidden or ejected then
         enterFirstPerson()
-        if ejected then
-            FirstPerson.Shake(5, 0.8)
+    end
+    if ejected then
+        FirstPerson.Shake(5, 0.8)
+    end
+end
+
+function FirstPerson.IsHidden()
+    return hideCFrame ~= nil
+end
+
+function FirstPerson.HideCFrame()
+    return hideCFrame
+end
+
+function FirstPerson.RequestExit()
+    if not hideCFrame or os.clock() - lastExitRequest < EXIT_COOLDOWN then
+        return false
+    end
+    lastExitRequest = os.clock()
+    Remotes.FireServer("ExitHiding")
+    return true
+end
+
+-- Mirar alrededor desde adentro: el mouse (libre mientras está escondido) o
+-- arrastrando el dedo. Siempre dentro de un margen chico.
+local function onInputChanged(input)
+    if not hideCFrame then
+        return
+    end
+    local camera = workspace.CurrentCamera
+    if input.UserInputType == Enum.UserInputType.MouseMovement and camera then
+        local size = camera.ViewportSize
+        local offset = Vector2.new(input.Position.X, input.Position.Y) - size / 2
+        hideAim = Vector2.new(
+            math.clamp(offset.X / (size.X / 2), -1, 1),
+            math.clamp(offset.Y / (size.Y / 2), -1, 1)
+        )
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Delta
+        hideAim = Vector2.new(
+            math.clamp(hideAim.X + delta.X * HIDE_TOUCH_SPEED, -1, 1),
+            math.clamp(hideAim.Y + delta.Y * HIDE_TOUCH_SPEED, -1, 1)
+        )
+    end
+end
+
+local function onInputBegan(input, processed)
+    if processed or not hideCFrame then
+        return
+    end
+    for _, key in ipairs(EXIT_KEYS) do
+        if input.KeyCode == key then
+            FirstPerson.RequestExit()
+            return
         end
     end
 end
@@ -126,13 +218,24 @@ function FirstPerson.Start()
     player.CameraMode = Enum.CameraMode.LockFirstPerson
 
     player.CharacterAdded:Connect(function(character)
-        hideCFrame = nil
+        setHidden(false, nil, false)
         spectating = false
         character:WaitForChild("Humanoid", 10)
         enterFirstPerson()
     end)
 
     Remotes.OnClient("HideState", setHidden)
+
+    -- El servidor es la fuente de verdad: si dice que ya no está escondido, la
+    -- cámara vuelve aunque se haya perdido el aviso.
+    player:GetAttributeChangedSignal("Hidden"):Connect(function()
+        if player:GetAttribute("Hidden") ~= true and hideCFrame then
+            setHidden(false, nil, false)
+        end
+    end)
+
+    UserInputService.InputBegan:Connect(onInputBegan)
+    UserInputService.InputChanged:Connect(onInputChanged)
 
     Remotes.OnClient("DownState", function(data)
         if data.Spectating then
@@ -178,8 +281,14 @@ function FirstPerson.Start()
         end
 
         if hideCFrame then
+            hideLook = hideLook:Lerp(hideAim, math.min(1, deltaTime * 6))
             local sway = math.sin(os.clock() * 0.9) * 0.004
-            camera.CFrame = hideCFrame * CFrame.Angles(sway, sway * 0.5, 0)
+            camera.CameraType = Enum.CameraType.Scriptable
+            camera.CFrame = hideCFrame * CFrame.Angles(
+                -hideLook.Y * HIDE_PITCH + sway,
+                -hideLook.X * HIDE_YAW + sway * 0.5,
+                0
+            )
         elseif not spectating then
             local humanoid = currentHumanoid()
             if humanoid and humanoid.Health > 0 then
@@ -194,7 +303,7 @@ function FirstPerson.Start()
 end
 
 function FirstPerson.ResetCamera()
-    hideCFrame = nil
+    setHidden(false, nil, false)
     if player.Character then
         enterFirstPerson()
     end

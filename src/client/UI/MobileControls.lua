@@ -45,24 +45,55 @@ local function holdButton(button, onChange)
     end)
 end
 
-function MobileControls.Start()
-    local root = Theme.Screen("NocturnaTouch", 2)
-
-    local exitHide = Theme.Button(root, "SALIR DEL ESCONDITE", {
+-- Botón SALIR del escondite: en su propia pantalla, por encima de la viñeta y del
+-- HUD, para que nada lo tape. En PC además libera el mouse y recuerda la tecla E.
+local function buildExitHide()
+    local root = Theme.Screen("NocturnaHide", 6)
+    local exitHide = Theme.Button(root, Theme.IsTouch and "SALIR" or "SALIR  [E]", {
         Name = "ExitHide",
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -24),
-        Size = UDim2.fromOffset(240, 56),
+        Position = UDim2.new(0.5, 0, 1, Theme.IsTouch and -36 or -40),
+        Size = UDim2.fromOffset(Theme.IsTouch and 230 or 200, Theme.IsTouch and 76 or 54),
         BackgroundColor3 = Colors.ButtonActive,
+        BackgroundTransparency = 0.1,
+        TextSize = Theme.IsTouch and 24 or 18,
         Visible = false,
     })
+    Theme.New("UIStroke", {Color = Colors.Accent, Thickness = 2, Transparency = 0.2}, exitHide)
+
+    local hint = Theme.Label(root, {
+        Name = "HideHint",
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = UDim2.new(0.5, 0, 1, Theme.IsTouch and -120 or -100),
+        Size = UDim2.fromOffset(420, 24),
+        Text = "Escondido. Si no te vieron entrar, no te encuentran.",
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextColor3 = Colors.TextDim,
+        Visible = false,
+    })
+
     exitHide.Activated:Connect(function()
         Remotes.FireServer("ExitHiding")
     end)
 
-    Remotes.OnClient("HideState", function(hidden)
+    local function show(hidden)
         exitHide.Visible = hidden
+        hint.Visible = hidden
+        Theme.SetModal("Hide", hidden)
+    end
+
+    Remotes.OnClient("HideState", function(hidden)
+        show(hidden == true)
     end)
+    -- El atributo lo pone el servidor: si por algo se pierde el aviso, igual se corrige.
+    player:GetAttributeChangedSignal("Hidden"):Connect(function()
+        show(player:GetAttribute("Hidden") == true)
+    end)
+end
+
+function MobileControls.Start()
+    local root = Theme.Screen("NocturnaTouch", 2)
+    buildExitHide()
 
     if not Theme.IsTouch then
         return

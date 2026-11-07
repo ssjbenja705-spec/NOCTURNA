@@ -132,7 +132,7 @@ local EVENT_NAMES = {
     Stepped = true, PlayerAdded = true, PlayerRemoving = true, CharacterAdded = true,
     CharacterRemoving = true, Died = true, HealthChanged = true, Chatted = true, Completed = true,
     Event = true, WindowFocusReleased = true, Loaded = true, ChildAdded = true, DescendantAdded = true,
-    PromptTriggered = true, MouseButton1Click = true, FocusLost = true,
+    PromptTriggered = true, MouseButton1Click = true, FocusLost = true, InputChanged = true,
 }
 
 local INSTANCE_PROPERTIES = {
@@ -844,6 +844,7 @@ function Engine.Reset(options)
     service("SoundService")
     local starterGui = service("StarterGui")
     service("Teams")
+    service("ProximityPromptService")
 
     Engine.CoreSettings = {}
     rawset(starterGui, "SetCore", function(_, name, value)

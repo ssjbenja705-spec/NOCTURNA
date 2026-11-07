@@ -1048,7 +1048,7 @@ T.Test("el casillero mira hacia la sala y deja al jugador afuera, enfrente", fun
     Engine.Run(0.3)
     local camera = Engine.LastSent("HideState", players[1])[2]
     local relative = slot:ToObjectSpace(camera)
-    T.True(relative.Position.Z < -1.8, "la cámara queda del lado de la puerta")
+    T.True(relative.Position.Z < 0 and relative.Position.Z > -1.6, "la cámara queda adentro, detrás de la puerta")
     T.True(camera.LookVector:Dot(slot.LookVector) > 0.99, "mira hacia donde mira la puerta")
 
     fire("ExitHiding", players[1])
@@ -1927,6 +1927,475 @@ T.Test("las analíticas registran capítulo, objetivo y final sin afectar la par
     end
     T.True(names.ChapterStarted, "capítulo iniciado")
     T.True(names.Objective_C1_ENTRY, "objetivo registrado")
+end)
+
+T.Suite("Mundo")
+
+local function hidesFolder()
+    return Engine.Workspace:FindFirstChild("NOCTURNA_MAP"):FindFirstChild("Hides")
+end
+
+local function hidePrompt(model)
+    return model:FindFirstChild("Door"):FindFirstChild("NocturnaPrompt")
+end
+
+local function enterHide(player, model)
+    local prompt = hidePrompt(model)
+    Bot.MoveTo(Engine, player, prompt.Parent.Position)
+    prompt:Fire(player)
+    Engine.Run(0.3)
+    return prompt
+end
+
+local function countBaseParts(root)
+    local count = 0
+    for _, descendant in ipairs(root:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            count += 1
+        end
+    end
+    return count
+end
+
+T.Test("Mundo: en PC se sale del escondite con E y los prompts vuelven", function()
+    local player = clientWithMatch()
+    local Hiding = Engine.RequireServer("World.HidingService")
+    local promptService = Engine.Services.ProximityPromptService
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
+
+    local prompt = enterHide(player, hidesFolder():GetChildren()[1])
+    T.True(Hiding.IsHidden(player), "escondido")
+    T.False(promptService.Enabled, "los demás prompts no roban la tecla E")
+    local camera = Engine.Workspace.CurrentCamera
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Scriptable, "cámara del escondite")
+
+    local button = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaHide"):FindFirstChild("Root"):FindFirstChild("ExitHide")
+    T.True(button.Visible, "en PC también se ve SALIR [E]")
+
+    Engine.Input("InputBegan", {KeyCode = roblox.Enum.KeyCode.E, UserInputType = roblox.Enum.UserInputType.Keyboard})
+    Engine.Run(0.3)
+    T.False(Hiding.IsHidden(player), "salió con E")
+    T.False(root.Anchored, "libre")
+    T.True(prompt.Enabled, "el escondite queda libre")
+    T.True(promptService.Enabled, "prompts de nuevo activos")
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Custom, "vuelve la primera persona")
+    T.False(button.Visible, "botón oculto")
+
+    -- Y el prompt del escondite sirve para volver a entrar.
+    enterHide(player, hidesFolder():GetChildren()[1])
+    T.True(Hiding.IsHidden(player), "entra otra vez con el prompt")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Mundo: en el celular el botón SALIR se ve por encima de todo y saca al jugador", function()
+    local player = clientWithMatch({Touch = true, Viewport = roblox.Vector2.new(812, 375)})
+    local Hiding = Engine.RequireServer("World.HidingService")
+    local gui = player:FindFirstChild("PlayerGui")
+
+    enterHide(player, hidesFolder():GetChildren()[1])
+    T.True(Hiding.IsHidden(player), "escondido")
+
+    local hideGui = gui:FindFirstChild("NocturnaHide")
+    local button = hideGui:FindFirstChild("Root"):FindFirstChild("ExitHide")
+    T.True(button.Visible, "SALIR visible")
+    T.True(button.Size.X.Offset >= 200 and button.Size.Y.Offset >= 64, "botón grande para el dedo")
+    for _, name in ipairs({"NocturnaVignette", "NocturnaTouch", "NocturnaHUD"}) do
+        T.True(gui:FindFirstChild(name).DisplayOrder < hideGui.DisplayOrder, "nada de juego tapa el botón: " .. name)
+    end
+    -- La viñeta ya no tapa la pantalla con franjas negras.
+    T.True(gui:FindFirstChild("NocturnaVignette"):FindFirstChild("Root"):FindFirstChild("LockerSlit") == nil, "sin franjas negras")
+
+    Engine.GuiInput(button, "Activated")
+    Engine.Run(0.3)
+    T.False(Hiding.IsHidden(player), "salió con el botón")
+    T.False(button.Visible, "botón oculto al salir")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Mundo: la cámara de cada escondite queda adentro, mirando afuera por rendijas abiertas", function()
+    Engine.Reset()
+    local Hide = Engine.RequireServer("World.HideModels")
+    local base = roblox.CFrame.new(10, 0, 20) * roblox.CFrame.Angles(0, 0.7, 0)
+
+    for _, kind in ipairs(Hide.Kinds) do
+        local folder = Engine.New("Folder", kind)
+        folder.Parent = Engine.Workspace
+        local model, prompt, spec = Hide.Build(folder, kind, base)
+        T.Equal(spec.Kind, kind, "tipo")
+        T.True(model:FindFirstChild("Door") ~= nil and prompt.Parent == model:FindFirstChild("Door"), kind .. ": prompt en Door")
+        T.True(prompt.ActionText == "Esconderse" and #spec.Label > 0, kind .. ": textos")
+
+        local camera = spec.Camera
+        T.True(camera.Position.Z > spec.DoorZ and camera.Position.Z < 0.2, kind .. ": la cámara queda adentro, detrás de la puerta")
+        T.True(camera.LookVector:Dot(roblox.Vector3.new(0, 0, -1)) > 0.99, kind .. ": mira hacia la sala")
+        T.True(spec.Exit.Position.Z < spec.DoorZ - 1.5, kind .. ": sale delante del escondite")
+
+        -- Las tablillas dejan aire a la altura de los ojos.
+        local slats = {}
+        for _, part in ipairs(model:GetDescendants()) do
+            if part.Name == "Slat" then
+                table.insert(slats, base:ToObjectSpace(part.CFrame).Position.Y)
+            end
+        end
+        if #slats > 0 then
+            T.True(#slats >= 4, kind .. ": persiana con varias tablillas")
+            table.sort(slats)
+            local gap = (slats[#slats] - slats[1]) / (#slats - 1)
+            T.True(gap - 0.12 >= 0.2, kind .. ": rendijas de verdad abiertas")
+            T.True(camera.Position.Y >= slats[1] - gap and camera.Position.Y <= slats[#slats] + gap, kind .. ": la vista cae en la persiana")
+        else
+            T.True(camera.Position.Y < 1.6, kind .. ": abajo del mueble, la vista sale por el frente abierto")
+        end
+        folder:Destroy()
+    end
+end)
+
+T.Test("Mundo: nunca se queda trabado adentro (reaparición, mapa que se va, ancla perdida)", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+    local player = players[1]
+    local Hiding = Engine.RequireServer("World.HidingService")
+
+    enterHide(player, hidesFolder():GetChildren()[1])
+    T.True(Hiding.IsHidden(player), "escondido")
+    player.Character:FindFirstChild("HumanoidRootPart").Anchored = false
+    Engine.Run(1)
+    T.False(Hiding.IsHidden(player), "si algo lo suelta, el servidor lo da por afuera")
+    T.Equal(Engine.LastSent("HideState", player)[1], false, "y le avisa al cliente")
+
+    enterHide(player, hidesFolder():GetChildren()[2])
+    T.True(Hiding.IsHidden(player), "escondido otra vez")
+    player:LoadCharacter()
+    Engine.Run(1)
+    T.False(Hiding.IsHidden(player), "al reaparecer queda afuera")
+    T.Equal(player:GetAttribute("Hidden"), false, "atributo limpio")
+
+    Engine.Run(1)
+    enterHide(player, hidesFolder():GetChildren()[3])
+    T.True(Hiding.IsHidden(player), "escondido por tercera vez")
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
+    Engine.RequireServer("World.WorldService").Unload()
+    Engine.Run(1)
+    T.False(Hiding.IsHidden(player), "al descargar el mapa nadie queda escondido")
+    T.False(root.Anchored, "y nadie queda anclado")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Mundo: los tipos nuevos de escondite funcionan en cada capítulo", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+    local player = players[1]
+    local Hiding = Engine.RequireServer("World.HidingService")
+    local WorldService = Engine.RequireServer("World.WorldService")
+    local Rooms = Engine.RequireServer("World.RoomGenerator")
+
+    local seen = {}
+    for _, chapter in ipairs({2, 3, 5}) do
+        local plan = WorldService.LoadChapter(chapter, 4242 + chapter)
+        local theme = ThemeConfig[ChapterConfig[chapter].Theme]
+        T.True(#plan.Hides > ChapterConfig[chapter].Layout.Hides, "más escondites que antes en el capítulo " .. chapter)
+
+        for index, model in ipairs(hidesFolder():GetChildren()) do
+            local kind = model:GetAttribute("HideKind")
+            T.True(table.find(theme.HideKinds, kind) ~= nil, "el tipo sale del tema: " .. tostring(kind))
+            if not seen[kind] then
+                seen[kind] = true
+                enterHide(player, model)
+                T.True(Hiding.IsHidden(player), kind .. ": entra")
+                T.Equal(Hiding.KindOf(player), kind, kind .. ": tipo")
+                local args = Engine.LastSent("HideState", player)
+                T.Equal(args[4], kind, kind .. ": el cliente sabe dónde está")
+
+                fire("ExitHiding", player)
+                Engine.Run(0.3)
+                T.False(Hiding.IsHidden(player), kind .. ": sale")
+                local hide = plan.Hides[index]
+                local slot = Rooms.SlotCFrame(plan.Layout, hide.Cell, hide.Slot)
+                local relative = slot:ToObjectSpace(player.Character:FindFirstChild("HumanoidRootPart").CFrame)
+                T.True(relative.Position.Z < -3 and math.abs(relative.Position.Y - 3) < 0.1, kind .. ": queda parado delante")
+                Engine.Run(0.3)
+            end
+        end
+    end
+    for _, kind in ipairs({"Locker", "Wardrobe", "Desk", "Bed", "Vent"}) do
+        T.True(seen[kind], "se probó " .. kind)
+    end
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Mundo: pasadizos secretos sin romper ningún mapa y fuera del camino de las criaturas", function()
+    Engine.Reset()
+    local WorldService = Engine.RequireServer("World.WorldService")
+    local MazeNav = Engine.RequireShared("Logic.MazeNav")
+
+    for chapterIndex = 1, 5 do
+        local theme = ThemeConfig[ChapterConfig[chapterIndex].Theme]
+        local spec = ChapterConfig[chapterIndex].Layout
+        local withPassages, extraHides = 0, 0
+        for seed = 1, 150 do
+            local success, plan = pcall(WorldService.PlanChapter, chapterIndex, seed * 17)
+            if success then
+                local valid, reason = WorldService.ValidatePlan(plan)
+                T.True(valid, string.format("capítulo %d semilla %d: %s", chapterIndex, seed, tostring(reason)))
+                T.True(#plan.Passages <= theme.Passages, "no más pasadizos que los del tema")
+                if #plan.Passages > 0 then
+                    withPassages += 1
+                end
+                extraHides += #plan.Hides - spec.Hides
+
+                local nav = MazeNav.new(plan.Layout, GameConfig.Map.CellSize)
+                local reachable = MazeLayout.Flood(plan.Layout, plan.Layout.Start, plan.LockedEdges)
+                for _, passage in ipairs(plan.Passages) do
+                    T.True(table.find(nav:Neighbors(passage.A), passage.B) == nil, "las criaturas no conocen el pasadizo")
+                    T.True(reachable[passage.A] ~= nil and reachable[passage.B] ~= nil, "no saltea puertas trabadas")
+                    T.True(passage.A ~= plan.Layout.Exit and passage.B ~= plan.Layout.Exit, "no lleva a la salida")
+                end
+            end
+        end
+        T.True(withPassages >= 100, string.format("capítulo %d: casi siempre hay pasadizos (%d/150)", chapterIndex, withPassages))
+        T.True(extraHides >= 150 * 2, string.format("capítulo %d: escondites extra (%d)", chapterIndex, extraHides))
+    end
+end)
+
+T.Test("Mundo: cada capítulo queda debajo de 2500 piezas, con salas amuebladas y distintas", function()
+    bootServer(1)
+    Engine.Run(0.5)
+    local WorldService = Engine.RequireServer("World.WorldService")
+
+    for chapterIndex = 1, 5 do
+        for _, seed in ipairs({101, 7777}) do
+            local plan = WorldService.LoadChapter(chapterIndex, seed)
+            local map = Engine.Workspace:FindFirstChild("NOCTURNA_MAP")
+            local count = countBaseParts(map)
+            T.True(count < 2500, string.format("capítulo %d semilla %d: %d piezas", chapterIndex, seed, count))
+            T.True(count > 1200, string.format("capítulo %d semilla %d: salas llenas (%d piezas)", chapterIndex, seed, count))
+
+            local decor = map:FindFirstChild("Decor")
+            local furniture, types = 0, {}
+            for _, room in ipairs(decor:GetChildren()) do
+                types[room:GetAttribute("RoomType")] = true
+                for _, child in ipairs(room:GetChildren()) do
+                    if child:IsA("Model") then
+                        furniture += 1
+                    end
+                end
+            end
+            T.True(furniture >= #plan.Layout.Cells, string.format("capítulo %d: muebles (%d)", chapterIndex, furniture))
+            local typeCount = 0
+            for name in pairs(types) do
+                if name ~= "Corridor" then
+                    typeCount += 1
+                end
+            end
+            T.True(typeCount >= 3, "varios tipos de sala en el capítulo " .. chapterIndex)
+
+            -- Decoración liviana: las piezas que no colisionan tampoco se consultan.
+            for _, part in ipairs(decor:GetDescendants()) do
+                if part:IsA("BasePart") and not part.CanCollide then
+                    T.False(part.CanQuery or part.CanTouch, "decoración liviana: " .. part.Name)
+                end
+            end
+            T.True(#map:FindFirstChild("Passages"):GetChildren() == #plan.Passages, "pasadizos construidos")
+        end
+    end
+    WorldService.Unload()
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Mundo: los cinco capítulos usan materiales, paletas y utilería propios", function()
+    local themes = {}
+    for index = 1, 5 do
+        table.insert(themes, ThemeConfig[ChapterConfig[index].Theme])
+    end
+
+    Engine.Reset()
+    local RoomDecor = Engine.RequireServer("World.RoomDecor")
+
+    for index, theme in ipairs(themes) do
+        for _, key in ipairs({"FloorMaterial", "WallMaterial", "CeilingMaterial", "TrimMaterial"}) do
+            T.True(pcall(function()
+                return roblox.Enum.Material[theme[key]]
+            end), "material real: " .. tostring(theme[key]))
+            T.True(theme[key] ~= "SmoothPlastic", "nada liso: " .. key)
+        end
+        for _, roomType in ipairs(theme.RoomTypes) do
+            T.True(RoomDecor.RoomTypes[roomType] ~= nil, "tipo de sala definido: " .. roomType)
+        end
+        T.True(RoomDecor.Fixtures[theme.Fixture] ~= nil and RoomDecor.Ceiling[theme.CeilingKit] ~= nil, "luminaria y techo propios")
+
+        for other = index + 1, 5 do
+            local b = themes[other]
+            T.True(theme.FloorMaterial .. theme.WallMaterial .. theme.CeilingMaterial ~= b.FloorMaterial .. b.WallMaterial .. b.CeilingMaterial,
+                string.format("capítulos %d y %d con distintos materiales", index, other))
+            local distance = math.abs(theme.Wall.R - b.Wall.R) + math.abs(theme.Wall.G - b.Wall.G) + math.abs(theme.Wall.B - b.Wall.B)
+            T.True(distance > 0.08, string.format("capítulos %d y %d con distinta paleta", index, other))
+            T.True(theme.Fixture ~= b.Fixture and theme.CeilingKit ~= b.CeilingKit, string.format("capítulos %d y %d con distinto techo", index, other))
+            local shared = 0
+            for _, roomType in ipairs(theme.RoomTypes) do
+                if table.find(b.RoomTypes, roomType) then
+                    shared += 1
+                end
+            end
+            T.True(shared <= 1, string.format("capítulos %d y %d con salas distintas", index, other))
+        end
+    end
+end)
+
+T.Test("Mundo: fusibles y objetos con modelos reales, tablero que se llena y salida blindada", function()
+    local players = bootServer(1)
+    startMatch(players, 1)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    local objects = Engine.Workspace:FindFirstChild("NOCTURNA_MAP"):FindFirstChild("Objects")
+    local pickups = 0
+    for _, holder in ipairs(objects:GetChildren()) do
+        if string.sub(holder.Name, 1, 7) == "Pickup_" then
+            pickups += 1
+            T.Equal(holder.Transparency, 1, "la raíz del objeto es invisible")
+            T.True(holder.Material ~= roblox.Enum.Material.Neon, "sin cubo de neón")
+            local glow = holder:FindFirstChild("Glow")
+            T.True(glow ~= nil and glow.Brightness <= 0.6 and glow.Range <= 8, "pista suave para encontrarlo")
+            local pieces = 0
+            for _, part in ipairs(holder:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pieces += 1
+                    if part.Material == roblox.Enum.Material.Neon then
+                        T.True(part.Size.Y <= 0.1 or part.Size.Z <= 0.1, "el neón sólo en filamentos finos: " .. part.Name)
+                    end
+                end
+            end
+            T.True(pieces >= 4, "modelo de varias piezas: " .. holder.Name)
+        end
+    end
+    T.True(pickups >= 3, "hay objetos")
+
+    local fuse = objects:FindFirstChild("Pickup_Fuse")
+    T.True(fuse:FindFirstChild("Glass", true) ~= nil and fuse:FindFirstChild("Cap", true) ~= nil and fuse:FindFirstChild("Filament", true) ~= nil, "fusible de vidrio con casquillos y filamento")
+
+    -- El tablero muestra cada fusible a medida que entra.
+    local Mechanisms = Engine.RequireServer("World.MechanismService")
+    local Inventory = Engine.RequireServer("Inventory.InventoryService")
+    local generator = Engine.Workspace:FindFirstChild("NOCTURNA_MAP"):FindFirstChild("Mechanisms"):FindFirstChild("GEN_MAIN")
+    local function visibleFuses()
+        local count = 0
+        for _, part in ipairs(generator:GetChildren()) do
+            if part.Name == "SlotFuse" and part.Transparency < 1 then
+                count += 1
+            end
+        end
+        return count
+    end
+    T.Equal(visibleFuses(), 0, "tablero vacío")
+    T.True(generator:FindFirstChild("Hazard", true) ~= nil and generator:FindFirstChild("PanelDoor", true) ~= nil, "tablero con puerta y franjas de peligro")
+    local position = Mechanisms.PositionsFor("GEN_MAIN")[1]
+    Inventory.AddItem(players[1], "Fuse", 3)
+    for expected = 1, 3 do
+        Engine.Run(0.5)
+        Bot.Use(Engine, players[1], position)
+        Engine.Run(0.1)
+        T.Equal(visibleFuses(), expected, "fusibles a la vista")
+    end
+    Engine.Run(0.5)
+    Bot.Use(Engine, players[1], position)
+    Engine.Run(0.5)
+    T.True(gameState().HasFlag("POWER"), "arrancó")
+    local indicator = generator:FindFirstChild("Indicator")
+    T.True(indicator.Color.G > indicator.Color.R, "indicador en verde")
+
+    local exit = Engine.Workspace:FindFirstChild("NOCTURNA_MAP"):FindFirstChild("Mechanisms"):FindFirstChild("ELEVATOR")
+    T.True(exit:FindFirstChild("Leaf", true) ~= nil and exit:FindFirstChild("WarningLamp") ~= nil and exit:FindFirstChild("Jamb", true) ~= nil, "salida con hojas, marco y balizas")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Mundo: una malla en ServerStorage.NocturnaProps reemplaza al modelo procedural", function()
+    Engine.Reset()
+    local FeatureBuilder = Engine.RequireServer("World.FeatureBuilder")
+    local PropKit = Engine.RequireServer("World.PropKit")
+
+    local folder = Engine.New("Folder", "NocturnaProps")
+    folder.Parent = Engine.Services.ServerStorage
+    local fuseModel = Engine.New("Model", "Fuse")
+    fuseModel.Parent = folder
+    for index = 1, 2 do
+        local mesh = Engine.New("MeshPart", "Piece" .. index)
+        mesh.Size = Vector3.new(10, 4, 4)
+        mesh.CFrame = roblox.CFrame.new(100 + index * 10, 50, 0)
+        mesh.Parent = fuseModel
+    end
+    local lockerMesh = Engine.New("MeshPart", "Locker")
+    lockerMesh.Size = Vector3.new(6, 15, 5)
+    lockerMesh.Parent = folder
+
+    local base = roblox.CFrame.new(5, 0, 5)
+    local holder = FeatureBuilder.Pickup(Engine.Workspace, "Fuse", base)
+    local clone = nil
+    for _, child in ipairs(holder:GetChildren()) do
+        if child:GetAttribute("NocturnaMesh") then
+            clone = child
+        end
+    end
+    T.True(clone ~= nil and clone.Name == "Fuse", "usa la malla del fusible")
+    T.True(holder:FindFirstChild("Glass", true) == nil, "sin la versión procedural")
+    local box = PropKit.Boxes.Fuse
+    local minY = math.huge
+    for _, part in ipairs(clone:GetChildren()) do
+        T.True(part.Anchored and part.Size.X <= box.X + 0.01, "escalada a su caja")
+        minY = math.min(minY, part.Position.Y - part.Size.Y / 2)
+    end
+    T.True(math.abs(minY - 1.56) < 0.05, "apoyada sobre la caja de cartón")
+
+    local hide = FeatureBuilder.Hide(Engine.Workspace, "Locker", base)
+    local meshed = nil
+    for _, child in ipairs(hide:GetChildren()) do
+        if child:GetAttribute("NocturnaMesh") then
+            meshed = child
+        end
+    end
+    T.True(meshed ~= nil and meshed:IsA("MeshPart"), "una MeshPart suelta también sirve")
+    T.True(meshed.Size.Y <= PropKit.Boxes.Locker.Y + 0.01, "casillero a su medida")
+    T.True(hide:FindFirstChild("Door"):FindFirstChild("NocturnaPrompt") ~= nil, "el prompt sigue funcionando")
+
+    -- Cada nombre del gancho está documentado con su caja.
+    local readme = fs.readFile("assets/models/props/README.md")
+    for name in pairs(PropKit.Boxes) do
+        T.True(string.find(readme, "`" .. name .. "`", 1, true) ~= nil, "README documenta " .. name)
+    end
+end)
+
+T.Test("Mundo: luz más clara y realista, linterna más fuerte y bajo consumo liviano", function()
+    local player = clientWithMatch({Touch = true, Viewport = roblox.Vector2.new(812, 375)})
+    local Lighting = Engine.Services.Lighting
+    local theme = ThemeConfig.Tunnels
+
+    T.True(Lighting:FindFirstChild("NocturnaAtmosphere") ~= nil and Lighting:FindFirstChild("NocturnaBloom") ~= nil, "atmósfera y resplandor")
+    T.True(Lighting:FindFirstChild("NocturnaGrade") ~= nil and Lighting:FindFirstChild("NocturnaDepth") ~= nil, "corrección de color y profundidad")
+    T.True(Lighting.ExposureCompensation > 0 and Lighting.ExposureCompensation < 0.6, "un poco más de exposición, no de más")
+    local ambient = (Lighting.Ambient.R + Lighting.Ambient.G + Lighting.Ambient.B) / 3 * 255
+    T.True(ambient >= 25 and ambient <= 45, "sin linterna se ven formas, pero sigue oscuro: " .. ambient)
+    T.Equal(Lighting.Ambient, theme.Ambient, "ambiente del capítulo")
+
+    fire("FlashlightToggle", player)
+    Engine.Run(0.6)
+    local attachment = player.Character:FindFirstChild("Head"):FindFirstChild("NocturnaFlashlightAttachment")
+    local beam = attachment:FindFirstChild("NocturnaFlashlight")
+    T.True(beam.Range >= 50 and beam.Angle >= 70 and beam.Brightness >= 3, "haz más fuerte y más abierto")
+    T.True(attachment:FindFirstChild("NocturnaFlashlightSpill").Enabled, "halo cercano encendido")
+    T.False(beam.Shadows, "en bajo consumo el haz no calcula sombras")
+    T.False(Lighting:FindFirstChild("NocturnaDepth").Enabled, "sin profundidad de campo en el celular")
+
+    local project = fs.readFile("default.project.json")
+    T.True(string.find(project, "\"Technology\": \"Future\"", 1, true) ~= nil, "Lighting.Technology = Future")
+
+    fire("FlashlightToggle", player)
+    Engine.Run(0.6)
+    local eyes = player.Character:FindFirstChild("HumanoidRootPart"):FindFirstChild("NocturnaNightEyes")
+    T.True(eyes ~= nil and eyes.Enabled and eyes.Brightness < 0.5, "sin linterna, una luz tenue sólo para uno")
+    T.NoEngineErrors(Engine)
 end)
 
 local failed = T.Summary()

@@ -27,6 +27,7 @@ local MODULES = {
     {"Effects", "HorrorEffects"},
     {"Effects", "MonsterAnimator"},
     {"Effects", "QualityController"},
+    {"Effects", "FlashlightVisuals"},
 }
 
 local MODULE_TIMEOUT = 30
