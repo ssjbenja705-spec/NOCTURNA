@@ -11,6 +11,7 @@ return {
         "EndingVote",
         "SettingsUpdate",
         "AdminAction",
+        "MapRequest",
     },
     ServerToClient = {
         "GameState",
@@ -35,5 +36,6 @@ return {
         "DownState",
         "AdminMessage",
         "AdminData",
+        "MapUpdate",
     },
 }

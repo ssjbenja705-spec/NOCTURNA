@@ -26,89 +26,93 @@ end
 function AdminUI.Start()
     local root = Theme.Screen("NocturnaAdmin", 15)
 
-    local panel = Theme.Panel(root, {
-        Name = "AdminPanel",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(640, 440),
-        BackgroundTransparency = 0.04,
-        Visible = false,
-    })
-
-    Theme.Label(panel, {
-        Position = UDim2.fromOffset(16, 12),
-        Size = UDim2.new(1, -70, 0, 24),
-        Text = "MODERACIÓN",
-        Font = Enum.Font.GothamBold,
-        TextSize = 16,
-    })
-
-    local close = Theme.Button(panel, "X", {
-        AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -8, 0, 8),
-        Size = UDim2.fromOffset(40, 40),
-    })
+    local panel, _, close = Theme.Window(root, "AdminPanel", "MODERACIÓN", 680, 450)
     close.Activated:Connect(function()
         panel.Visible = false
         Theme.SetModal("Admin", false)
     end)
 
     local status = Theme.Label(panel, {
-        Position = UDim2.fromOffset(16, 40),
-        Size = UDim2.new(1, -70, 0, 18),
-        TextSize = 12,
-        TextColor3 = Colors.TextDim,
+        Name = "Status",
+        Position = UDim2.fromOffset(18, 56),
+        Size = UDim2.new(1, -36, 0, 18),
+        TextSize = 13,
+        TextColor3 = Colors.Accent,
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
     })
 
-    for index, quick in ipairs(QUICK_ACTIONS) do
-        local button = Theme.Button(panel, quick.Text, {
-            Position = UDim2.fromOffset(16 + (index - 1) * 152, 62),
-            Size = UDim2.fromOffset(146, 40),
-            TextSize = 12,
+    local quick = Theme.New("Frame", {
+        Name = "Quick",
+        Position = UDim2.fromOffset(18, 80),
+        Size = UDim2.new(1, -36, 0, 44),
+        BackgroundTransparency = 1,
+    }, panel)
+    Theme.New("UIGridLayout", {
+        CellSize = UDim2.new(0.25, -6, 1, 0),
+        CellPadding = UDim2.fromOffset(8, 0),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, quick)
+
+    for index, entry in ipairs(QUICK_ACTIONS) do
+        local button = Theme.Button(quick, entry.Text, {
+            TextSize = 13,
+            LayoutOrder = index,
+            BackgroundColor3 = entry.Action == "lobby" and Colors.ButtonActive or Colors.Button,
         })
         button.Activated:Connect(function()
-            fireCommand(quick.Action)
+            fireCommand(entry.Action)
         end)
     end
 
     local list = Theme.New("ScrollingFrame", {
-        Position = UDim2.fromOffset(16, 110),
-        Size = UDim2.fromOffset(300, 200),
-        BackgroundTransparency = 1,
+        Name = "Players",
+        Position = UDim2.fromOffset(18, 134),
+        Size = UDim2.new(0.5, -24, 1, -254),
+        BackgroundColor3 = Colors.Track,
+        BackgroundTransparency = 0.3,
         BorderSizePixel = 0,
         ScrollBarThickness = 5,
+        ScrollBarImageColor3 = Colors.Stroke,
         CanvasSize = UDim2.new(),
     }, panel)
     Theme.New("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, list)
 
     local logLabel = Theme.Label(panel, {
-        Position = UDim2.fromOffset(328, 110),
-        Size = UDim2.fromOffset(296, 200),
-        TextSize = 11,
+        Name = "Log",
+        Position = UDim2.new(0.5, 6, 0, 134),
+        Size = UDim2.new(0.5, -24, 1, -254),
+        TextSize = 12,
         TextColor3 = Colors.TextDim,
+        Font = Theme.Fonts.Mono,
     })
 
     local commandBox = Theme.New("TextBox", {
-        Position = UDim2.new(0, 16, 1, -112),
-        Size = UDim2.new(1, -112, 0, 44),
-        BackgroundColor3 = Colors.PanelLight,
+        Name = "Command",
+        Position = UDim2.new(0, 18, 1, -112),
+        Size = UDim2.new(1, -132, 0, 46),
+        BackgroundColor3 = Colors.Track,
         BorderSizePixel = 0,
         TextColor3 = Colors.Text,
         PlaceholderText = "comando: announce hola / ban Nombre 7 motivo / give Fuse",
         PlaceholderColor3 = Colors.TextDim,
-        Font = Enum.Font.Gotham,
-        TextSize = 13,
+        Font = Theme.Fonts.Mono,
+        TextSize = 14,
         ClearTextOnFocus = false,
         TextXAlignment = Enum.TextXAlignment.Left,
         Text = "",
     }, panel)
     Theme.Corner(commandBox)
+    Theme.Stroke(commandBox, Colors.Stroke, 1, 0.1)
+    Theme.New("UIPadding", {PaddingLeft = UDim.new(0, 10)}, commandBox)
 
     local send = Theme.Button(panel, "ENVIAR", {
-        AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -16, 1, -68),
-        Size = UDim2.fromOffset(84, 44),
-        TextSize = 12,
+        Name = "Send",
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -18, 1, -112),
+        Size = UDim2.fromOffset(100, 46),
+        TextSize = 15,
+        BackgroundColor3 = Colors.ButtonActive,
     })
     send.Activated:Connect(function()
         local parts = string.split(commandBox.Text, " ")
@@ -120,9 +124,10 @@ function AdminUI.Start()
     end)
 
     Theme.Label(panel, {
-        Position = UDim2.new(0, 16, 1, -60),
-        Size = UDim2.new(1, -32, 0, 50),
-        TextSize = 11,
+        Name = "Help",
+        Position = UDim2.new(0, 18, 1, -58),
+        Size = UDim2.new(1, -36, 0, 48),
+        TextSize = 12,
         TextColor3 = Colors.TextDim,
         Text = "heal, kill, kick, ban, unban, give, spawn <ElOyente...>, setchapter <1-5>, announce. También por chat con !comando.",
     })
@@ -136,24 +141,30 @@ function AdminUI.Start()
 
         for index, member in ipairs(members) do
             local row = Theme.New("Frame", {
-                Size = UDim2.new(1, -8, 0, 40),
+                Name = "Row",
+                Size = UDim2.new(1, -8, 0, 42),
                 BackgroundColor3 = Colors.PanelLight,
+                BackgroundTransparency = 0.2,
                 BorderSizePixel = 0,
                 LayoutOrder = index,
             }, list)
             Theme.Label(row, {
                 Position = UDim2.fromOffset(8, 0),
-                Size = UDim2.fromOffset(150, 40),
+                Size = UDim2.new(1, -150, 1, 0),
                 Text = member.DisplayName,
-                TextSize = 12,
+                TextSize = 13,
+                TextWrapped = false,
+                TextTruncate = Enum.TextTruncate.AtEnd,
                 TextYAlignment = Enum.TextYAlignment.Center,
             })
 
             for column, entry in ipairs({{"Curar", "heal"}, {"Echar", "kick"}}) do
                 local button = Theme.Button(row, entry[1], {
-                    Position = UDim2.fromOffset(150 + (column - 1) * 70, 2),
+                    AnchorPoint = Vector2.new(1, 0),
+                    Position = UDim2.new(1, -4 - (2 - column) * 70, 0, 3),
                     Size = UDim2.fromOffset(66, 36),
-                    TextSize = 11,
+                    TextSize = 13,
+                    BackgroundColor3 = entry[2] == "kick" and Colors.ButtonActive or Colors.Button,
                 })
                 button.Activated:Connect(function()
                     fireCommand(entry[2], {member.Name})
@@ -161,7 +172,7 @@ function AdminUI.Start()
             end
         end
 
-        list.CanvasSize = UDim2.fromOffset(0, #members * 44)
+        list.CanvasSize = UDim2.fromOffset(0, #members * 46)
     end
 
     Remotes.OnClient("AdminData", function(data)
@@ -184,7 +195,7 @@ function AdminUI.Start()
     local function refreshAccess()
         local isAdmin = player:GetAttribute("IsNocturnaAdmin") == true
         if isAdmin and not actionButton then
-            actionButton = HUD.AddAction("Admin", "ADMIN", 4, function()
+            actionButton = HUD.AddAction("Admin", "ADMIN", 5, function()
                 panel.Visible = not panel.Visible
                 Theme.SetModal("Admin", panel.Visible)
                 if panel.Visible then

@@ -1,4 +1,6 @@
--- HUD permanente: vida, resistencia, batería, objetivo, señal, grupo y botones.
+-- HUD permanente: vida, aire y luz, el objetivo con la señal de la radio, el grupo
+-- y los botones de menú. Vive dentro del área segura: arriba empieza debajo de la
+-- barra de Roblox, así el objetivo nunca queda tapado por sus botones.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
@@ -6,60 +8,123 @@ local StarterGui = game:GetService("StarterGui")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local ClientState = require(script.Parent.Parent.Core.ClientState)
+local Icons = require(script.Parent.Icons)
 local Theme = require(script.Parent.Theme)
 
 local player = Players.LocalPlayer
 local Colors = Theme.Colors
+local IsTouch = Theme.IsTouch
+
+local MARGIN = 12
+local TOP = 6
+local PLATE_HEIGHT = 66
+local CELL = IsTouch and Vector2.new(72, 58) or Vector2.new(64, 54)
+local CELL_GAP = 6
+local KEYS = {Inventory = "I", Journal = "J", Map = "M", Settings = "P"}
 
 local HUD = {}
 local root = nil
 local actionBar = nil
+local actionGrid = nil
+local plate = nil
+local party = nil
 
-local function makeBar(parent, position, color, labelText)
-    local holder = Theme.New("Frame", {
-        Position = position,
-        Size = UDim2.fromOffset(190, 22),
-        BackgroundTransparency = 1,
-    }, parent)
+local function countVisibleActions()
+    local count = 0
+    for _, child in ipairs(actionBar:GetChildren()) do
+        if child:IsA("GuiButton") and child.Visible then
+            count += 1
+        end
+    end
+    return count
+end
 
-    Theme.Label(holder, {
-        Size = UDim2.fromOffset(50, 20),
+-- El objetivo va arriba al centro y los botones a la derecha. Si no entran en una
+-- fila sin pisar el objetivo, pasan a dos filas.
+local function arrange()
+    if not plate or not actionBar or not party then
+        return
+    end
+    local width = Theme.SafeSize().X
+    local plateWidth = math.clamp(math.floor(width * 0.36), 320, 430)
+    plate.Size = UDim2.fromOffset(plateWidth, PLATE_HEIGHT)
+
+    local free = width - MARGIN - (width / 2 + plateWidth / 2) - 10
+    local visible = math.max(1, countVisibleActions())
+    local perRow = math.max(2, math.floor((free + CELL_GAP) / (CELL.X + CELL_GAP)))
+    perRow = math.min(perRow, visible)
+    local rows = math.ceil(visible / perRow)
+
+    actionGrid.FillDirectionMaxCells = perRow
+    actionBar.Size = UDim2.fromOffset(perRow * (CELL.X + CELL_GAP) - CELL_GAP, rows * (CELL.Y + CELL_GAP) - CELL_GAP)
+    party.Position = UDim2.new(1, -MARGIN, 0, TOP + rows * (CELL.Y + CELL_GAP) + 4)
+end
+
+local function makeGauge(parent, y, color, labelText)
+    Theme.Label(parent, {
+        Name = labelText .. "Label",
+        Position = UDim2.fromOffset(12, y),
+        Size = UDim2.fromOffset(50, 18),
         Text = labelText,
-        TextSize = 11,
-        Font = Enum.Font.GothamMedium,
+        TextSize = 13,
         TextColor3 = Colors.TextDim,
         TextYAlignment = Enum.TextYAlignment.Center,
     })
 
-    local back = Theme.New("Frame", {
-        Position = UDim2.fromOffset(52, 6),
-        Size = UDim2.fromOffset(136, 8),
-        BackgroundColor3 = Colors.PanelLight,
+    local track = Theme.New("Frame", {
+        Name = labelText,
+        Position = UDim2.fromOffset(64, y + 5),
+        Size = UDim2.new(1, -78, 0, 9),
+        BackgroundColor3 = Colors.Track,
         BorderSizePixel = 0,
-    }, holder)
-    Theme.Corner(back, 4)
+    }, parent)
+    Theme.Stroke(track, Colors.Black, 1, 0.1)
 
     local fill = Theme.New("Frame", {
+        Name = "Fill",
         Size = UDim2.fromScale(1, 1),
         BackgroundColor3 = color,
         BorderSizePixel = 0,
-    }, back)
-    Theme.Corner(fill, 4)
+    }, track)
+    Theme.New("UIGradient", {
+        Rotation = 90,
+        Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(140, 130, 126)),
+    }, fill)
+
+    -- Marcas de instrumento viejo sobre la barra.
+    for index = 1, 9 do
+        Theme.New("Frame", {
+            Name = "Tick",
+            Position = UDim2.new(index / 10, 0, 0, 0),
+            Size = UDim2.new(0, 1, 1, 0),
+            BackgroundColor3 = Colors.Black,
+            BackgroundTransparency = 0.4,
+            BorderSizePixel = 0,
+            ZIndex = 2,
+        }, track)
+    end
     return fill
+end
+
+local function setFill(fill, fraction)
+    local size = UDim2.fromScale(math.clamp(fraction, 0, 1), 1)
+    if fill.Size ~= size then
+        fill.Size = size
+    end
 end
 
 local function buildVitals()
     local panel = Theme.Panel(root, {
         Name = "Vitals",
         AnchorPoint = Vector2.new(0, 1),
-        Position = UDim2.new(0, 16, 1, Theme.IsTouch and -150 or -16),
-        Size = UDim2.fromOffset(206, 80),
-        BackgroundTransparency = 0.4,
+        Position = UDim2.new(0, MARGIN, 1, IsTouch and -150 or -14),
+        Size = UDim2.fromOffset(236, 88),
+        BackgroundTransparency = 0.28,
     })
 
-    local health = makeBar(panel, UDim2.fromOffset(8, 5), Colors.Health, "VIDA")
-    local stamina = makeBar(panel, UDim2.fromOffset(8, 29), Colors.Stamina, "AIRE")
-    local battery = makeBar(panel, UDim2.fromOffset(8, 53), Colors.Battery, "LUZ")
+    local health = makeGauge(panel, 8, Colors.Health, "VIDA")
+    local stamina = makeGauge(panel, 34, Colors.Stamina, "AIRE")
+    local battery = makeGauge(panel, 60, Colors.Battery, "LUZ")
 
     local function bindCharacter(character)
         local humanoid = character:WaitForChild("Humanoid", 10)
@@ -67,7 +132,7 @@ local function buildVitals()
             return
         end
         local function update()
-            health.Size = UDim2.fromScale(math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1), 1)
+            setFill(health, humanoid.Health / humanoid.MaxHealth)
         end
         humanoid.HealthChanged:Connect(update)
         update()
@@ -80,12 +145,12 @@ local function buildVitals()
 
     local function updateStamina()
         local value = player:GetAttribute("Stamina") or 100
-        stamina.Size = UDim2.fromScale(math.clamp(value / GameConfig.Player.MaxStamina, 0, 1), 1)
+        setFill(stamina, value / GameConfig.Player.MaxStamina)
     end
 
     local function updateBattery()
         local value = player:GetAttribute("FlashlightBattery") or 100
-        battery.Size = UDim2.fromScale(math.clamp(value / 100, 0, 1), 1)
+        setFill(battery, value / 100)
         battery.BackgroundColor3 = value <= GameConfig.Flashlight.LowBattery and Colors.Danger or Colors.Battery
     end
 
@@ -101,37 +166,112 @@ local function formatTime(seconds)
     return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
-local function buildObjective()
-    local panel = Theme.Panel(root, {
-        Name = "Objective",
-        Position = UDim2.fromOffset(16, 16),
-        Size = UDim2.fromOffset(320, 84),
-        BackgroundTransparency = 0.35,
-    })
+-- La radio apunta hacia la señal de Alma: el objetivo pendiente más cercano.
+local function buildDial(parent)
+    local dial = Theme.New("Frame", {
+        Name = "Dial",
+        Position = UDim2.fromOffset(9, 9),
+        Size = UDim2.fromOffset(48, 48),
+        BackgroundColor3 = Colors.Track,
+        BorderSizePixel = 0,
+    }, parent)
+    Theme.New("UICorner", {CornerRadius = UDim.new(0.5, 0)}, dial)
+    Theme.Stroke(dial, Colors.Accent, 2, 0.45)
 
-    local chapter = Theme.Label(panel, {
-        Position = UDim2.fromOffset(12, 8),
-        Size = UDim2.new(1, -24, 0, 16),
-        Font = Enum.Font.GothamBold,
-        TextSize = 12,
+    for _, position in ipairs({{0.5, 0.06}, {0.94, 0.5}, {0.5, 0.94}, {0.06, 0.5}}) do
+        Theme.New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(position[1], position[2]),
+            Size = UDim2.fromOffset(3, 3),
+            BackgroundColor3 = Colors.TextDim,
+            BorderSizePixel = 0,
+        }, dial)
+    end
+
+    local needle = Theme.New("Frame", {
+        Name = "Needle",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Visible = false,
+    }, dial)
+    Theme.New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.fromScale(0.5, 0.18),
+        Size = UDim2.new(0, 2, 0.32, 0),
+        BackgroundColor3 = Colors.Accent,
+        BorderSizePixel = 0,
+    }, needle)
+    Theme.New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.2),
+        Size = UDim2.fromOffset(9, 9),
+        Rotation = 45,
+        BackgroundColor3 = Colors.Accent,
+        BorderSizePixel = 0,
+    }, needle)
+    Theme.New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0, 2, 0.26, 0),
+        BackgroundColor3 = Colors.Blood,
+        BorderSizePixel = 0,
+    }, needle)
+
+    -- Sin señal la radio muestra una línea plana.
+    local flatline = Theme.New("Frame", {
+        Name = "Flatline",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0.6, 0, 0, 2),
+        BackgroundColor3 = Colors.TextDim,
+        BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+    }, dial)
+
+    return needle, flatline
+end
+
+local function buildObjective()
+    plate = Theme.Panel(root, {
+        Name = "Objective",
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, TOP),
+        Size = UDim2.fromOffset(380, PLATE_HEIGHT),
+        BackgroundTransparency = 0.2,
+    })
+    local stroke = plate:FindFirstChildOfClass("UIStroke")
+    local needle, flatline = buildDial(plate)
+
+    local chapter = Theme.Label(plate, {
+        Name = "Chapter",
+        Position = UDim2.fromOffset(66, 6),
+        Size = UDim2.new(1, -130, 0, 17),
+        TextSize = 13,
         TextColor3 = Colors.Accent,
+        TextWrapped = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         Text = "NOCTURNA",
     })
-    local objective = Theme.Label(panel, {
-        Position = UDim2.fromOffset(12, 26),
-        Size = UDim2.new(1, -24, 0, 36),
-        TextSize = 14,
+    local objective = Theme.Label(plate, {
+        Name = "Text",
+        Position = UDim2.fromOffset(66, 23),
+        Size = UDim2.new(1, -130, 0, 40),
+        TextSize = IsTouch and 15 or 16,
         Text = "",
     })
-    local progress = Theme.Label(panel, {
-        Position = UDim2.fromOffset(12, 62),
-        Size = UDim2.new(1, -24, 0, 16),
-        TextSize = 12,
-        TextColor3 = Colors.TextDim,
+    local tally = Theme.Label(plate, {
+        Name = "Tally",
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -10, 0.5, 0),
+        Size = UDim2.fromOffset(56, 40),
+        TextSize = 22,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        TextYAlignment = Enum.TextYAlignment.Center,
         Text = "",
     })
 
     local current = nil
+    local lastObjective = nil
 
     ClientState.Subscribe("Objective", function(data)
         current = data
@@ -139,85 +279,71 @@ local function buildObjective()
             return
         end
 
-        chapter.Text = string.upper(string.format("Capítulo %d — %s", data.Chapter or 0, data.ChapterName or ""))
+        chapter.Text = Theme.Upper(string.format("Capítulo %d · %s", data.Chapter or 0, data.ChapterName or ""))
         if data.Finished then
             objective.Text = "..."
-            progress.Text = ""
+            tally.Text = ""
+            lastObjective = nil
             return
         end
 
-        objective.Text = data.Objective or ""
-        if (data.Total or 1) > 1 then
-            progress.Text = string.format("%d / %d", data.Count or 0, data.Total)
-        else
-            progress.Text = ""
+        local text = data.Objective or ""
+        if text ~= lastObjective then
+            lastObjective = text
+            Theme.Typewrite(objective, text, 45)
+            -- El borde se enciende un momento cuando cambia el objetivo.
+            if stroke then
+                stroke.Color = Colors.Accent
+                stroke.Transparency = 0
+                Theme.Tween(stroke, 1.4, {Color = Colors.Stroke, Transparency = 0.15})
+            end
         end
+        tally.Text = (data.Total or 1) > 1 and string.format("%d/%d", data.Count or 0, data.Total) or ""
     end)
 
     local timer = Theme.Label(root, {
         Name = "Timer",
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 62),
-        Size = UDim2.fromOffset(160, 40),
-        Font = Enum.Font.GothamBold,
-        TextSize = 30,
+        Position = UDim2.new(0.5, 0, 0, TOP + PLATE_HEIGHT + 4),
+        Size = UDim2.fromOffset(180, 34),
+        Font = Theme.Fonts.Title,
+        TextSize = 28,
         TextColor3 = Colors.Danger,
         TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
         Visible = false,
     })
 
+    -- El texto sólo se reescribe cuando cambia el segundo.
+    local shownSeconds = -1
     RunService.Heartbeat:Connect(function()
         local deadline = current and current.Deadline
-        timer.Visible = deadline ~= nil
-        if deadline then
-            timer.Text = formatTime(deadline - workspace:GetServerTimeNow())
+        local visible = deadline ~= nil and plate.Visible
+        if timer.Visible ~= visible then
+            timer.Visible = visible
+        end
+        if visible then
+            local seconds = math.max(0, math.ceil(deadline - workspace:GetServerTimeNow()))
+            if seconds ~= shownSeconds then
+                shownSeconds = seconds
+                timer.Text = formatTime(seconds)
+            end
         end
     end)
 
-    return panel
-end
-
--- La radio apunta hacia la señal de Alma: el objetivo pendiente más cercano.
-local function buildCompass()
-    local holder = Theme.New("Frame", {
-        Name = "Signal",
-        AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 14),
-        Size = UDim2.fromOffset(44, 44),
-        BackgroundTransparency = 1,
-        Visible = false,
-    }, root)
-
-    local ring = Theme.New("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(40, 40),
-        BackgroundColor3 = Colors.Panel,
-        BackgroundTransparency = 0.45,
-        BorderSizePixel = 0,
-    }, holder)
-    Theme.Corner(ring, 20)
-
-    local arrow = Theme.Label(holder, {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(40, 40),
-        Text = "▲",
-        TextSize = 20,
-        TextColor3 = Colors.Accent,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        TextYAlignment = Enum.TextYAlignment.Center,
-    })
-
     RunService.RenderStepped:Connect(function()
         local game_ = ClientState.Get("Game")
-        local objective = ClientState.Get("Objective")
-        local waypoints = objective and objective.Waypoints
+        local data = ClientState.Get("Objective")
+        local waypoints = data and data.Waypoints
         local character = player.Character
         local head = character and character:FindFirstChild("Head")
 
         local active = game_.Phase == "Playing" and game_.ShowCompass and waypoints and #waypoints > 0 and head
-        holder.Visible = active and true or false
+        active = active and true or false
+        if needle.Visible ~= active then
+            needle.Visible = active
+            flatline.Visible = not active
+        end
         if not active then
             return
         end
@@ -234,36 +360,39 @@ local function buildCompass()
         local look = camera.CFrame.LookVector
         local offset = nearest - head.Position
         local angle = math.atan2(offset.X, offset.Z) - math.atan2(look.X, look.Z)
-        arrow.Rotation = -math.deg(angle)
+        needle.Rotation = -math.deg(angle)
     end)
 
-    return holder
+    return plate
 end
 
 local function buildParty()
-    local panel = Theme.New("Frame", {
+    party = Theme.New("Frame", {
         Name = "Party",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -16, 0, 62),
-        Size = UDim2.fromOffset(180, 112),
+        Position = UDim2.new(1, -MARGIN, 0, TOP + CELL.Y + 10),
+        Size = UDim2.fromOffset(220, 130),
         BackgroundTransparency = 1,
     }, root)
 
-    local lives = Theme.Label(panel, {
-        Size = UDim2.new(1, 0, 0, 18),
-        TextSize = 12,
-        Font = Enum.Font.GothamBold,
+    local lives = Theme.Label(party, {
+        Name = "Lives",
+        Size = UDim2.new(1, 0, 0, 20),
+        TextSize = 14,
         TextColor3 = Colors.Accent,
         TextXAlignment = Enum.TextXAlignment.Right,
+        TextStrokeTransparency = 0.6,
     })
 
     local rows = {}
     for index = 1, GameConfig.MaxPlayers do
-        rows[index] = Theme.Label(panel, {
-            Position = UDim2.fromOffset(0, 20 + (index - 1) * 20),
-            Size = UDim2.new(1, 0, 0, 18),
-            TextSize = 12,
+        rows[index] = Theme.Label(party, {
+            Name = "Member" .. index,
+            Position = UDim2.fromOffset(0, 22 + (index - 1) * 22),
+            Size = UDim2.new(1, 0, 0, 20),
+            TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Right,
+            TextStrokeTransparency = 0.6,
             Visible = false,
         })
     end
@@ -273,9 +402,9 @@ local function buildParty()
             local member = members[index]
             row.Visible = member ~= nil
             if member then
-                local state = member.Down and "caído" or (member.Hidden and "oculto" or tostring(member.Health))
-                row.Text = member.Name .. "  " .. state
-                row.TextColor3 = member.Down and Colors.Danger or Colors.TextDim
+                local state = member.Down and "caído" or (member.Hidden and "escondido" or ("vida " .. tostring(member.Health)))
+                row.Text = member.Name .. "  ·  " .. state
+                row.TextColor3 = member.Down and Colors.Danger or (member.Hidden and Colors.Radio or Colors.TextDim)
             end
         end
     end)
@@ -284,38 +413,69 @@ local function buildParty()
         lives.Text = data.MaxLives > 0 and string.format("REINTENTOS  %d", data.Lives) or ""
     end)
 
-    return panel
+    return party
 end
 
 local function buildButtons()
     local bar = Theme.New("Frame", {
         Name = "Buttons",
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -16, 0, 14),
-        Size = UDim2.fromOffset(250, 42),
+        Position = UDim2.new(1, -MARGIN, 0, TOP),
+        Size = UDim2.fromOffset(CELL.X, CELL.Y),
         BackgroundTransparency = 1,
     }, root)
 
-    Theme.New("UIListLayout", {
+    actionGrid = Theme.New("UIGridLayout", {
+        CellSize = UDim2.fromOffset(CELL.X, CELL.Y),
+        CellPadding = UDim2.fromOffset(CELL_GAP, CELL_GAP),
         FillDirection = Enum.FillDirection.Horizontal,
         HorizontalAlignment = Enum.HorizontalAlignment.Right,
-        Padding = UDim.new(0, 8),
         SortOrder = Enum.SortOrder.LayoutOrder,
     }, bar)
 
     return bar
 end
 
--- Agrega un botón a la barra superior. Otros controladores registran acá sus menús.
+-- Agrega un botón a la barra superior: ícono dibujado y nombre. Otros controladores
+-- registran acá sus menús. En PC muestra también la tecla.
 function HUD.AddAction(name, text, order, callback)
-    local button = Theme.Button(actionBar, text, {
+    local button = Theme.Button(actionBar, "", {
         Name = name,
-        Size = UDim2.fromOffset(74, 40),
-        TextSize = 11,
-        BackgroundTransparency = 0.2,
+        BackgroundTransparency = 0.18,
         LayoutOrder = order,
     })
+    local iconSize = IsTouch and 26 or 24
+    Icons.Draw(name, button, {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 6),
+        Size = UDim2.fromOffset(iconSize, iconSize),
+    })
+    Theme.Label(button, {
+        Name = "Caption",
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = UDim2.new(0.5, 0, 1, -3),
+        Size = UDim2.new(1, -4, 0, 18),
+        Text = text,
+        TextSize = IsTouch and 14 or 12,
+        TextWrapped = false,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+    })
+    local key = KEYS[name]
+    if key and not IsTouch then
+        Theme.Label(button, {
+            Name = "Key",
+            Position = UDim2.fromOffset(4, 2),
+            Size = UDim2.fromOffset(14, 14),
+            Text = key,
+            TextSize = 12,
+            TextColor3 = Colors.TextDim,
+        })
+    end
+
     button.Activated:Connect(callback)
+    button:GetPropertyChangedSignal("Visible"):Connect(arrange)
+    arrange()
     return button
 end
 
@@ -335,25 +495,27 @@ function HUD.Start()
 
     local vitals = buildVitals()
     local objective = buildObjective()
-    local compass = buildCompass()
-    local party = buildParty()
+    buildParty()
 
-    Theme.New("Frame", {
+    local crosshair = Theme.New("Frame", {
         Name = "Crosshair",
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(3, 3),
+        Size = UDim2.fromOffset(4, 4),
         BackgroundColor3 = Colors.Text,
-        BackgroundTransparency = 0.55,
+        BackgroundTransparency = 0.5,
         BorderSizePixel = 0,
     }, root)
+    Theme.New("UICorner", {CornerRadius = UDim.new(0.5, 0)}, crosshair)
+
+    Theme.OnLayout(arrange)
 
     ClientState.Subscribe("Game", function(data)
         local inGame = data.Phase == "Playing"
         vitals.Visible = inGame
         objective.Visible = inGame
+        crosshair.Visible = inGame
         party.Visible = data.Phase ~= "Lobby"
-        compass.Visible = compass.Visible and inGame
     end)
 end
 
