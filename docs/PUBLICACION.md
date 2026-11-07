@@ -35,7 +35,7 @@ La última línea es obligatoria: los modelos salieron del plan gratis de Meshy.
 | Básico → Género | Terror |
 | Básico → Dispositivos | Computadora, Teléfono, Tablet, Consola |
 | Seguridad | Activar *Enable Studio Access to API Services* (guardado del progreso) |
-| Lugares → Cantidad máxima de jugadores | 4 |
+| Lugares → Cantidad máxima de jugadores | 12 (el lobby; cada partida viaja a su propio servidor de hasta 4, ver `docs/DONACIONES.md`) |
 | Permisos | Empezar en **Privado**, probar con amigos y recién después pasar a Público |
 
 Después, en el panel de creador (create.roblox.com):

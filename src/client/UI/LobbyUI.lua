@@ -1,15 +1,12 @@
 -- Lobby caminable: nada tapa la pantalla. Sólo aparece un panel chico al entrar a un
 -- ascensor (grupo, lugares, dificultad, capítulo y EMPEZAR), una tarjeta para volver
 -- a una partida, esperar al grupo o regresar al lobby, y una pista que se desvanece.
-local Players = game:GetService("Players")
-
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local Remotes = require(Shared.Modules.RemoteHelper)
 local ClientState = require(script.Parent.Parent.Core.ClientState)
 local Theme = require(script.Parent.Theme)
 
-local player = Players.LocalPlayer
 local Colors = Theme.Colors
 
 local HINT_TIME = 12
@@ -186,10 +183,11 @@ function LobbyUI.Start()
     })
 
     local difficulties = difficultyOrder()
-    local latest = {Kind = "None"}
+    -- Lo último que mandó el servidor para este jugador (ver QueueService).
+    local latest: {[string]: any} = {Kind = "None"}
     local hintUntil = os.clock() + HINT_TIME
     local offline = false
-    local cardActions = {}
+    local cardActions: {[string]: string} = {}
     local waitingRemaining, waitingReceived = 0, 0
 
     local function phase()
