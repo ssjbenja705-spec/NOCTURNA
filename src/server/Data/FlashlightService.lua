@@ -56,7 +56,8 @@ local function getLight(player)
         light.Brightness = BEAM.Brightness
         light.Range = BEAM.Range
         light.Angle = BEAM.Angle
-        -- Sombras reales del haz: el cliente las apaga en bajo consumo.
+        -- Sombras reales del haz: cada cliente las deja sólo en su propia linterna
+        -- y sólo en calidad normal (ver QualityController).
         light.Shadows = true
         light.Enabled = false
         light.Parent = attachment

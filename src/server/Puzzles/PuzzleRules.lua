@@ -231,30 +231,28 @@ function Keypad.New(spec, rng)
         end
         code = table.concat(digits)
     end
-    return {Length = #code, Code = code, LockedUntil = 0, Clue = spec.Clue}
+    return {Length = #code, Code = code, Clue = spec.Clue}
 end
 
-function Keypad.View(state, now)
+-- Locked lo completa PuzzleService para cada jugador: el bloqueo es de quien se
+-- equivocó, no del teclado (si no, uno solo lo dejaría trabado para todos).
+function Keypad.View(state)
     return {
         Length = state.Length,
-        Locked = (now or 0) < state.LockedUntil,
+        Locked = false,
         ClueDocument = state.Clue and state.Clue.Document,
         ClueHint = state.Clue and state.Clue.Hint,
     }
 end
 
-function Keypad.Apply(state, action, code, _, now)
+function Keypad.Apply(state, action, code)
     if action ~= "Submit" or type(code) ~= "string" or #code ~= state.Length or not string.match(code, "^%d+$") then
         return "Invalid"
-    end
-    if (now or 0) < state.LockedUntil then
-        return "Blocked", "El teclado está bloqueado. Esperá unos segundos."
     end
     if code == state.Code then
         return "Solved"
     end
-    state.LockedUntil = (now or 0) + PuzzleConfig.Keypad.Lockout
-    return "Wrong", "Código incorrecto. El teclado se bloquea un momento."
+    return "Wrong", "Código incorrecto."
 end
 
 -- Texto pintado en la pared para una clave: "4 7 1 9".
@@ -573,6 +571,43 @@ function Levers.Pull(state, lever, now, window)
         end
     end
     return "Solved"
+end
+
+-- Errores de cada jugador ------------------------------------------------------
+-- Cada jugador lleva su propia cuenta en cada prueba. Quien junta errores queda
+-- bloqueado él solo, cada vez más tiempo; los demás siguen jugando.
+
+function PuzzleRules.NewRecord()
+    return {Wrongs = 0, Level = 0, Until = 0, Last = -math.huge}
+end
+
+-- Segundos que le faltan a ese jugador para poder volver a intentar.
+function PuzzleRules.LockedFor(record, now)
+    if not record then
+        return 0
+    end
+    return math.max(0, record.Until - now)
+end
+
+-- Anota un error. Devuelve los segundos de bloqueo que le tocan (0 si todavía no).
+function PuzzleRules.Strike(record, kind, now)
+    local config = PuzzleConfig.Lockout
+    if now - record.Last > config.Forget then
+        record.Wrongs = 0
+        record.Level = 0
+    end
+    record.Last = now
+    record.Wrongs += 1
+    if record.Wrongs < (config.Strikes[kind] or config.Strikes.Default) then
+        return 0
+    end
+
+    local base = config.Base[kind] or config.Base.Default
+    local seconds = math.min(base * config.Growth ^ record.Level, config.Max)
+    record.Wrongs = 0
+    record.Level += 1
+    record.Until = now + seconds
+    return seconds
 end
 
 PuzzleRules.Wires = Wires

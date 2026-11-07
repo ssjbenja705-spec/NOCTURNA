@@ -32,6 +32,9 @@ local PART_BUDGET = 2400
 local WorldService = {}
 WorldService.PartBudget = PART_BUDGET
 local currentTheme = nil
+-- Celda → lámpara de techo del capítulo cargado. IsLit se consulta por jugador en
+-- cada paso de la IA: así no recorre todas las lámparas cada vez.
+local lightByCell = {}
 
 -- Busca el efecto por nombre (puede venir del proyecto) o lo crea.
 local function effect(className, name)
@@ -206,20 +209,30 @@ function WorldService.SetPower(enabled)
     end
 end
 
--- Devuelve si una posición tiene luz encendida en este momento.
+-- Arma el índice de lámparas por celda (la primera de cada una, como antes).
+local function indexLights()
+    table.clear(lightByCell)
+    for _, fixture in ipairs(CollectionService:GetTagged("NocturnaLight")) do
+        local cell = fixture:GetAttribute("Cell")
+        if cell ~= nil and lightByCell[cell] == nil then
+            lightByCell[cell] = fixture
+        end
+    end
+end
+
+-- Devuelve si una posición tiene luz encendida en este momento. La lámpara se lee
+-- en vivo: oscurecerla o cortar la energía se nota enseguida.
 function WorldService.IsLit(position)
     local nav = GameState.Nav
     if not nav or not GameState.Powered then
         return false
     end
 
-    local cell = nav:CellAt(position)
-    for _, fixture in ipairs(CollectionService:GetTagged("NocturnaLight")) do
-        if fixture:GetAttribute("Cell") == cell then
-            return fixture:GetAttribute("Dark") ~= true
-        end
+    local fixture = lightByCell[nav:CellAt(position)]
+    if not fixture or not fixture.Parent then
+        return false
     end
-    return false
+    return fixture:GetAttribute("Dark") ~= true
 end
 
 function WorldService.LoadChapter(chapterIndex, seed)
@@ -236,6 +249,7 @@ function WorldService.LoadChapter(chapterIndex, seed)
     applyAtmosphere(theme)
 
     local map = RoomGenerator.Build(plan, theme)
+    indexLights()
     InteractionService.Populate(plan, map)
     DoorService.Populate(plan, map)
     MechanismService.Populate(plan, map)
@@ -266,6 +280,7 @@ function WorldService.Unload()
     MapService.Clear()
     GameState.ResetChapter()
     currentTheme = nil
+    table.clear(lightByCell)
     applyAtmosphere(ThemeConfig.Lobby)
 end
 

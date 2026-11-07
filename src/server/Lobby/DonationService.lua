@@ -287,9 +287,13 @@ function DonationService.ProcessReceipt(receipt)
     end
 
     -- El ranking es una copia del total: si falla, el reintento la vuelve a escribir
-    -- sin sumar de nuevo.
+    -- sin sumar de nuevo. Nunca baja: si otro servidor ya escribió un total más
+    -- nuevo (dos compras casi a la vez), una copia vieja no lo pisa.
+    local total = latest.Total
     local mirrored, mirrorError = pcall(function()
-        ranking:SetAsync(tostring(userId), latest.Total)
+        ranking:UpdateAsync(tostring(userId), function(old)
+            return math.max(tonumber(old) or 0, total)
+        end)
     end)
     if not mirrored then
         warn("[NOCTURNA] No se pudo actualizar el podio de donaciones:", mirrorError)

@@ -22,7 +22,10 @@ local MonsterService = {}
 local active = {}
 local world = nil
 local folder = nil
-local paused = false
+-- Pausas independientes: la de un administrador (congelar IA) y la de una escena.
+-- Las criaturas quedan quietas mientras haya alguna; terminar una escena nunca
+-- descongela lo que congeló un administrador.
+local holds = {Admin = false, Scene = false}
 local threatWarned = false
 
 local BEHAVIORS = {
@@ -136,12 +139,19 @@ function MonsterService.SetRage(enabled)
     end
 end
 
-function MonsterService.SetPaused(value)
-    paused = value
+-- source: "Admin" (por defecto) o "Scene".
+function MonsterService.SetPaused(value, source)
+    local key = source or "Admin"
+    assert(holds[key] ~= nil, "[NOCTURNA] Pausa desconocida: " .. tostring(source))
+    holds[key] = value == true
 end
 
-function MonsterService.IsPaused()
-    return paused
+-- Sin source: si las criaturas están quietas por cualquier motivo.
+function MonsterService.IsPaused(source)
+    if source then
+        return holds[source] == true
+    end
+    return holds.Admin or holds.Scene
 end
 
 function MonsterService.Clear()
@@ -187,8 +197,10 @@ local function updateThreat()
 end
 
 -- Estado visible para el cliente, que anima a partir de estos atributos. Sólo se
--- escribe lo que cambió (y la mirada, cuando se movió algo), así la red no se llena.
-local LOOK_STEP = 1.5
+-- escribe lo que cambió (y la mirada, cuando se movió bastante y no más de cinco
+-- veces por segundo por criatura), así la red no se llena.
+local LOOK_STEP = 3
+local LOOK_INTERVAL = 0.2
 
 local function publishValue(entry, name, value)
     if entry.Published[name] ~= value then
@@ -207,15 +219,20 @@ function MonsterService.Publish(entry)
     publishValue(entry, "AttackPhase", attack and attack.Phase or "")
     publishValue(entry, "Rage", controller.Rage == true)
 
+    -- Mirar a alguien nuevo o dejar de mirar sale enseguida; seguir el movimiento
+    -- del objetivo, con pasos de LOOK_STEP y como mucho cada LOOK_INTERVAL.
     local look = controller.LookTarget
     local published = entry.Published.LookTarget
+    local now = os.clock()
     if look == nil then
         if published ~= nil then
             entry.Published.LookTarget = nil
             entry.Model:SetAttribute("LookTarget", nil)
         end
-    elseif published == nil or (published - look).Magnitude >= LOOK_STEP then
+    elseif published == nil or ((published - look).Magnitude >= LOOK_STEP
+        and now - (entry.LookPublishedAt or -math.huge) >= LOOK_INTERVAL) then
         entry.Published.LookTarget = look
+        entry.LookPublishedAt = now
         entry.Model:SetAttribute("LookTarget", look)
     end
 
@@ -268,7 +285,7 @@ function MonsterService.Start()
     local elapsed, threatElapsed = 0, 0
 
     RunService.Heartbeat:Connect(function(deltaTime)
-        if #active == 0 or paused or not GameState.IsPlaying() then
+        if #active == 0 or MonsterService.IsPaused() or not GameState.IsPlaying() then
             return
         end
 

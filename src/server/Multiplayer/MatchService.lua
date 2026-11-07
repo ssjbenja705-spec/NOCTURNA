@@ -272,8 +272,10 @@ local function onChapterCompleted(chapterIndex)
     end
 
     Analytics.ChapterCompleted(chapterIndex)
+    -- El cierre va detrás de lo que todavía dice el último objetivo: se espera a
+    -- que termine todo antes del resumen y del capítulo siguiente.
     StoryService.PlayDialogue(chapter.Outro)
-    task.wait(StoryService.DialogueDuration(chapter.Outro) + 0.5)
+    task.wait(StoryService.RemainingDialogue() + 0.5)
     if token ~= runToken then
         return
     end

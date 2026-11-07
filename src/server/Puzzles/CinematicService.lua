@@ -19,7 +19,6 @@ local SHIELD_NAME = "NocturnaCinematicShield"
 
 local CinematicService = {}
 local holds = 0
-local pausedByScene = false
 local started = false
 
 -- Encuadre: la cámara se ubica del lado de la celda A (por donde llega el grupo),
@@ -50,22 +49,17 @@ local function rootOf(player)
     return root
 end
 
--- Las criaturas se pausan; si ya estaban pausadas (por un administrador) no se tocan.
+-- Las criaturas se pausan con la pausa propia de las escenas: la que puso un
+-- administrador es otra y no se toca al terminar.
 local function holdMonsters(duration)
-    if holds == 0 and not MonsterService.IsPaused() then
-        pausedByScene = true
-        MonsterService.SetPaused(true)
-    end
     holds += 1
+    MonsterService.SetPaused(true, "Scene")
 
     task.delay(duration, function()
         holds -= 1
         if holds <= 0 then
             holds = 0
-            if pausedByScene then
-                pausedByScene = false
-                MonsterService.SetPaused(false)
-            end
+            MonsterService.SetPaused(false, "Scene")
         end
     end)
 end

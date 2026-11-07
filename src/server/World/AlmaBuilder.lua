@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 
+local EventBus = require(script.Parent.Parent.Core.EventBus)
 local GameState = require(script.Parent.Parent.Core.GameState)
 
 local AlmaBuilder = {}
@@ -25,6 +26,11 @@ local FOLLOW_DISTANCE = 5
 local CATCH_UP_DISTANCE = 22
 local LOST_DISTANCE = 90
 local HAPPY_TIME = 4.8
+-- Si lejos del jugador casi no avanza en STALL_TIME segundos (trabada contra algo),
+-- aparece detrás de él igual que cuando queda muy atrás.
+local STALL_RANGE = 12
+local STALL_PROGRESS = 2
+local STALL_TIME = 3
 
 AlmaBuilder.Animations = {
     Idle = "rbxassetid://507766666",
@@ -411,6 +417,40 @@ function Alma:UpdateHappy()
     end
 end
 
+-- Aparece detrás del jugador en lugar de perderse o quedarse trabada.
+function Alma:JoinBehind(entry)
+    local behind = entry.Root.CFrame * CFrame.new(0, 0, 4)
+    self.Rig:PivotTo(CFrame.new(behind.Position) * (self.Root.CFrame - self.Root.Position))
+    self.StallFrom = nil
+    self.StallTime = 0
+end
+
+-- Cuenta el tiempo que pasa lejos del jugador sin avanzar. Devuelve true si ya
+-- está trabada.
+function Alma:Stalled(distance, deltaTime)
+    local position = self.Root.Position
+    if distance <= STALL_RANGE then
+        self.StallFrom = nil
+        self.StallTime = 0
+        return false
+    end
+    local from = self.StallFrom
+    if not from or ((position - from) * Vector3.new(1, 0, 1)).Magnitude >= STALL_PROGRESS then
+        self.StallFrom = position
+        self.StallTime = 0
+        return false
+    end
+    self.StallTime = (self.StallTime or 0) + deltaTime
+    return self.StallTime >= STALL_TIME
+end
+
+-- Las puertas comunes cerradas se abren a su paso, como con las criaturas. Se pide
+-- por el bus de eventos: DoorService usa FeatureBuilder, que arma a Alma, y
+-- requerirlo desde acá formaría un ciclo.
+local function openDoorsNear(position)
+    EventBus.Emit("OpenDoorsNear", position)
+end
+
 -- Camina hacia el jugador más cercano por el laberinto, sin pegarse demasiado.
 function Alma:UpdateFollow(deltaTime)
     local entry, distance = self:Nearest()
@@ -422,10 +462,9 @@ function Alma:UpdateFollow(deltaTime)
     self.Holder:SetAttribute("Following", entry.Player.Name)
 
     local target = entry.Root.Position
-    if distance > LOST_DISTANCE then
-        -- Quedó muy atrás: aparece detrás del jugador en lugar de perderse.
-        local behind = entry.Root.CFrame * CFrame.new(0, 0, 4)
-        self.Rig:PivotTo(CFrame.new(behind.Position) * (self.Root.CFrame - self.Root.Position))
+    if distance > LOST_DISTANCE or self:Stalled(distance, deltaTime) then
+        -- Quedó muy atrás o trabada: aparece detrás del jugador.
+        self:JoinBehind(entry)
         return
     end
 
@@ -433,6 +472,7 @@ function Alma:UpdateFollow(deltaTime)
         humanoid:MoveTo(self.Root.Position)
         self.Moving = false
     else
+        openDoorsNear(self.Root.Position)
         humanoid.WalkSpeed = distance > CATCH_UP_DISTANCE and 17 or 12
         local goal = target
         local nav = GameState.Nav

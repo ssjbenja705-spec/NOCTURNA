@@ -2,6 +2,10 @@
 return {
     -- Segundos con las puertas cerrándose antes de viajar.
     Countdown = 6,
+    -- Un grupo abierto sale solo después de este tiempo: nadie ocupa un ascensor
+    -- sin jugar. El cartel y el panel avisan en los últimos OpenWarning segundos.
+    OpenTimeout = 90,
+    OpenWarning = 30,
     -- Si el viaje no se completa en este tiempo, el ascensor se vuelve a abrir.
     LaunchTimeout = 30,
     -- Cada cuánto se revisa quién está dentro de cada ascensor.

@@ -188,6 +188,14 @@ function DoorService.OpenNear(position)
     end
 end
 
+-- Alma también abre las puertas que tiene enfrente. Lo pide por el bus porque no
+-- puede requerir este módulo sin formar un ciclo (FeatureBuilder la arma).
+EventBus.On("OpenDoorsNear", function(position)
+    if typeof(position) == "Vector3" then
+        DoorService.OpenNear(position)
+    end
+end)
+
 -- El Coloso destroza las puertas comunes que encuentra en su camino.
 function DoorService.SmashNear(position)
     for _, door in ipairs(doors) do

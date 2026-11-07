@@ -15,10 +15,13 @@ local InteractionService = require(script.Parent.Parent.World.InteractionService
 local MechanismService = require(script.Parent.Parent.World.MechanismService)
 
 -- Cada línea queda 10 segundos en pantalla: alcanza para leerla tranquilo en un
--- celular. Lo que espera demasiado en la cola ya no sirve y se descarta.
+-- celular. Lo que espera demasiado en la cola ya no sirve y se descarta. Con la
+-- cola llena una línea espera, como mucho, la que se está mostrando más las que
+-- tiene adelante: el límite es mayor, así nunca se pierde una línea que sólo
+-- esperaba su turno (por ejemplo, detrás de la introducción).
 local DIALOGUE_LINE_TIME = 10
-local DIALOGUE_STALE_AFTER = 30
 local DIALOGUE_MAX_QUEUE = 4
+local DIALOGUE_STALE_AFTER = (DIALOGUE_MAX_QUEUE + 1) * DIALOGUE_LINE_TIME
 local ZONE_CHECK_INTERVAL = 0.4
 
 local StoryService = {}
@@ -29,6 +32,7 @@ local deadline = nil
 local dialogueQueue = {}
 local dialogueRunning = false
 local dialogueToken = 0
+local lineEndsAt = 0
 
 local function zonePosition(zoneId)
     local layout = GameState.Layout
@@ -125,6 +129,7 @@ local function runDialogue(token)
         local entry = table.remove(dialogueQueue, 1)
         if os.clock() - entry.QueuedAt <= DIALOGUE_STALE_AFTER then
             sendLine(entry.Line)
+            lineEndsAt = os.clock() + DIALOGUE_LINE_TIME
             task.wait(DIALOGUE_LINE_TIME)
         end
     end
@@ -135,17 +140,19 @@ local function runDialogue(token)
 end
 
 -- Nada del juego espera a esta cola: los objetivos siguen mientras se habla. Si
--- se llena, se pierden las líneas más viejas; al cerrar el capítulo (o con
--- interrupt) lo pendiente se descarta y lo nuevo arranca enseguida.
+-- se llena, se pierden las líneas más viejas. Sólo un corte de verdad (interrupt,
+-- capítulo nuevo o Stop) descarta lo pendiente: el cierre del capítulo va después
+-- de lo último que dijo el objetivo, sin pisarlo.
 function StoryService.PlayDialogue(lines, interrupt)
     if not lines or #lines == 0 then
         return
     end
 
-    if interrupt or GameState.Phase == "Cutscene" then
+    if interrupt then
         dialogueToken += 1
         table.clear(dialogueQueue)
         dialogueRunning = false
+        lineEndsAt = 0
     end
 
     local now = os.clock()
@@ -171,6 +178,13 @@ end
 
 function StoryService.DialogueDuration(lines)
     return #(lines or {}) * DIALOGUE_LINE_TIME
+end
+
+-- Segundos hasta que termine de mostrarse todo lo que está en la cola, incluida
+-- la línea que está en pantalla.
+function StoryService.RemainingDialogue()
+    local current = dialogueRunning and math.max(0, lineEndsAt - os.clock()) or 0
+    return current + #dialogueQueue * DIALOGUE_LINE_TIME
 end
 
 local function armDeadline()
@@ -233,6 +247,7 @@ function StoryService.Begin(index)
     table.clear(dialogueQueue)
     deadline = nil
     dialogueRunning = false
+    lineEndsAt = 0
 
     armDeadline()
     StoryService.Broadcast()
@@ -247,6 +262,7 @@ function StoryService.Stop()
     GameState.Tracker = nil
     table.clear(dialogueQueue)
     dialogueRunning = false
+    lineEndsAt = 0
 end
 
 function StoryService.SkipObjective()

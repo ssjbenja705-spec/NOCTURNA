@@ -205,9 +205,10 @@ function ACTIONS.clearmonsters()
     return true
 end
 
+-- Sólo cambia la pausa del administrador: una escena en curso no la invierte.
 function ACTIONS.freeze()
-    local paused = not MonsterService.IsPaused()
-    MonsterService.SetPaused(paused)
+    local paused = not MonsterService.IsPaused("Admin")
+    MonsterService.SetPaused(paused, "Admin")
     return true, paused and "IA detenida" or "IA activa"
 end
 
@@ -268,7 +269,7 @@ local function buildPanel()
         Chapter = GameState.Chapter,
         Lives = GameState.Lives,
         Monsters = #MonsterService.Active(),
-        AiPaused = MonsterService.IsPaused(),
+        AiPaused = MonsterService.IsPaused("Admin"),
         Log = log,
         Counters = Analytics.GetCounters(),
     }

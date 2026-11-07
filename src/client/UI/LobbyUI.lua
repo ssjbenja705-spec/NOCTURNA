@@ -243,6 +243,9 @@ function LobbyUI.Start()
             panelUi.Title.Text = string.format("SALE EN %d", data.Countdown or 0)
         elseif launching then
             panelUi.Title.Text = "VIAJANDO..."
+        elseif type(data.AutoStart) == "number" then
+            -- El grupo abierto sale solo al terminar el tiempo de espera.
+            panelUi.Title.Text = string.format("ASCENSOR %s · SALE EN %d", tostring(data.Elevator or ""), data.AutoStart)
         else
             panelUi.Title.Text = "ASCENSOR " .. tostring(data.Elevator or "")
         end

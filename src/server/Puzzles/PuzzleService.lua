@@ -40,24 +40,48 @@ local function viewOf(puzzle)
     return PuzzleRules[puzzle.Type].View(puzzle.State, os.clock())
 end
 
+-- Los errores se cuentan por UserId: salir y volver a entrar no borra el bloqueo.
+local function recordOf(puzzle, player)
+    local record = puzzle.Strikes[player.UserId]
+    if not record then
+        record = PuzzleRules.NewRecord()
+        puzzle.Strikes[player.UserId] = record
+    end
+    return record
+end
+
+local function lockedFor(puzzle, player)
+    return PuzzleRules.LockedFor(puzzle.Strikes[player.UserId], os.clock())
+end
+
+local function lockText(seconds)
+    return string.format("Esperá %d segundos antes de volver a probar.", math.ceil(seconds))
+end
+
 local function send(player, puzzle, event, message)
     local definition = PuzzleConfig.Types[puzzle.Type]
+    local view = viewOf(puzzle)
+    -- El bloqueo es de cada jugador: sólo lo ve quien se equivocó.
+    if lockedFor(puzzle, player) > 0 then
+        view.Locked = true
+    end
     Remotes.FireClient("PuzzleUpdate", player, {
         Event = event,
         Id = puzzle.Key,
         Type = puzzle.Type,
         Title = titleOf(puzzle),
         Instructions = definition.Instructions,
-        View = viewOf(puzzle),
+        View = view,
         Message = message,
     })
 end
 
-local function broadcast(puzzle, event, message)
+-- personal: mensajes distintos para algunos jugadores ([player] = texto).
+local function broadcast(puzzle, event, message, personal)
     for viewer in pairs(puzzle.Viewers) do
         local session = sessions[viewer]
         if session and session.Puzzle == puzzle then
-            send(viewer, puzzle, event, message)
+            send(viewer, puzzle, event, personal and personal[viewer] or message)
         else
             puzzle.Viewers[viewer] = nil
         end
@@ -74,12 +98,17 @@ local function close(player, message)
     Remotes.FireClient("PuzzleUpdate", player, {Event = "Close", Id = session.Puzzle.Key, Message = message})
 end
 
+-- El ruido del error atrae a las criaturas, pero como mucho una vez cada
+-- PenaltyInterval segundos por prueba: equivocarse sin parar no inunda la red.
 local function penalty(puzzle, player)
     local position = puzzle.Position
-    if position then
-        NoiseService.Emit(position, GameConfig.Noise.Door, player)
-        Remotes.FireAll("PlaySound", "DoorLocked", position)
+    local now = os.clock()
+    if not position or now - (puzzle.LastPenalty or -math.huge) < PuzzleConfig.Lockout.PenaltyInterval then
+        return
     end
+    puzzle.LastPenalty = now
+    NoiseService.Emit(position, GameConfig.Noise.Door, player)
+    Remotes.FireAll("PlaySound", "DoorLocked", position)
 end
 
 local function solve(puzzle, player)
@@ -206,12 +235,21 @@ local function handleAction(player, puzzleId, action, first, second)
         return
     end
 
-    local outcome, message = rules.Apply(puzzle.State, action, first, second, os.clock())
+    -- Quien se equivocó de más espera él solo; los demás siguen jugando.
+    local wait = lockedFor(puzzle, player)
+    if wait > 0 then
+        send(player, puzzle, "State", lockText(wait))
+        return
+    end
+
+    local now = os.clock()
+    local outcome, message = rules.Apply(puzzle.State, action, first, second, now)
     if outcome == "Solved" then
         solve(puzzle, player)
     elseif outcome == "Wrong" then
+        local seconds = PuzzleRules.Strike(recordOf(puzzle, player), puzzle.Type, now)
         penalty(puzzle, player)
-        broadcast(puzzle, "Wrong", message)
+        broadcast(puzzle, "Wrong", message, seconds > 0 and {[player] = message .. " " .. lockText(seconds)} or nil)
     elseif outcome == "Ok" then
         broadcast(puzzle, "State", message)
     elseif outcome == "Blocked" then
@@ -239,6 +277,9 @@ function PuzzleService.Prepare(plan)
                     Lights = {},
                     Levers = {},
                     LeverTokens = {},
+                    -- [UserId] = errores y bloqueo de ese jugador en esta prueba.
+                    Strikes = {},
+                    LastPenalty = nil,
                 }
             end
         end

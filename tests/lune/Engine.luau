@@ -132,6 +132,7 @@ local EVENT_NAMES = {
     Stepped = true, PlayerAdded = true, PlayerRemoving = true, CharacterAdded = true,
     CharacterRemoving = true, Died = true, HealthChanged = true, Chatted = true, Completed = true,
     Event = true, WindowFocusReleased = true, Loaded = true, ChildAdded = true, DescendantAdded = true,
+    DescendantRemoving = true,
     PromptTriggered = true, MouseButton1Click = true, FocusLost = true,
     TeleportInitFailed = true, PromptProductPurchaseFinished = true,
     InputChanged = true,
@@ -527,12 +528,39 @@ function Methods:GetTeleportData()
     return dataOf(self).TeleportData
 end
 
+-- DescendantAdded / DescendantRemoving: como en Roblox, cada ancestro que escucha
+-- recibe la instancia y cada una de sus descendientes. Sólo se recorre el árbol
+-- si alguien escucha.
+local function notifyAncestors(start, eventName, instance)
+    local signals = nil
+    local current = start
+    while current do
+        local signal = dataOf(current).Signals[eventName]
+        if signal and #signal.Listeners > 0 then
+            signals = signals or {}
+            table.insert(signals, signal)
+        end
+        current = dataOf(current).Values.Parent
+    end
+    if not signals then
+        return
+    end
+    local items = instance:GetDescendants()
+    table.insert(items, 1, instance)
+    for _, signal in ipairs(signals) do
+        for _, item in ipairs(items) do
+            signal:Fire(item)
+        end
+    end
+end
+
 local function assignParent(self, data, parent)
     local old = data.Values.Parent
     if old == parent then
         return
     end
     if old then
+        notifyAncestors(old, "DescendantRemoving", self)
         local children = dataOf(old).Children
         local index = table.find(children, self)
         if index then
@@ -542,6 +570,7 @@ local function assignParent(self, data, parent)
     data.Values.Parent = parent
     if parent then
         table.insert(dataOf(parent).Children, self)
+        notifyAncestors(parent, "DescendantAdded", self)
     end
 end
 
@@ -1161,6 +1190,18 @@ function Engine.Reset(options)
                 failing(name)
                 contents[key] = (contents[key] or 0) + (delta or 1)
                 return contents[key]
+            end,
+            -- Como en Roblox, si la función devuelve nil no se escribe nada.
+            UpdateAsync = function(_, key, transform)
+                failing(name)
+                assert(type(key) == "string", "La clave de un OrderedDataStore es un texto")
+                local value = transform(contents[key])
+                if value == nil then
+                    return nil
+                end
+                checkValue(value)
+                contents[key] = value
+                return value
             end,
             RemoveAsync = function(_, key)
                 failing(name)

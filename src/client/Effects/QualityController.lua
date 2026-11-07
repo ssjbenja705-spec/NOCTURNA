@@ -2,10 +2,14 @@
 -- bajo consumo; el jugador puede cambiarlo desde Ajustes.
 --
 -- En bajo consumo (todo local, no cambia nada para el resto del grupo):
---  * sólo quedan prendidas las luces de techo más cercanas;
+--  * de todas las luces del mapa (techo, objetos, máquinas, pruebas, Alma y las
+--    linternas de los demás) sólo quedan prendidas las más cercanas; la linterna
+--    y la vista nocturna propias no se tocan;
 --  * se apagan las lucecitas de utilería (tanques, pantallas);
 --  * sin sombras globales ni sombras de las linternas;
---  * sin profundidad de campo y con menos resplandor.
+--  * menos resplandor.
+-- Siempre: las linternas de los demás no calculan sombras en esta pantalla (sólo
+-- la propia, en calidad normal) y en pantallas táctiles no hay profundidad de campo.
 local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
@@ -13,17 +17,82 @@ local UserInputService = game:GetService("UserInputService")
 
 local SettingsUI = require(script.Parent.Parent.UI.SettingsUI)
 
+local player = Players.LocalPlayer
+
 -- Cada luz dinámica es la carga más pesada para la placa de video de un celular.
 local MAX_NEAR_LIGHTS = 8
-local CULL_INTERVAL = 0.5
-local LOW_BLOOM = 0.25
+local CULL_INTERVAL = 1
+local LOW_BLOOM = {Intensity = 0.25, Size = 12}
+local FLASHLIGHT_NAMES = {NocturnaFlashlight = true, NocturnaFlashlightSpill = true}
 
 local QualityController = {}
 local lowQuality = false
-local bloomNormal = nil
+local bloomNormal = {}
+-- Todas las luces del mapa, al día por señales (sin recorrer el workspace cada vez).
+local lights = {}
+-- Las que apagó este cliente para ahorrar: sólo éstas se vuelven a prender.
+local culled = {}
+
+local function track(instance)
+    if instance:IsA("Light") then
+        lights[instance] = true
+    end
+end
+
+local function untrack(instance)
+    lights[instance] = nil
+    culled[instance] = nil
+end
 
 local function isDark(fixture)
     return fixture:GetAttribute("Dark") == true
+end
+
+local function ownerOf(light)
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other.Character and light:IsDescendantOf(other.Character) then
+            return other
+        end
+    end
+    return nil
+end
+
+-- Lo que quiere el servidor para esa luz: una lámpara que dejó a oscuras o la
+-- linterna apagada de otro jugador no se prenden desde acá.
+local function serverAllows(light)
+    local parent = light.Parent
+    if not parent or isDark(parent) then
+        return false
+    end
+    if FLASHLIGHT_NAMES[light.Name] then
+        local owner = ownerOf(light)
+        return owner ~= nil and owner:GetAttribute("FlashlightEnabled") == true
+            and (owner:GetAttribute("FlashlightBattery") or 0) > 0
+    end
+    return true
+end
+
+local function positionOf(light)
+    local parent = light.Parent
+    if parent and parent:IsA("Attachment") then
+        parent = parent.Parent
+    end
+    if parent and parent:IsA("BasePart") then
+        return parent.Position
+    end
+    return nil
+end
+
+local function isDecor(light)
+    local parent = light.Parent
+    return parent ~= nil and CollectionService:HasTag(parent, "NocturnaDecorLight")
+end
+
+local function setCulled(light)
+    if light.Enabled then
+        light.Enabled = false
+    end
+    culled[light] = true
 end
 
 local function cullLights()
@@ -33,11 +102,17 @@ local function cullLights()
     end
 
     local origin = camera.CFrame.Position
+    local character = player.Character
     local entries = {}
-    for _, fixture in ipairs(CollectionService:GetTagged("NocturnaLight")) do
-        local light = fixture:FindFirstChildOfClass("PointLight")
-        if light and not isDark(fixture) then
-            table.insert(entries, {Light = light, Distance = (fixture.Position - origin).Magnitude})
+    for light in pairs(lights) do
+        local position = positionOf(light)
+        local own = character ~= nil and light:IsDescendantOf(character)
+        if position and not own and (light.Enabled or culled[light]) then
+            if isDecor(light) then
+                setCulled(light)
+            elseif serverAllows(light) then
+                table.insert(entries, {Light = light, Distance = (position - origin).Magnitude})
+            end
         end
     end
 
@@ -46,30 +121,39 @@ local function cullLights()
     end)
 
     for index, entry in ipairs(entries) do
-        local wanted = index <= MAX_NEAR_LIGHTS
-        if entry.Light.Enabled ~= wanted then
-            entry.Light.Enabled = wanted
+        local light = entry.Light
+        if index <= MAX_NEAR_LIGHTS then
+            if not light.Enabled then
+                light.Enabled = true
+            end
+            culled[light] = nil
+        else
+            setCulled(light)
         end
     end
 end
 
-local function setDecorLights(enabled)
-    for _, host in ipairs(CollectionService:GetTagged("NocturnaDecorLight")) do
-        local light = host:FindFirstChildOfClass("PointLight")
-        if light and light.Enabled ~= enabled then
-            light.Enabled = enabled
+-- Al volver a calidad normal se prenden las que apagó este cliente, salvo las que
+-- el servidor quiere apagadas.
+local function restoreLights()
+    for light in pairs(culled) do
+        if light.Parent and serverAllows(light) then
+            light.Enabled = true
         end
     end
+    table.clear(culled)
 end
 
--- Las linternas de todos: con sombras en calidad normal, sin sombras en bajo consumo.
-local function setFlashlightShadows(enabled)
+-- Sombras del haz: sólo la linterna propia y sólo en calidad normal. Las de los
+-- demás nunca, en esta pantalla (es una propiedad local).
+local function setFlashlightShadows(low)
     for _, other in ipairs(Players:GetPlayers()) do
         local head = other.Character and other.Character:FindFirstChild("Head")
         local attachment = head and head:FindFirstChild("NocturnaFlashlightAttachment")
         local beam = attachment and attachment:FindFirstChild("NocturnaFlashlight")
-        if beam and beam.Shadows ~= enabled then
-            beam.Shadows = enabled
+        local wanted = other == player and not low
+        if beam and beam.Shadows ~= wanted then
+            beam.Shadows = wanted
         end
     end
 end
@@ -77,33 +161,24 @@ end
 local function applyPostEffects(low)
     local depth = Lighting:FindFirstChild("NocturnaDepth")
     if depth and depth:IsA("DepthOfFieldEffect") then
-        depth.Enabled = not low
+        depth.Enabled = not low and not UserInputService.TouchEnabled
     end
     local bloom = Lighting:FindFirstChild("NocturnaBloom")
     if not (bloom and bloom:IsA("BloomEffect")) then
         return
     end
     -- Si el servidor cambió el valor (otro capítulo), ése pasa a ser el normal.
-    if low then
-        if bloom.Intensity ~= LOW_BLOOM then
-            bloomNormal = bloom.Intensity
-            bloom.Intensity = LOW_BLOOM
-        end
-    elseif bloomNormal and bloom.Intensity == LOW_BLOOM then
-        bloom.Intensity = bloomNormal
-        bloomNormal = nil
-    end
-end
-
--- Al volver a calidad normal se prenden todas las que el servidor no apagó.
-local function restoreLights()
-    for _, fixture in ipairs(CollectionService:GetTagged("NocturnaLight")) do
-        local light = fixture:FindFirstChildOfClass("PointLight")
-        if light and not isDark(fixture) then
-            light.Enabled = true
+    for property, lowValue in pairs(LOW_BLOOM) do
+        if low then
+            if bloom[property] ~= lowValue then
+                bloomNormal[property] = bloom[property]
+                bloom[property] = lowValue
+            end
+        elseif bloomNormal[property] ~= nil and bloom[property] == lowValue then
+            bloom[property] = bloomNormal[property]
+            bloomNormal[property] = nil
         end
     end
-    setDecorLights(true)
 end
 
 local function autoLowQuality()
@@ -124,6 +199,12 @@ end
 function QualityController.Start()
     local automatic = autoLowQuality()
 
+    for _, descendant in ipairs(workspace:GetDescendants()) do
+        track(descendant)
+    end
+    workspace.DescendantAdded:Connect(track)
+    workspace.DescendantRemoving:Connect(untrack)
+
     SettingsUI.OnChanged(function(settings)
         local low = settings.LowQuality or automatic
         Lighting.GlobalShadows = not low
@@ -132,7 +213,7 @@ function QualityController.Start()
         end
         lowQuality = low
         applyPostEffects(low)
-        setFlashlightShadows(not low)
+        setFlashlightShadows(low)
     end)
 
     task.spawn(function()
@@ -140,10 +221,9 @@ function QualityController.Start()
             task.wait(CULL_INTERVAL)
             -- El servidor recrea efectos y luces al cambiar de capítulo: se reaplica.
             applyPostEffects(lowQuality)
-            setFlashlightShadows(not lowQuality)
+            setFlashlightShadows(lowQuality)
             if lowQuality then
                 cullLights()
-                setDecorLights(false)
             end
         end
     end)

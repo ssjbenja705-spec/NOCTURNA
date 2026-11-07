@@ -3377,11 +3377,12 @@ T.Test("reglas: los errores se castigan y la solución correcta se acepta", func
         T.Equal(outcome, index == #moves and "Solved" or "Ok", "giro " .. index)
     end
 
-    -- Clave: el error bloquea el teclado un rato, aunque después llegue la correcta.
+    -- Clave: el error es un error; el bloqueo es de quien se equivocó (PuzzleRules.Strike),
+    -- no del teclado, así que la regla no traba a nadie.
     local keypad = PuzzleRules.Keypad.New({Code = "0315"}, rng)
     T.Equal(PuzzleRules.Keypad.Apply(keypad, "Submit", "1234", nil, 10), "Wrong", "clave equivocada")
-    T.Equal(PuzzleRules.Keypad.Apply(keypad, "Submit", "0315", nil, 10.5), "Blocked", "bloqueado")
-    T.Equal(PuzzleRules.Keypad.Apply(keypad, "Submit", "0315", nil, 10 + PuzzleConfig.Keypad.Lockout + 0.1), "Solved", "clave")
+    T.False(PuzzleRules.Keypad.View(keypad, 10.5).Locked, "el teclado no queda trabado para todos")
+    T.Equal(PuzzleRules.Keypad.Apply(keypad, "Submit", "0315", nil, 10.5), "Solved", "clave")
     local random = PuzzleRules.Keypad.New({}, rng)
     T.True(string.match(random.Code, "^%d%d%d%d$") ~= nil, "clave al azar de 4 números")
 
@@ -3812,7 +3813,7 @@ T.Test("los diálogos duran 10 segundos y ninguna línea es demasiado larga para
     end
 end)
 
-T.Test("la cola de diálogos no frena el juego: descarta lo viejo y el cierre entra enseguida", function()
+T.Test("la cola de diálogos no frena el juego: tiene tope y el cierre va después de lo pendiente", function()
     puzzleMatch(1)
     local Story = Engine.RequireServer("Story.StoryService")
     Engine.Run(35)
@@ -3833,12 +3834,19 @@ T.Test("la cola de diálogos no frena el juego: descarta lo viejo y el cierre en
     Engine.Run(0.1)
     T.True(tracker.Index >= 2, "el juego sigue")
 
-    -- Al cerrar el capítulo lo pendiente se descarta y el cierre se muestra ya.
+    -- Al cerrar el capítulo lo pendiente no se pierde: el cierre va detrás, sin
+    -- pasar el tope de la cola, y se sabe cuánto falta para que termine todo.
     gameState().Phase = "Cutscene"
+    local pendingBefore = Story.PendingLines()
+    T.True(pendingBefore > 0, "quedaban líneas por decir")
     Story.PlayDialogue({{Speaker = "Radio", Text = "...uno..."}})
     Engine.Run(0.1)
-    T.Equal(Engine.LastSent("StoryDialogue")[1].Text, "...uno...", "el cierre no espera")
-    T.Equal(Story.PendingLines(), 0, "nada viejo en la cola")
+    T.True(Engine.LastSent("StoryDialogue")[1].Text ~= "...uno...", "el cierre no pisa lo pendiente")
+    T.True(Story.PendingLines() >= 1 and Story.PendingLines() <= 4, "el cierre espera su turno, con tope")
+    T.True(Story.RemainingDialogue() > Story.PendingLines() * Story.LineTime(), "cuenta la línea en pantalla")
+    T.True(Engine.RunUntil(function()
+        return Engine.LastSent("StoryDialogue")[1].Text == "...uno..."
+    end, 60), "el cierre llega después")
     gameState().Phase = "Playing"
 
     -- Un capítulo nuevo descarta lo que quedaba.
@@ -4316,6 +4324,503 @@ T.Test("Mundo: luz más clara y realista, linterna más fuerte y bajo consumo li
     Engine.Run(0.6)
     local eyes = player.Character:FindFirstChild("HumanoidRootPart"):FindFirstChild("NocturnaNightEyes")
     T.True(eyes ~= nil and eyes.Enabled and eyes.Brightness < 0.5, "sin linterna, una luz tenue sólo para uno")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Suite("Correcciones de revisión")
+
+local function countSent(name, first)
+    local count = 0
+    for _, entry in ipairs(Engine.Sent) do
+        if entry.Name == name and (first == nil or entry.Args[1] == first) then
+            count += 1
+        end
+    end
+    return count
+end
+
+local function rootOf(player)
+    return player.Character:FindFirstChild("HumanoidRootPart")
+end
+
+T.Test("Alma abre las puertas comunes a su paso y, si se traba, aparece detrás del jugador", function()
+    local players = puzzleMatch(1)
+    local player = players[1]
+    local door = nil
+    for _, part in ipairs(Engine.CollectionService:GetTagged("NocturnaDoor")) do
+        if part.Name == "Door" and part:GetAttribute("Opened") ~= true then
+            door = part
+            break
+        end
+    end
+    T.True(door ~= nil, "hay una puerta común cerrada")
+
+    -- La encuentran lejos de la puerta y empieza a seguir al jugador.
+    local base = door.Position
+    local AlmaBuilder = Engine.RequireServer("World.AlmaBuilder")
+    local holder = AlmaBuilder.Build(Engine.Workspace, {Id = "ALMA_TEST"}, roblox.CFrame.new(base.X, 0, base.Z + 30))
+    Bot.MoveTo(Engine, player, Vector3.new(base.X, 3, base.Z + 36))
+    T.True(Engine.RunUntil(function()
+        return holder:GetAttribute("AlmaState") == "Follow"
+    end, 10), "lo sigue")
+    T.True(door:GetAttribute("Opened") ~= true, "la puerta sigue cerrada mientras está lejos")
+
+    -- Llega a la puerta cerrada: la abre en vez de quedarse contra ella.
+    local rig = holder:FindFirstChild("Alma")
+    local almaRoot = rig:FindFirstChild("HumanoidRootPart")
+    rig:PivotTo(roblox.CFrame.new(base.X, almaRoot.Position.Y, base.Z + 1))
+    Bot.MoveTo(Engine, player, Vector3.new(base.X + 40, 3, base.Z))
+    Engine.Run(0.5)
+    T.Equal(door:GetAttribute("Opened"), true, "abrió la puerta")
+
+    -- Sin avanzar (el motor de pruebas no la mueve) termina apareciendo detrás.
+    T.True((almaRoot.Position - rootOf(player).Position).Magnitude > 30, "todavía lejos")
+    Engine.Run(3.6)
+    T.True((almaRoot.Position - rootOf(player).Position).Magnitude < 8, "trabada, aparece detrás del jugador")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("congelar la IA y la pausa de las escenas son distintas: una escena no descongela", function()
+    local players = puzzleMatch(1, 1, {Monsters = true, CreatorId = 2001})
+    local player = players[1]
+    local Admin = Engine.RequireServer("Admin.AdminService")
+    local Monsters = Engine.RequireServer("Monsters.MonsterService")
+    local Cinematic = Engine.RequireServer("Puzzles.CinematicService")
+    local gate = gameState().Plan.Gates[1]
+    local function panel()
+        return Engine.LastSent("AdminData", player)[1]
+    end
+
+    T.True(Admin.Execute(player, "freeze", {}), "congelar")
+    T.True(Monsters.IsPaused("Admin") and Monsters.IsPaused(), "IA detenida")
+    T.True(#Cinematic.PlayDoor(gate.A, gate.B, gate.Label, player) > 0, "escena")
+    T.True(Monsters.IsPaused("Scene"), "pausa de la escena")
+    Engine.Run(PuzzleConfig.Cinematic.Duration + 1)
+    T.False(Monsters.IsPaused("Scene"), "terminó la escena")
+    T.True(Monsters.IsPaused(), "la IA sigue congelada")
+    T.True(panel().AiPaused, "el panel lo muestra")
+
+    -- Durante una escena, el botón cambia sólo la pausa del administrador.
+    T.True(Admin.Execute(player, "freeze", {}), "descongelar")
+    T.False(Monsters.IsPaused(), "IA activa")
+    T.False(panel().AiPaused, "el panel lo muestra")
+    Cinematic.PlayDoor(gate.A, gate.B, gate.Label, player)
+    T.True(Monsters.IsPaused(), "quietas por la escena")
+    T.False(panel().AiPaused, "la escena no cuenta como congelada")
+    T.True(Admin.Execute(player, "freeze", {}), "congelar durante la escena")
+    T.True(Monsters.IsPaused("Admin"), "congela (no la invierte la escena)")
+    T.True(panel().AiPaused, "el panel lo muestra")
+    Engine.Run(PuzzleConfig.Cinematic.Duration + 1)
+    T.True(Monsters.IsPaused(), "sigue congelada al terminar la escena")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("diálogos: las líneas que esperan detrás de la introducción no se pierden", function()
+    puzzleMatch(1)
+    local Story = Engine.RequireServer("Story.StoryService")
+    T.Equal(Story.PendingLines(), #ChapterConfig[1].Intro - 1, "la introducción sigue en la cola")
+    Story.PlayDialogue({{Speaker = "Vos", Text = "Primera"}, {Speaker = "Vos", Text = "Segunda"}})
+    T.True(Engine.RunUntil(function()
+        return Engine.LastSent("StoryDialogue")[1].Text == "Segunda"
+    end, 70), "la segunda línea llega aunque esperó más de 30 segundos")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("diálogos: el cierre del capítulo no borra lo que decía el último objetivo", function()
+    puzzleMatch(1)
+    local Story = Engine.RequireServer("Story.StoryService")
+    local wiresLine = nil
+    for _, objective in ipairs(ChapterConfig[1].Objectives) do
+        if objective.Id == "C1_WIRES" then
+            wiresLine = objective.OnComplete.Dialogue[1].Text
+        end
+    end
+    local outroLast = ChapterConfig[1].Outro[#ChapterConfig[1].Outro].Text
+
+    skipTo("C1_WIRES")
+    local mark = #Engine.Sent
+    Story.SkipObjective()
+    Story.SkipObjective()
+    Engine.Run(0.1)
+    T.Equal(gameState().Phase, "Cutscene", "capítulo cerrado")
+
+    local summaryBefore = countSent("ChapterSummary")
+    T.True(Engine.RunUntil(function()
+        return Engine.LastSent("StoryDialogue")[1].Text == outroLast
+    end, 70), "el cierre se muestra")
+    T.Equal(countSent("ChapterSummary"), summaryBefore, "el resumen espera a que termine el diálogo")
+    local wiresAt, outroAt = nil, nil
+    for index = mark + 1, #Engine.Sent do
+        local entry = Engine.Sent[index]
+        if entry.Name == "StoryDialogue" then
+            if entry.Args[1].Text == wiresLine then
+                wiresAt = wiresAt or index
+            elseif entry.Args[1].Text == outroLast then
+                outroAt = outroAt or index
+            end
+        end
+    end
+    T.True(wiresAt ~= nil, "la línea del último objetivo se dijo")
+    T.True(outroAt ~= nil and wiresAt < outroAt, "antes del cierre")
+    T.True(Engine.RunUntil(function()
+        return countSent("ChapterSummary") > summaryBefore
+    end, 20), "después llega el resumen")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente: al terminar la cinemática la vista vuelve adonde miraba el jugador", function()
+    local players = puzzleMatch(1, 1, {Client = true})
+    local player = players[1]
+    skipTo("C1_WIRES")
+    local camera = Engine.Workspace.CurrentCamera
+    local eye = rootOf(player).Position + Vector3.new(0, 1.5, 0)
+    local look = roblox.CFrame.lookAt(eye, eye + Vector3.new(0.3, -1, 0.2))
+    camera.CFrame = look
+    T.True(solveWithBot(player, "C1_WIRES"), "cables resueltos")
+    Engine.Run(0.2)
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Scriptable, "la escena toma la cámara")
+    T.True(camera.CFrame.LookVector:Dot(look.LookVector) < 0.9, "la escena mira la compuerta")
+
+    Engine.Run(4)
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Custom, "cámara devuelta")
+    T.True(camera.CFrame.LookVector:Dot(look.LookVector) > 0.99, "mira otra vez hacia donde miraba")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("reglas: el bloqueo por errores es de cada jugador, crece y se olvida", function()
+    local PuzzleRules = Engine.RequireServer("Puzzles.PuzzleRules")
+    local config = PuzzleConfig.Lockout
+    local keypad = PuzzleRules.NewRecord()
+    local expected = PuzzleConfig.Keypad.Lockout
+    local now = 10
+    for attempt = 1, 7 do
+        local seconds = PuzzleRules.Strike(keypad, "Keypad", now)
+        T.Equal(seconds, math.min(expected, config.Max), "bloqueo " .. attempt)
+        T.True(PuzzleRules.LockedFor(keypad, now + 0.1) > 0, "bloqueado " .. attempt)
+        now += seconds + 0.1
+        T.Equal(PuzzleRules.LockedFor(keypad, now), 0, "libre después " .. attempt)
+        expected *= config.Growth
+    end
+    T.Equal(PuzzleRules.LockedFor(nil, now), 0, "quien nunca se equivocó no espera")
+
+    for _, kind in ipairs({"Breakers", "Wires"}) do
+        T.True(PuzzleRules.Strike(PuzzleRules.NewRecord(), kind, 0) > 0, kind .. ": no se adivina probando")
+    end
+    local simon = PuzzleRules.NewRecord()
+    T.Equal(PuzzleRules.Strike(simon, "Simon", 0), 0, "un error se perdona")
+    T.Equal(PuzzleRules.Strike(simon, "Simon", 1), 0, "dos también")
+    T.True(PuzzleRules.Strike(simon, "Simon", 2) > 0, "al tercero espera")
+
+    local forgotten = PuzzleRules.Strike(keypad, "Keypad", now + config.Forget + 1)
+    T.Equal(forgotten, PuzzleConfig.Keypad.Lockout, "un buen rato sin errores se olvida")
+end)
+
+T.Test("pruebas: quien se equivoca espera él solo y el compañero sigue jugando", function()
+    local players = puzzleMatch(2, 2)
+    local griefer, partner = players[1], players[2]
+    local Puzzles = Engine.RequireServer("Puzzles.PuzzleService")
+    skipTo("C2_CODE")
+    T.Equal(openPuzzle(griefer, "KEYPAD_C2").Event, "Open", "panel del primero")
+    T.Equal(openPuzzle(partner, "KEYPAD_C2").Event, "Open", "panel del segundo")
+    local code = Puzzles.Get("KEYPAD_C2").State.Code
+    local wrong = code == "1111" and "2222" or "1111"
+
+    Bot.Fire(Engine, griefer, "PuzzleAction", "KEYPAD_C2", "Submit", wrong)
+    Engine.Run(0.1)
+    local reply = Bot.PuzzleSession(Engine, griefer, "KEYPAD_C2")
+    T.Equal(reply.Event, "Wrong", "error")
+    T.True(string.find(reply.Message, "Esperá", 1, true) ~= nil, "a él se le pide esperar: " .. reply.Message)
+    T.True(reply.View.Locked, "su teclado, bloqueado")
+    local seen = Bot.PuzzleSession(Engine, partner, "KEYPAD_C2")
+    T.Equal(seen.Event, "Wrong", "el compañero ve el error")
+    T.False(seen.View.Locked, "pero su teclado no se bloquea")
+    T.True(string.find(seen.Message, "Esperá", 1, true) == nil, "y no se le pide esperar")
+
+    -- Insistir durante el bloqueo no cambia nada ni hace ruido.
+    local sounds = countSent("PlaySound", "DoorLocked")
+    Bot.Fire(Engine, griefer, "PuzzleAction", "KEYPAD_C2", "Submit", wrong)
+    Engine.Run(0.1)
+    T.Equal(Bot.PuzzleSession(Engine, griefer, "KEYPAD_C2").Event, "State", "jugada rechazada")
+    T.Equal(countSent("PlaySound", "DoorLocked"), sounds, "sin ruido")
+
+    -- Salir y volver a entrar no borra el bloqueo (se cuenta por UserId).
+    T.True(Puzzles.Get("KEYPAD_C2").Strikes[griefer.UserId] ~= nil, "bloqueo por UserId")
+
+    Bot.Fire(Engine, partner, "PuzzleAction", "KEYPAD_C2", "Submit", code)
+    Engine.Run(0.1)
+    T.True(Puzzles.IsSolved("KEYPAD_C2"), "el compañero la resuelve mientras tanto")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("pruebas: el ruido del error no se repite enseguida y cada bloqueo dura más", function()
+    local players = puzzleMatch(1, 2)
+    local first, second = players[1], players[2]
+    local Puzzles = Engine.RequireServer("Puzzles.PuzzleService")
+    skipTo("C1_BREAKERS")
+    gameState().SetFlag("POWER")
+    T.Equal(openPuzzle(first, "BREAKERS_C1").Event, "Open", "panel del primero")
+    T.Equal(openPuzzle(second, "BREAKERS_C1").Event, "Open", "panel del segundo")
+    local state = Puzzles.Get("BREAKERS_C1").State
+    local wrong = state.Sequence[1] % state.Count + 1
+    local noise = Engine.RequireServer("AI.NoiseService")
+
+    local sounds = countSent("PlaySound", "DoorLocked")
+    local noises = #noise.Recent()
+    Bot.Fire(Engine, first, "PuzzleAction", "BREAKERS_C1", "Flip", wrong)
+    Engine.Run(0.1)
+    T.True(countSent("PlaySound", "DoorLocked") > sounds, "el error suena")
+    T.True(#noise.Recent() > noises, "y hace ruido")
+    local base = PuzzleConfig.Lockout.Base.Default
+    T.True(string.find(Bot.PuzzleSession(Engine, first, "BREAKERS_C1").Message, string.format("%d segundos", base), 1, true) ~= nil,
+        "primer bloqueo corto")
+
+    sounds = countSent("PlaySound", "DoorLocked")
+    noises = #noise.Recent()
+    Bot.Fire(Engine, second, "PuzzleAction", "BREAKERS_C1", "Flip", wrong)
+    Engine.Run(0.1)
+    T.Equal(Bot.PuzzleSession(Engine, second, "BREAKERS_C1").Event, "Wrong", "otro error")
+    T.Equal(countSent("PlaySound", "DoorLocked"), sounds, "no vuelve a sonar enseguida")
+    T.Equal(#noise.Recent(), noises, "ni a hacer ruido")
+
+    Engine.Run(math.max(base, PuzzleConfig.Lockout.PenaltyInterval) + 0.2)
+    Bot.Fire(Engine, first, "PuzzleAction", "BREAKERS_C1", "Flip", wrong)
+    Engine.Run(0.1)
+    local reply = Bot.PuzzleSession(Engine, first, "BREAKERS_C1")
+    T.Equal(reply.Event, "Wrong", "puede volver a probar")
+    T.True(string.find(reply.Message, string.format("%d segundos", base * PuzzleConfig.Lockout.Growth), 1, true) ~= nil,
+        "el bloqueo crece: " .. reply.Message)
+    T.True(countSent("PlaySound", "DoorLocked") > sounds, "pasado el intervalo vuelve a sonar")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("volver a la partida: no mientras el ascensor sale, y deja el ascensor antes de viajar", function()
+    local expires = 1800000000 + 3600
+    local stores = {NOCTURNA_ACTIVE_MATCH_V1 = {
+        USER_2001 = {Code = "access-7", ServerId = "reserved-7", Expires = expires, Data = {Chapter = 2, Difficulty = "Normal", MaxPlayers = 2, Party = {2001, 2002}, Host = 2002}},
+    }}
+    local players = bootServer(1, {PlaceId = 777, Stores = stores, TeleportStays = true})
+    local player = players[1]
+    local Queue = queueService()
+    T.Equal(queueView(player).Kind, "Rejoin", "tiene la oferta")
+
+    enterElevator(player, 1)
+    Engine.Run(0.5)
+    local party = Queue.PartyOf(player)
+    T.True(party ~= nil, "armó grupo")
+    fire("QueueAction", player, "Start")
+    Engine.Run(0.3)
+    T.Equal(party.State, "Countdown", "el ascensor sale")
+    fire("QueueAction", player, "Rejoin")
+    Engine.Run(0.5)
+    T.Equal(#Engine.Teleports, 0, "no pide otro viaje mientras sale")
+    T.Equal(Queue.PartyOf(player), party, "sigue en el grupo")
+
+    fire("QueueAction", player, "Cancel")
+    Engine.Run(0.3)
+    T.Equal(party.State, "Open", "cancelado")
+    fire("QueueAction", player, "Rejoin")
+    Engine.Run(1)
+    T.Equal(#Engine.Teleports, 1, "vuelve a su partida")
+    T.Equal(Engine.Teleports[1].AccessCode, "access-7", "a la suya")
+    T.Equal(Queue.PartyOf(player), nil, "dejó el ascensor")
+    T.True(lobbyBuilder().ElevatorAt(rootOf(player).Position) == nil, "y salió de él")
+
+    -- Mientras viaja no se suma a ningún grupo.
+    enterElevator(player, 2)
+    Engine.Run(1)
+    T.Equal(Queue.PartyOf(player), nil, "viajando no se suma")
+    fire("QueueAction", player, "Rejoin")
+    Engine.Run(0.5)
+    T.Equal(#Engine.Teleports, 1, "ni pide un segundo viaje")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("ascensor: un grupo que no arranca sale solo y avisa antes, aunque el anfitrión cancele", function()
+    local players = bootServer(2)
+    local Queue = queueService()
+    local LobbyConfig = Engine.RequireShared("Config.LobbyConfig")
+    local sign = lobbyBuilder().Elevators()[1].Labels
+
+    enterElevator(players[1], 1)
+    Engine.Run(0.5)
+    fire("QueueAction", players[1], "SetMaxPlayers", 1)
+    Engine.Run(0.3)
+    local party = Queue.PartyOf(players[1])
+    T.Equal(party.MaxPlayers, 1, "el anfitrión cerró los lugares")
+    enterElevator(players[2], 1)
+    Engine.Run(0.5)
+    T.Equal(Queue.PartyOf(players[2]), nil, "nadie más entra")
+
+    Engine.Run(LobbyConfig.OpenTimeout - LobbyConfig.OpenWarning - 5)
+    T.Equal(party.State, "Open", "todavía espera")
+    T.True(string.find(sign.Status.Text, "SALE EN", 1, true) == nil, "sin aviso todavía")
+    Engine.Run(10)
+    T.True(string.find(sign.Status.Text, "SALE EN", 1, true) ~= nil, "el cartel avisa: " .. sign.Status.Text)
+    T.True(type(queueView(players[1]).AutoStart) == "number", "el panel también")
+
+    T.True(Engine.RunUntil(function()
+        return party.State == "Countdown"
+    end, LobbyConfig.OpenWarning + 2), "sale solo")
+    T.True(string.find(lastNotice(players[1]), "tiempo de espera", 1, true) ~= nil, "se le avisa")
+    fire("QueueAction", players[1], "Cancel")
+    Engine.Run(0.6)
+    T.Equal(party.State, "Countdown", "cancelar no reinicia la espera")
+    T.True(waitForPhase("Loading", 15), "la partida arranca")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("donaciones: el podio nunca baja por una copia vieja del total", function()
+    local stores = {NOCTURNA_DONATION_RANKING_V1 = {["2001"] = 50000}}
+    bootServer(1, {Stores = stores})
+    local DonationConfig = Engine.RequireShared("Config.DonationConfig")
+    DonationConfig.Products[6].ProductId = 1006
+    local receipt = {PlayerId = 2001, ProductId = 1006, PurchaseId = "q1", CurrencySpent = 0}
+    T.Equal(Engine.ProcessReceipt(receipt), roblox.Enum.ProductPurchaseDecision.PurchaseGranted, "acreditada")
+    T.Equal(stores.NOCTURNA_DONATIONS_V1.DONOR_2001.Total, 1000, "total de este registro")
+    T.Equal(stores.NOCTURNA_DONATION_RANKING_V1["2001"], 50000, "el podio conserva el total más nuevo")
+
+    receipt = {PlayerId = 3001, ProductId = 1006, PurchaseId = "q2", CurrencySpent = 0}
+    Engine.ProcessReceipt(receipt)
+    T.Equal(stores.NOCTURNA_DONATION_RANKING_V1["3001"], 1000, "un donante nuevo entra con su total")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("IsLit busca la lámpara de la celda sin recorrer todas y sigue a la oscuridad y la energía", function()
+    puzzleMatch(1)
+    local World = Engine.RequireServer("World.WorldService")
+    local nav = gameState().Nav
+    World.SetPower(true)
+    local fixture = Engine.CollectionService:GetTagged("NocturnaLight")[1]
+    local position = nav:Center(fixture:GetAttribute("Cell"), 3)
+
+    local collection = Engine.CollectionService
+    local original = collection.GetTagged
+    local scans = 0
+    rawset(collection, "GetTagged", function(...)
+        scans += 1
+        return original(...)
+    end)
+    local lit = true
+    for _ = 1, 200 do
+        lit = lit and World.IsLit(position)
+    end
+    rawset(collection, "GetTagged", original)
+    T.True(lit, "con luz")
+    T.Equal(scans, 0, "sin recorrer las lámparas en cada consulta")
+
+    fixture:SetAttribute("Dark", true)
+    T.False(World.IsLit(position), "a oscuras")
+    fixture:SetAttribute("Dark", nil)
+    T.True(World.IsLit(position), "vuelve la luz")
+    World.SetPower(false)
+    T.False(World.IsLit(position), "sin energía")
+
+    World.Unload()
+    gameState().Nav = nav
+    gameState().Powered = true
+    T.False(World.IsLit(position), "el índice se vacía al descargar el capítulo")
+end)
+
+T.Test("calidad: bajo consumo limita todas las luces del mapa, respeta las apagadas y quita sombras ajenas", function()
+    local players = bootServer(2)
+    local player, other = players[1], players[2]
+    Engine.StartClient(player)
+    Engine.Run(2)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1.5)
+
+    local function beamOf(who)
+        local attachment = who.Character:FindFirstChild("Head"):FindFirstChild("NocturnaFlashlightAttachment")
+        return attachment and attachment:FindFirstChild("NocturnaFlashlight")
+    end
+    local function mapLightsOn()
+        local on, decorOn = 0, 0
+        for _, light in ipairs(Engine.Workspace:GetDescendants()) do
+            if light:IsA("Light") and light.Enabled and not light:IsDescendantOf(player.Character) then
+                on += 1
+                if light.Parent and Engine.CollectionService:HasTag(light.Parent, "NocturnaDecorLight") then
+                    decorOn += 1
+                end
+            end
+        end
+        return on, decorOn
+    end
+
+    -- Calidad normal en PC: sombras sólo en la linterna propia.
+    T.True(beamOf(player).Shadows, "la linterna propia con sombras")
+    T.False(beamOf(other).Shadows, "la del compañero sin sombras en esta pantalla")
+    local Lighting = Engine.Services.Lighting
+    local bloom = Lighting:FindFirstChild("NocturnaBloom")
+    local normalSize = bloom.Size
+    T.True(Lighting:FindFirstChild("NocturnaDepth").Enabled, "profundidad de campo en PC")
+    local before = mapLightsOn()
+    T.True(before > 8, "muchas luces prendidas: " .. before)
+
+    -- El servidor deja una lámpara a oscuras.
+    local fixture = Engine.CollectionService:GetTagged("NocturnaLight")[1]
+    local darkLight = fixture:FindFirstChildOfClass("PointLight")
+    fixture:SetAttribute("Dark", true)
+    darkLight.Enabled = false
+
+    fire("FlashlightToggle", player)
+    local toggle = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaSettings"):FindFirstChild("LowQuality", true)
+    T.True(toggle ~= nil, "botón de bajo consumo")
+    Engine.GuiInput(toggle, "Activated")
+    Engine.Run(1.5)
+
+    local on, decorOn = mapLightsOn()
+    T.True(on <= 8, "sólo las más cercanas: " .. on)
+    T.Equal(decorOn, 0, "sin lucecitas de utilería")
+    T.False(darkLight.Enabled, "la lámpara a oscuras sigue apagada")
+    T.True(beamOf(player).Enabled, "la linterna propia no se toca")
+    T.False(beamOf(player).Shadows, "sin sombras en bajo consumo")
+    T.True(bloom.Size < normalSize and bloom.Intensity <= 0.25, "menos resplandor")
+
+    -- Una luz que aparece lejos entra a la lista por señal y se apaga.
+    local part = Engine.New("Part", "FarGlow")
+    part.CFrame = roblox.CFrame.new(5000, 5, 5000)
+    local far = Engine.New("PointLight", "Glow")
+    far.Parent = part
+    part.Parent = Engine.Workspace
+    Engine.Run(1.2)
+    T.False(far.Enabled, "luz nueva y lejana, apagada")
+
+    -- Vuelve a calidad normal: se prende lo que apagó el cliente, no lo del servidor.
+    Engine.GuiInput(toggle, "Activated")
+    Engine.Run(1.5)
+    T.True(far.Enabled, "la lejana vuelve")
+    T.True(mapLightsOn() >= before, "vuelven las demás")
+    T.False(darkLight.Enabled, "la oscura sigue apagada")
+    T.Equal(bloom.Size, normalSize, "resplandor normal")
+    T.True(beamOf(player).Shadows, "sombras de la linterna propia")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("criaturas: la mirada se publica con pasos más largos y no más de cinco veces por segundo", function()
+    puzzleMatch(1)
+    local MonsterService = Engine.RequireServer("Monsters.MonsterService")
+    MonsterService.Clear()
+    local entry = MonsterService.Spawn("ElColoso")
+    local model = entry.Model
+    local controller = entry.Controller
+    local start = Vector3.new(20, 3, 20)
+
+    controller.LookTarget = start
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("LookTarget"), start, "mirar a alguien sale enseguida")
+    controller.LookTarget = start + Vector3.new(2, 0, 0)
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("LookTarget"), start, "un paso corto no se publica")
+    controller.LookTarget = start + Vector3.new(4, 0, 0)
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("LookTarget"), start, "ni uno largo antes del intervalo")
+    Engine.Run(0.25)
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("LookTarget"), start + Vector3.new(4, 0, 0), "pasado el intervalo, sí")
+    controller.LookTarget = nil
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("LookTarget"), nil, "dejar de mirar sale enseguida")
     T.NoEngineErrors(Engine)
 end)
 

@@ -23,6 +23,9 @@ local BAR_TWEEN = TweenInfo.new(0.35)
 local Cinematics = {}
 local token = 0
 local active = false
+-- Hacia dónde miraba el jugador antes de la escena: al terminar vuelve a mirar ahí
+-- y no hacia la puerta que mostró la cámara.
+local savedCFrame = nil
 local topBar = nil
 local bottomBar = nil
 local caption = nil
@@ -62,6 +65,12 @@ local function setBars(visible)
 end
 
 local function restoreCamera()
+    -- La cámara de Roblox parte de la vista actual al volver a Custom: se le
+    -- devuelve la mirada de antes de la escena.
+    local current = workspace.CurrentCamera
+    if current and savedCFrame then
+        current.CFrame = savedCFrame
+    end
     local ok = pcall(function()
         local camera = script.Parent.Parent:FindFirstChild("Camera")
         local module = camera and camera:FindFirstChild("FirstPerson")
@@ -93,6 +102,7 @@ function Cinematics.Stop(keepCamera)
     if not keepCamera and player:GetAttribute("Hidden") ~= true then
         restoreCamera()
     end
+    savedCFrame = nil
     setControls(true)
 end
 
@@ -124,6 +134,7 @@ function Cinematics.Play(data)
     local duration = math.clamp(tonumber(data.Duration) or 2.8, MIN_DURATION, MAX_DURATION)
 
     local startCFrame = camera.CFrame
+    savedCFrame = startCFrame
     local shotStart = CFrame.lookAt(data.From, data.Focus)
     local shotEnd = CFrame.lookAt(data.To, data.Focus)
     local started = os.clock()

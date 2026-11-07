@@ -76,7 +76,24 @@ PuzzleConfig.Valves = {
     },
 }
 
+-- Lockout: lo que espera quien se equivoca de clave la primera vez (después crece,
+-- ver PuzzleConfig.Lockout).
 PuzzleConfig.Keypad = {Length = 4, Lockout = 2.5}
+
+-- Errores de cada jugador en cada prueba. Al juntar Strikes errores queda
+-- bloqueado él solo (los demás siguen jugando) Base segundos; cada bloqueo nuevo
+-- dura Growth veces más, hasta Max. Sin errores durante Forget segundos se olvida
+-- todo. La clave, los disyuntores y los cables bloquean desde el primer error: así
+-- no se pueden adivinar probando. El ruido del error suena, como mucho, una vez
+-- cada PenaltyInterval segundos por prueba.
+PuzzleConfig.Lockout = {
+    Strikes = {Keypad = 1, Breakers = 1, Wires = 1, Default = 3},
+    Base = {Keypad = PuzzleConfig.Keypad.Lockout, Default = 2},
+    Growth = 2,
+    Max = 60,
+    Forget = 90,
+    PenaltyInterval = 2,
+}
 
 -- Piezas del tablero: lados abiertos sin girar (1 norte, 2 este, 3 sur, 4 oeste).
 -- Cada giro suma un lado en sentido horario.

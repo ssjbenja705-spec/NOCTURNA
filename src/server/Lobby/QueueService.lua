@@ -28,7 +28,7 @@ local STATUS_COLORS = {
 }
 
 local QueueService = {}
--- [index] = {Elevator, Party, EndsAt, LaunchDeadline, LastSecond}
+-- [index] = {Elevator, Party, EndsAt, LaunchDeadline, LastSecond, OpenSince}
 local queues = {}
 local memberOf = {}
 local warned = {}
@@ -73,6 +73,23 @@ local function secondsLeft(queue)
     return math.max(0, math.ceil((queue.EndsAt or 0) - os.clock()))
 end
 
+-- Segundos hasta que el grupo abierto salga solo; nil si no hay reloj corriendo.
+local function idleLeft(queue)
+    if queue.Party.State ~= "Open" or not queue.OpenSince then
+        return nil
+    end
+    return math.max(0, math.ceil(queue.OpenSince + LobbyConfig.OpenTimeout - os.clock()))
+end
+
+-- Lo mismo, sólo cuando ya hay que avisarlo en el cartel y en el panel.
+local function idleWarning(queue)
+    local left = idleLeft(queue)
+    if left and left <= LobbyConfig.OpenWarning then
+        return left
+    end
+    return nil
+end
+
 -- Lo que ve cada miembro en su panel. Todo sale del servidor.
 local function partyView(queue, player)
     local party = queue.Party
@@ -99,6 +116,7 @@ local function partyView(queue, player)
         Difficulty = party.Difficulty,
         State = party.State,
         Countdown = party.State == "Countdown" and secondsLeft(queue) or nil,
+        AutoStart = idleWarning(queue),
     }
 end
 
@@ -145,10 +163,15 @@ local function refreshSign(queue)
         LobbyBuilder.SetSign(elevator, "EN VIAJE", names, STATUS_COLORS.Closed)
     else
         local difficulty = GameConfig.Difficulties[party.Difficulty]
-        LobbyBuilder.SetSign(elevator, string.format(
+        local status = string.format(
             "%d/%d · %s · CAP. %d",
             #party.Members, party.MaxPlayers, string.upper(difficulty.DisplayName), party.Chapter
-        ), names, STATUS_COLORS.Open)
+        )
+        local autoStart = idleWarning(queue)
+        if autoStart then
+            status ..= string.format(" · SALE EN %d", autoStart)
+        end
+        LobbyBuilder.SetSign(elevator, status, names, STATUS_COLORS.Open)
     end
 end
 
@@ -167,10 +190,16 @@ local function moveOut(player, queue)
     end
 end
 
-local function reopen(queue)
+-- restartTimer: el viaje falló, así que el grupo vuelve a tener su tiempo de
+-- espera completo. Cancelar la cuenta regresiva no lo reinicia: si no, el
+-- anfitrión podría ocupar el ascensor para siempre empezando y cancelando.
+local function reopen(queue, restartTimer)
     queue.EndsAt = nil
     queue.LaunchDeadline = nil
     queue.Party.State = "Open"
+    if restartTimer or not queue.OpenSince then
+        queue.OpenSince = os.clock()
+    end
     LobbyBuilder.SetDoors(queue.Elevator, true)
     update(queue)
 end
@@ -188,6 +217,7 @@ local function resetQueue(queue)
     PartyLogic.Reset(queue.Party)
     queue.EndsAt = nil
     queue.LaunchDeadline = nil
+    queue.OpenSince = nil
     LobbyBuilder.SetDoors(queue.Elevator, not disabled)
     refreshSign(queue)
 end
@@ -254,6 +284,7 @@ local function join(player, queue)
     memberOf[player] = queue
     warned[player] = nil
     if wasEmpty then
+        queue.OpenSince = os.clock()
         -- El anfitrión arranca desde el último capítulo que jugó.
         local current = player:GetAttribute("NocturnaCurrentChapter")
         party.Chapter = math.clamp(type(current) == "number" and current or 1, 1, unlockedOf(player))
@@ -297,14 +328,39 @@ local function launch(queue)
             for _, member in ipairs(membersOf(queue)) do
                 notify(member, "No se pudo abrir el servidor de la partida. Probá de nuevo.")
             end
-            reopen(queue)
+            reopen(queue, true)
         end
     end)
 end
 
+-- Un grupo abierto que no arranca sale solo al cumplirse el tiempo de espera; si
+-- quedó vacío, el ascensor vuelve a estar libre.
+local function tickOpen(queue)
+    local party = queue.Party
+    if PartyLogic.IsEmpty(party) then
+        resetQueue(queue)
+        return
+    end
+    local left = idleLeft(queue)
+    if left == nil then
+        return
+    end
+    if left <= 0 then
+        for _, member in ipairs(membersOf(queue)) do
+            notify(member, "Se terminó el tiempo de espera: el ascensor sale.")
+        end
+        beginCountdown(queue)
+    elseif left <= LobbyConfig.OpenWarning and left ~= queue.LastSecond then
+        queue.LastSecond = left
+        update(queue)
+    end
+end
+
 local function tickQueue(queue)
     local party = queue.Party
-    if party.State == "Countdown" then
+    if party.State == "Open" and queue.OpenSince then
+        tickOpen(queue)
+    elseif party.State == "Countdown" then
         if os.clock() >= queue.EndsAt then
             launch(queue)
             return
@@ -319,7 +375,7 @@ local function tickQueue(queue)
         for _, member in ipairs(membersOf(queue)) do
             notify(member, "El viaje no se completó. Podés volver a intentarlo.")
         end
-        reopen(queue)
+        reopen(queue, true)
     end
 end
 
@@ -348,7 +404,8 @@ local function tick()
             if current and current.Elevator ~= elevator and current.Party.State ~= "Launching" then
                 leave(player, current)
             end
-            if elevator then
+            -- Quien ya está viajando (por ejemplo, de vuelta a su partida) no se suma.
+            if elevator and not MatchTeleport.IsTravelling(player) then
                 local queue = queues[elevator.Index]
                 if memberOf[player] ~= queue then
                     join(player, queue)
@@ -376,8 +433,18 @@ local function handleAction(player, action, argument)
         MatchServerService.RequestReturn(player)
         return
     elseif action == "Rejoin" then
+        -- Quien ya viaja, o está en un ascensor que sale, no pide otro viaje.
+        local current = memberOf[player]
+        if MatchTeleport.IsTravelling(player) or (current and current.Party.State ~= "Open") then
+            return
+        end
         if rejoinOffers[player] and ServerMode.IsLobbyServer() then
             rejoinOffers[player] = nil
+            -- Primero deja el ascensor: el grupo no puede salir con él adentro.
+            if current then
+                leave(player, current, true)
+                moveOut(player, current)
+            end
             send(player)
             task.spawn(MatchTeleport.Rejoin, player)
         end

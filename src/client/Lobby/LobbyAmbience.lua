@@ -8,8 +8,10 @@ local TAG = "NocturnaLobbyFlicker"
 
 local LobbyAmbience = {}
 
+-- La luz vuelve a como estaba: si el bajo consumo la había apagado, sigue apagada.
 local function flicker(fixture, random)
     local light = fixture:FindFirstChildWhichIsA("Light")
+    local wasOn = light ~= nil and light.Enabled
     local material = fixture.Material
     for _ = 1, random:NextInteger(2, 5) do
         if light then
@@ -21,7 +23,7 @@ local function flicker(fixture, random)
             return
         end
         if light then
-            light.Enabled = true
+            light.Enabled = wasOn
         end
         fixture.Material = material
         task.wait(random:NextNumber(0.05, 0.25))
