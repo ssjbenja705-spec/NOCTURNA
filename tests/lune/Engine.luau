@@ -676,6 +676,8 @@ local function makeEnvironment(realm, moduleInstance)
         Enum = roblox.Enum,
         NumberSequence = roblox.NumberSequence,
         NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
+        ColorSequence = roblox.ColorSequence,
+        ColorSequenceKeypoint = roblox.ColorSequenceKeypoint,
         Random = Engine.RandomClass,
         TweenInfo = {new = function(...)
             return {...}
@@ -843,6 +845,22 @@ function Engine.Reset(options)
     service("Lighting")
     service("SoundService")
     local starterGui = service("StarterGui")
+
+    -- Interfaz: la barra de Roblox ocupa 58 px arriba; la precarga avanza de a poco
+    -- (o no termina nunca, con PreloadHang, para probar que la carga se va sola).
+    local guiService = service("GuiService")
+    rawset(guiService, "GetGuiInset", function()
+        return roblox.Vector2.new(0, options.TopInset or 58), roblox.Vector2.new(0, 0)
+    end)
+    local contentProvider = service("ContentProvider")
+    rawset(contentProvider, "PreloadAsync", function(_, list, callback)
+        for _, item in ipairs(list) do
+            taskLibrary.wait(options.PreloadHang and 1e6 or 0.05)
+            if callback then
+                callback(isMock(item) and item:GetFullName() or tostring(item), roblox.Enum.AssetFetchStatus.Success)
+            end
+        end
+    end)
     service("Teams")
 
     Engine.CoreSettings = {}

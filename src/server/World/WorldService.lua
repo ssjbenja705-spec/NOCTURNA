@@ -17,6 +17,7 @@ local EnvironmentService = require(script.Parent.EnvironmentService)
 local FeatureBuilder = require(script.Parent.FeatureBuilder)
 local HidingService = require(script.Parent.HidingService)
 local InteractionService = require(script.Parent.InteractionService)
+local MapService = require(script.Parent.MapService)
 local MechanismService = require(script.Parent.MechanismService)
 local RoomGenerator = require(script.Parent.RoomGenerator)
 
@@ -155,6 +156,7 @@ function WorldService.LoadChapter(chapterIndex, seed)
     placeMannequins(plan, map)
     decorate(plan, theme, map)
     WorldService.SetPower(theme.StartsPowered)
+    MapService.Begin(plan)
 
     return plan
 end
@@ -169,6 +171,7 @@ function WorldService.Unload()
     DoorService.Clear()
     MechanismService.Clear()
     EnvironmentService.Clear()
+    MapService.Clear()
     GameState.ResetChapter()
     currentTheme = nil
     applyAtmosphere(ThemeConfig.Lobby)

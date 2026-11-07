@@ -181,8 +181,59 @@ function MONSTER.Jumpscare()
     FirstPerson.Shake(6, 0.7)
 end
 
+-- Bordes oscuros de la imagen: cuatro degradés (la interfaz no tiene degradé radial).
+local EDGES = {
+    {Anchor = Vector2.new(0, 0), Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(1, 0.22), Rotation = 90},
+    {Anchor = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.fromScale(1, 0.22), Rotation = -90},
+    {Anchor = Vector2.new(0, 0), Position = UDim2.fromScale(0, 0), Size = UDim2.fromScale(0.16, 1), Rotation = 0},
+    {Anchor = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.fromScale(0.16, 1), Rotation = 180},
+}
+
+local rollBar = nil
+
+-- Capa de película debajo del HUD (así no tapa ni el HUD ni el botón para salir
+-- del escondite): viñeta, grano, una franja que baja como en una cinta vieja,
+-- el rojo de la vida baja, el destello del susto y las rendijas del casillero.
 local function buildVignette()
-    local root = Theme.Screen("NocturnaVignette", 3)
+    local root = Theme.Screen("NocturnaVignette", 0, true)
+
+    for _, edge in ipairs(EDGES) do
+        local frame = Theme.New("Frame", {
+            Name = "Edge",
+            AnchorPoint = edge.Anchor,
+            Position = edge.Position,
+            Size = edge.Size,
+            BackgroundColor3 = Color3.new(0, 0, 0),
+            BackgroundTransparency = 0.3,
+            BorderSizePixel = 0,
+        }, root)
+        Theme.New("UIGradient", {
+            Rotation = edge.Rotation,
+            Transparency = NumberSequence.new(0, 1),
+        }, frame)
+    end
+
+    rollBar = Theme.New("Frame", {
+        Name = "RollBar",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.fromScale(0, 0),
+        Size = UDim2.fromScale(1, 0.07),
+        BackgroundColor3 = Color3.fromRGB(230, 220, 200),
+        BackgroundTransparency = 0.965,
+        BorderSizePixel = 0,
+    }, root)
+    Theme.New("UIGradient", {
+        Rotation = 90,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.5, 0),
+            NumberSequenceKeypoint.new(1, 1),
+        }),
+    }, rollBar)
+    Theme.Tween(rollBar, 9, {Position = UDim2.fromScale(0, 1.07)}, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1)
+
+    Theme.Grain(root, 12)
+
     vignette = Theme.New("Frame", {
         Name = "Vignette",
         Size = UDim2.fromScale(1, 1),
@@ -265,6 +316,8 @@ function HorrorEffects.Start()
     SettingsUI.OnChanged(function(settings)
         color.Brightness = (settings.Brightness - 0.5) * 0.36
         lowQuality = settings.LowQuality
+        Theme.SetLowQuality(settings.LowQuality)
+        rollBar.Visible = not settings.LowQuality
     end)
 
     Remotes.OnClient("HorrorEvent", function(name, payload)

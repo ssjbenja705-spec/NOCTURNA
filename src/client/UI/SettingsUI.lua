@@ -9,6 +9,10 @@ local Theme = require(script.Parent.Theme)
 
 local Colors = Theme.Colors
 local STEP = 0.1
+local ROW_HEIGHT = 56
+local FIRST_ROW = 62
+local SEGMENTS = 10
+local BUTTON = Theme.IsTouch and 48 or 44
 
 local SettingsUI = {}
 local current = nil
@@ -29,42 +33,62 @@ end
 
 function SettingsUI.Start()
     local root = Theme.Screen("NocturnaSettings", 12)
-
-    local panel = Theme.Panel(root, {
-        Name = "Settings",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(400, 372),
-        BackgroundTransparency = 0.05,
-        Visible = false,
-    })
+    local panel, _, closeButton = Theme.Window(root, "Settings", "AJUSTES", 440, FIRST_ROW + ROW_HEIGHT * 5 + 34)
 
     Theme.Label(panel, {
-        Position = UDim2.fromOffset(16, 12),
-        Size = UDim2.new(1, -70, 0, 24),
-        Text = "AJUSTES",
-        Font = Enum.Font.GothamBold,
-        TextSize = 16,
+        Name = "Hint",
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 18, 1, -10),
+        Size = UDim2.new(1, -36, 0, 18),
+        Text = "Se guarda al cerrar.",
+        TextSize = 13,
+        TextColor3 = Colors.TextDim,
     })
 
     local refreshers = {}
 
-    local function addStepper(key, title, order)
-        local y = 54 + (order - 1) * 54
-        local label = Theme.Label(panel, {
-            Position = UDim2.fromOffset(16, y),
-            Size = UDim2.new(1, -140, 0, 44),
+    local function rowLabel(y, text)
+        return Theme.Label(panel, {
+            Position = UDim2.fromOffset(18, y),
+            Size = UDim2.fromOffset(130, BUTTON),
+            Text = text,
+            TextSize = 16,
             TextYAlignment = Enum.TextYAlignment.Center,
         })
+    end
+
+    -- Volumen y brillo: una barra de diez marcas, como un dial viejo.
+    local function addStepper(key, title, order)
+        local y = FIRST_ROW + (order - 1) * ROW_HEIGHT
+        rowLabel(y, title)
+
+        local meter = Theme.New("Frame", {
+            Name = key,
+            Position = UDim2.fromOffset(148, y + BUTTON / 2 - 7),
+            Size = UDim2.new(1, -(148 + 2 * BUTTON + 34), 0, 14),
+            BackgroundTransparency = 1,
+        }, panel)
+        local segments = {}
+        for index = 1, SEGMENTS do
+            segments[index] = Theme.New("Frame", {
+                Position = UDim2.new((index - 1) / SEGMENTS, 1, 0, 0),
+                Size = UDim2.new(1 / SEGMENTS, -3, 1, 0),
+                BackgroundColor3 = Colors.Track,
+                BorderSizePixel = 0,
+            }, meter)
+        end
+
         local minus = Theme.Button(panel, "-", {
             AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, -66, 0, y),
-            Size = UDim2.fromOffset(44, 44),
+            Position = UDim2.new(1, -(BUTTON + 24), 0, y),
+            Size = UDim2.fromOffset(BUTTON, BUTTON),
+            TextSize = 22,
         })
         local plus = Theme.Button(panel, "+", {
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -16, 0, y),
-            Size = UDim2.fromOffset(44, 44),
+            Size = UDim2.fromOffset(BUTTON, BUTTON),
+            TextSize = 22,
         })
 
         local function change(delta)
@@ -76,7 +100,10 @@ function SettingsUI.Start()
         end
 
         refreshers[key] = function()
-            label.Text = string.format("%s  %d%%", title, math.floor(current[key] * 100 + 0.5))
+            local filled = math.floor(current[key] * SEGMENTS + 0.5)
+            for index, segment in ipairs(segments) do
+                segment.BackgroundColor3 = index <= filled and Colors.Accent or Colors.Track
+            end
         end
         minus.Activated:Connect(function()
             change(-STEP)
@@ -87,15 +114,20 @@ function SettingsUI.Start()
     end
 
     local function addToggle(key, title, order)
-        local y = 54 + (order - 1) * 54
+        local y = FIRST_ROW + (order - 1) * ROW_HEIGHT
+        rowLabel(y, title).Size = UDim2.new(1, -150, 0, BUTTON)
         local button = Theme.Button(panel, "", {
-            Position = UDim2.fromOffset(16, y),
-            Size = UDim2.new(1, -32, 0, 44),
+            Name = key,
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -16, 0, y),
+            Size = UDim2.fromOffset(2 * BUTTON + 8, BUTTON),
+            TextSize = 16,
         })
 
         refreshers[key] = function()
-            button.Text = title .. ": " .. (current[key] and "SÍ" or "NO")
+            button.Text = current[key] and "SÍ" or "NO"
             button.BackgroundColor3 = current[key] and Colors.ButtonActive or Colors.Button
+            button.TextColor3 = current[key] and Colors.Text or Colors.TextDim
         end
         button.Activated:Connect(function()
             if current then
@@ -119,12 +151,6 @@ function SettingsUI.Start()
             Remotes.FireServer("SettingsUpdate", current)
         end
     end
-
-    local closeButton = Theme.Button(panel, "X", {
-        AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -8, 0, 6),
-        Size = UDim2.fromOffset(40, 40),
-    })
     closeButton.Activated:Connect(close)
 
     local function toggle()
@@ -146,7 +172,7 @@ function SettingsUI.Start()
         end
     end)
 
-    HUD.AddAction("Settings", "AJUSTES", 3, toggle)
+    HUD.AddAction("Settings", "AJUSTES", 4, toggle)
 
     UserInputService.InputBegan:Connect(function(input, processed)
         if not processed and input.KeyCode == Enum.KeyCode.P then

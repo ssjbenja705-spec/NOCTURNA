@@ -19,6 +19,7 @@ local SERVICES = {
     script.Parent.Inventory.InventoryService,
     script.Parent.AI.NoiseService,
     script.Parent.World.WorldService,
+    script.Parent.World.MapService,
     script.Parent.World.InteractionService,
     script.Parent.World.HidingService,
     script.Parent.Monsters.MonsterService,

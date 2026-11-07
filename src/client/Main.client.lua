@@ -1,23 +1,52 @@
 -- NOCTURNA: único punto de entrada del cliente.
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+local MODULE_TIMEOUT = 30
 
 -- Roblox copia PlayerScripts de a poco: este script puede correr antes de que
 -- existan sus módulos hermanos. Se espera cada uno antes de cargar nada.
 local root = script.Parent
 
+local function waitForModule(folderName, moduleName)
+    local folder = root:WaitForChild(folderName, MODULE_TIMEOUT)
+    return folder and folder:WaitForChild(moduleName, MODULE_TIMEOUT)
+end
+
+-- Lo primero que ve el jugador es la pantalla de carga, antes incluso de que
+-- termine de llegar el resto del juego.
+local loadingScreen = nil
+do
+    local module = waitForModule("UI", "LoadingScreen")
+    if module then
+        local success, result = pcall(function()
+            local screen = require(module)
+            screen.Show()
+            return screen
+        end)
+        if success then
+            loadingScreen = result
+        else
+            warn("[NOCTURNA] No se pudo mostrar la pantalla de carga: " .. tostring(result))
+        end
+    end
+end
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
 local MODULES = {
     {"Core", "ClientState"},
     {"UI", "Theme"},
+    {"UI", "LoadingScreen"},
     {"UI", "HUD"},
     {"UI", "StoryUI"},
     {"UI", "SettingsUI"},
     {"UI", "InventoryUI"},
     {"UI", "JournalUI"},
+    {"UI", "MapUI"},
     {"UI", "LobbyUI"},
     {"UI", "StatusUI"},
     {"UI", "EndingUI"},
+    {"UI", "WakeUp"},
     {"UI", "CutsceneUI"},
     {"UI", "AdminUI"},
     {"Movement", "MovementInput"},
@@ -28,13 +57,6 @@ local MODULES = {
     {"Effects", "MonsterAnimator"},
     {"Effects", "QualityController"},
 }
-
-local MODULE_TIMEOUT = 30
-
-local function waitForModule(folderName, moduleName)
-    local folder = root:WaitForChild(folderName, MODULE_TIMEOUT)
-    return folder and folder:WaitForChild(moduleName, MODULE_TIMEOUT)
-end
 
 for _, path in ipairs(MODULES) do
     if not waitForModule(path[1], path[2]) then
@@ -78,9 +100,15 @@ for index = 3, #MODULES do
         table.insert(failed, path[2])
         warn("[NOCTURNA] El módulo " .. path[2] .. " no pudo iniciar:\n" .. tostring(err))
     end
+    if loadingScreen then
+        loadingScreen.SetBootProgress((index - 2) / (#MODULES - 2))
+    end
 end
 
 Remotes.FireServer("LobbyAction", "RequestUpdate")
+if loadingScreen then
+    loadingScreen.MarkReady()
+end
 if #failed > 0 then
     warn("[NOCTURNA] Cliente iniciado con fallas en: " .. table.concat(failed, ", "))
 else

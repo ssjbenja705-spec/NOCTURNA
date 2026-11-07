@@ -1929,5 +1929,294 @@ T.Test("las analíticas registran capítulo, objetivo y final sin afectar la par
     T.True(names.Objective_C1_ENTRY, "objetivo registrado")
 end)
 
+T.Suite("Interfaz")
+
+local function screenOf(player, name)
+    return player:FindFirstChild("PlayerGui"):FindFirstChild(name)
+end
+
+local function mapMessages(player)
+    local result = {}
+    for _, entry in ipairs(Engine.Sent) do
+        if entry.Name == "MapUpdate" and (entry.Player == nil or player == nil or entry.Player == player) then
+            table.insert(result, entry.Args[1])
+        end
+    end
+    return result
+end
+
+-- Nada de lo que viajó a los clientes puede estar fuera de lo ya recorrido.
+local function assertNoLeak(MapService)
+    for _, message in ipairs(mapMessages()) do
+        for _, cell in ipairs(message.Cells or {}) do
+            T.True(MapService.IsRevealed(cell.I), "sala sin recorrer enviada: " .. cell.I)
+        end
+        for _, marker in ipairs(message.Markers or {}) do
+            T.True(MapService.IsRevealed(marker.Cell), "marca de una sala sin recorrer: " .. marker.Id)
+        end
+        for _, door in ipairs(message.Doors or {}) do
+            T.True(MapService.IsRevealed(door.A) or MapService.IsRevealed(door.B), "puerta lejana enviada: " .. door.Key)
+        end
+    end
+end
+
+T.Test("plano: al cargar el capítulo se manda el plano con sólo la sala de entrada", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    local layout = gameState().Plan.Layout
+    local loaded = nil
+    for _, message in ipairs(mapMessages()) do
+        if message.Kind == "Layout" then
+            loaded = message
+        end
+    end
+    T.True(loaded ~= nil, "plano enviado al cargar")
+    T.Equal(loaded.Width, layout.Width, "ancho")
+    T.Equal(loaded.Depth, layout.Depth, "largo")
+    T.Equal(#loaded.Cells, 1, "una sola sala conocida")
+    T.Equal(loaded.Cells[1].I, layout.Start, "la entrada")
+    assertNoLeak(Engine.RequireServer("World.MapService"))
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("plano: una sala aparece cuando alguien la pisa, con lo que hay adentro", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(1)
+
+    local MapService = Engine.RequireServer("World.MapService")
+    local RoomGenerator = Engine.RequireServer("World.RoomGenerator")
+    local plan = gameState().Plan
+    local target = nil
+    for _, item in ipairs(plan.Items) do
+        if not MapService.IsRevealed(item.Cell) then
+            target = item
+            break
+        end
+    end
+    T.True(target ~= nil, "hay un objeto en una sala sin recorrer")
+
+    local markerId = "I:" .. target.Key
+    for _, message in ipairs(mapMessages()) do
+        for _, marker in ipairs(message.Markers or {}) do
+            T.True(marker.Id ~= markerId, "el objeto no se conocía antes de entrar")
+        end
+    end
+
+    local before = #Engine.Sent
+    Bot.MoveTo(Engine, players[1], gameState().Nav:Center(target.Cell, 3))
+    Engine.Run(1)
+    T.True(MapService.IsRevealed(target.Cell), "sala revelada")
+
+    local cellSent, markerSent = false, false
+    for index = before + 1, #Engine.Sent do
+        local entry = Engine.Sent[index]
+        if entry.Name == "MapUpdate" and entry.Args[1].Kind == "Reveal" then
+            for _, cell in ipairs(entry.Args[1].Cells) do
+                cellSent = cellSent or cell.I == target.Cell
+            end
+            for _, marker in ipairs(entry.Args[1].Markers) do
+                markerSent = markerSent or (marker.Id == markerId and marker.Item == target.Item)
+            end
+        end
+    end
+    T.True(cellSent, "la sala viaja a los clientes")
+    T.True(markerSent, "el objeto aparece en el plano")
+
+    -- Al levantarlo, el plano lo saca.
+    before = #Engine.Sent
+    Bot.Use(Engine, players[1], RoomGenerator.SlotCFrame(plan.Layout, target.Cell, target.Slot).Position)
+    Engine.Run(1)
+    local removed = false
+    for index = before + 1, #Engine.Sent do
+        local entry = Engine.Sent[index]
+        if entry.Name == "MapUpdate" then
+            for _, marker in ipairs(entry.Args[1].Markers or {}) do
+                removed = removed or (marker.Id == markerId and marker.Done == true)
+            end
+        end
+    end
+    T.True(removed, "objeto levantado marcado")
+    assertNoLeak(MapService)
+
+    -- Quien entra tarde pide el plano y recibe lo que el grupo ya recorrió.
+    fire("MapRequest", players[1])
+    Engine.Run(0.2)
+    local snapshot = Engine.LastSent("MapUpdate", players[1])[1]
+    T.Equal(snapshot.Kind, "Layout", "plano completo")
+    T.True(#snapshot.Cells >= 2, "con las salas recorridas")
+    for _, marker in ipairs(snapshot.Markers) do
+        T.True(marker.Id ~= markerId, "sin el objeto ya levantado")
+    end
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("plano: el botón MAPA y la tecla M lo abren y dibujan lo recorrido", function()
+    local player = clientWithMatch()
+    local gui = player:FindFirstChild("PlayerGui")
+    local bar = gui:FindFirstChild("NocturnaHUD"):FindFirstChild("Root"):FindFirstChild("Buttons")
+    local mapButton = bar:FindFirstChild("Map")
+    T.True(mapButton ~= nil and mapButton.Visible, "botón MAPA en la barra")
+
+    local window = gui:FindFirstChild("NocturnaMap"):FindFirstChild("Root"):FindFirstChild("Map")
+    T.False(window.Visible, "cerrado")
+    Engine.Input("InputBegan", {KeyCode = roblox.Enum.KeyCode.M})
+    Engine.Run(0.3)
+    T.True(window.Visible, "abierto con M")
+
+    local grid = window:FindFirstChild("Board"):FindFirstChild("Grid")
+    local plan = gameState().Plan
+    T.True(grid.Visible, "plano dibujado")
+    T.True(grid:FindFirstChild("Cell" .. plan.Layout.Start) ~= nil, "entrada dibujada")
+    T.True(grid:FindFirstChild("You") ~= nil, "el jugador aparece")
+
+    local MapService = Engine.RequireServer("World.MapService")
+    local hidden = nil
+    for index = 1, #plan.Layout.Cells do
+        if not MapService.IsRevealed(index) then
+            hidden = index
+            break
+        end
+    end
+    T.True(grid:FindFirstChild("Cell" .. hidden) == nil, "lo inexplorado queda en la niebla")
+    Bot.MoveTo(Engine, player, gameState().Nav:Center(hidden, 3))
+    Engine.Run(1)
+    T.True(grid:FindFirstChild("Cell" .. hidden) ~= nil, "la sala nueva se dibuja")
+
+    Engine.GuiInput(mapButton, "Activated")
+    Engine.Run(0.1)
+    T.False(window.Visible, "el botón lo cierra")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("pantalla de carga: es lo primero que aparece y se puede saltar", function()
+    local players = bootServer(1)
+    Engine.StartClient(players[1])
+    Engine.Run(0.3)
+    local gui = players[1]:FindFirstChild("PlayerGui")
+    T.Equal(gui:GetChildren()[1].Name, "NocturnaLoading", "primera pantalla")
+
+    local skip = screenOf(players[1], "NocturnaLoading"):FindFirstChild("Root"):FindFirstChild("Background"):FindFirstChild("Skip")
+    T.Equal(skip.Text, "SALTAR", "botón para saltar")
+    Engine.GuiInput(skip, "Activated")
+    Engine.Run(1)
+    T.True(screenOf(players[1], "NocturnaLoading") == nil, "saltada")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("pantalla de carga: termina sola, aunque la precarga no termine", function()
+    for _, options in ipairs({{}, {PreloadHang = true}}) do
+        local players = bootServer(1, options)
+        Engine.StartClient(players[1])
+        Engine.Run(1)
+        T.True(screenOf(players[1], "NocturnaLoading") ~= nil, "visible al empezar")
+        Engine.Run(16)
+        T.True(screenOf(players[1], "NocturnaLoading") == nil, "se fue sola")
+        T.NoEngineErrors(Engine)
+    end
+end)
+
+T.Test("diálogo: cada línea queda 10 segundos y se cierra al tocarla", function()
+    local players = bootServer(1)
+    Engine.StartClient(players[1])
+    Engine.Run(3)
+    local remote = Engine.Services.ReplicatedStorage:FindFirstChild("NocturnaRemotes"):FindFirstChild("StoryDialogue")
+    local stack = screenOf(players[1], "NocturnaStory"):FindFirstChild("Root"):FindFirstChild("Subtitles")
+
+    local function visibleLines()
+        local lines = {}
+        for _, child in ipairs(stack:GetChildren()) do
+            if child:IsA("TextButton") and child.Visible then
+                table.insert(lines, child)
+            end
+        end
+        return lines
+    end
+
+    remote:FireClient(players[1], {Speaker = "Radio", Text = "...contá hasta cinco..."})
+    Engine.Run(0.1)
+    local lines = visibleLines()
+    T.Equal(#lines, 1, "una línea")
+    T.True(string.find(lines[1]:FindFirstChild("Body").Text, "contá hasta cinco", 1, true) ~= nil, "texto de la línea")
+    T.Equal(lines[1]:FindFirstChild("Tag").Text, "RADIO", "quién habla")
+
+    Engine.Run(9.6)
+    T.Equal(#visibleLines(), 1, "sigue a los 9,7 s")
+    Engine.Run(1.2)
+    T.Equal(#visibleLines(), 0, "se va pasados los 10 s")
+
+    -- Si el servidor manda líneas seguidas, se apilan en vez de pisarse.
+    for index = 1, 3 do
+        remote:FireClient(players[1], {Speaker = "Vos", Text = "Línea " .. index})
+        Engine.Run(index < 3 and 3.8 or 0.1)
+    end
+    T.Equal(#visibleLines(), 3, "tres líneas a la vez")
+
+    Engine.GuiInput(visibleLines()[1], "Activated")
+    Engine.Run(0.1)
+    T.Equal(#visibleLines(), 2, "tocar una la cierra")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("despertar: tras el título del capítulo los ojos se abren y la pantalla queda libre", function()
+    local player = clientWithMatch()
+    local eyes = screenOf(player, "NocturnaWake"):FindFirstChild("Root"):FindFirstChild("Eyes")
+    T.True(eyes.Visible, "abriendo los ojos")
+    T.False(screenOf(player, "NocturnaCutscene"):FindFirstChild("Root"):FindFirstChild("Curtain").Visible, "el título ya se fue")
+
+    Engine.Run(5)
+    T.False(eyes.Visible, "ojos abiertos")
+    local blur = Engine.Services.Lighting:FindFirstChild("NocturnaWakeBlur")
+    T.True(blur == nil or blur.Enabled == false, "sin desenfoque al terminar")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("HUD: nada debajo de la barra de Roblox y los botones no pisan el objetivo", function()
+    local SAFE = {"NocturnaHUD", "NocturnaStory", "NocturnaInventory", "NocturnaJournal", "NocturnaSettings", "NocturnaMap", "NocturnaAdmin", "NocturnaEnding"}
+    local OVERLAY = {"NocturnaCutscene", "NocturnaWake", "NocturnaVignette", "NocturnaStatus"}
+    local devices = {
+        {Touch = true, Viewport = roblox.Vector2.new(812, 375), CreatorId = 2001},
+        {Touch = true, Viewport = roblox.Vector2.new(667, 375), CreatorId = 2001},
+        {Viewport = roblox.Vector2.new(1280, 720), CreatorId = 2001},
+        {Viewport = roblox.Vector2.new(1024, 768), CreatorId = 2001},
+    }
+
+    for _, options in ipairs(devices) do
+        local player = clientWithMatch(options)
+        Engine.Run(0.5)
+        for _, name in ipairs(SAFE) do
+            T.Equal(screenOf(player, name).ScreenInsets.Name, "CoreUISafeInsets", name .. " dentro del área segura")
+        end
+        for _, name in ipairs(OVERLAY) do
+            T.Equal(screenOf(player, name).ScreenInsets.Name, "None", name .. " cubre toda la pantalla")
+        end
+
+        local Theme = Engine.Require(Engine.ClientFolder:FindFirstChild("UI"):FindFirstChild("Theme"), "Client")
+        local safe = Theme.SafeSize()
+        local full = Theme.FullSize()
+        T.True(safe.Y < full.Y, "descuenta la barra de Roblox")
+
+        local hud = screenOf(player, "NocturnaHUD"):FindFirstChild("Root")
+        local plate = hud:FindFirstChild("Objective")
+        local bar = hud:FindFirstChild("Buttons")
+        local plateRight = safe.X / 2 + plate.Size.X.Offset / 2
+        local barLeft = safe.X - 12 - bar.Size.X.Offset
+        T.True(plate.Visible and plate.Position.Y.Offset >= 0, "objetivo visible arriba")
+        T.True(barLeft >= plateRight, string.format("botones (%d) separados del objetivo (%d)", barLeft, plateRight))
+        for _, name in ipairs({"Inventory", "Journal", "Map", "Settings", "Admin"}) do
+            local button = bar:FindFirstChild(name)
+            T.True(button ~= nil and button.Visible, "botón " .. name)
+        end
+
+        local chapter = plate:FindFirstChild("Chapter").Text
+        T.True(string.find(chapter, "CAPÍTULO 1", 1, true) ~= nil, "mayúsculas con tilde: " .. chapter)
+        T.NoEngineErrors(Engine)
+    end
+end)
+
 local failed = T.Summary()
 process.exit(failed > 0 and 1 or 0)
