@@ -1,4 +1,6 @@
--- Sala de hasta cuatro jugadores: listos, líder, capítulo y dificultad.
+-- Estado del servidor para la interfaz: jugadores, líder, capítulo y dificultad.
+-- Los grupos se arman en los ascensores (Lobby/QueueService); el viejo inicio de
+-- "todos listos" queda sólo cuando no se puede viajar a otro servidor (Studio).
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
@@ -8,9 +10,11 @@ local Remotes = require(Shared.Modules.RemoteHelper)
 local EventBus = require(script.Parent.Parent.Core.EventBus)
 local GameState = require(script.Parent.Parent.Core.GameState)
 local ProgressionService = require(script.Parent.Parent.Data.ProgressionService)
+local ServerMode = require(script.Parent.Parent.Lobby.ServerMode)
 
 local MAX_PLAYERS = GameConfig.MaxPlayers
 local MIN_PLAYERS = GameConfig.MinPlayers
+local LOCAL_ACTIONS = {Ready = true, Start = true, SetChapter = true, SetDifficulty = true}
 
 local LobbyService = {}
 local ready = {}
@@ -102,6 +106,17 @@ function LobbyService.ResetReady()
     LobbyService.Broadcast()
 end
 
+-- Pide arrancar una partida en este servidor: desde un ascensor sin viajes, desde el
+-- servidor de una partida o desde el viejo inicio de "todos listos".
+function LobbyService.RequestMatch(chapter, difficulty)
+    if GameState.Phase ~= "Lobby" then
+        return false
+    end
+    matchNumber += 1
+    EventBus.Emit("MatchRequested", chapter, difficulty)
+    return true
+end
+
 local function startMatch(player)
     if GameState.Phase ~= "Lobby" or player.UserId ~= leaderUserId then
         return
@@ -111,12 +126,15 @@ local function startMatch(player)
         return
     end
 
-    matchNumber += 1
-    EventBus.Emit("MatchRequested", math.min(selectedChapter, highestUnlocked()), selectedDifficulty)
+    LobbyService.RequestMatch(math.min(selectedChapter, highestUnlocked()), selectedDifficulty)
 end
 
 local function handleAction(player, action, argument)
     if typeof(action) ~= "string" then
+        return
+    end
+    -- En un lobby con viajes nadie arranca una partida acá: se usa un ascensor.
+    if LOCAL_ACTIONS[action] and not ServerMode.AllowsLocalStart() then
         return
     end
 
@@ -156,8 +174,11 @@ function LobbyService.Start()
     Remotes.OnServer("LobbyAction", 8, handleAction)
 
     Players.PlayerAdded:Connect(function(player)
-        if #Players:GetPlayers() > MAX_PLAYERS then
-            player:Kick("La partida de NOCTURNA está completa.")
+        -- Un lobby público recibe más gente que una partida, que nunca pasa de cuatro.
+        if #Players:GetPlayers() > ServerMode.Capacity() then
+            player:Kick(ServerMode.IsLobbyServer()
+                and "La recepción está llena. Probá entrar de nuevo."
+                or "La partida de NOCTURNA está completa.")
             return
         end
 

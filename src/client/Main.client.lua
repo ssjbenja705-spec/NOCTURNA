@@ -16,6 +16,7 @@ local MODULES = {
     {"UI", "InventoryUI"},
     {"UI", "JournalUI"},
     {"UI", "LobbyUI"},
+    {"UI", "DonationUI"},
     {"UI", "StatusUI"},
     {"UI", "EndingUI"},
     {"UI", "CutsceneUI"},
@@ -27,6 +28,7 @@ local MODULES = {
     {"Effects", "HorrorEffects"},
     {"Effects", "MonsterAnimator"},
     {"Effects", "QualityController"},
+    {"Lobby", "LobbyAmbience"},
 }
 
 local MODULE_TIMEOUT = 30

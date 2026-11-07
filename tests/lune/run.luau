@@ -1929,5 +1929,547 @@ T.Test("las analíticas registran capítulo, objetivo y final sin afectar la par
     T.True(names.Objective_C1_ENTRY, "objetivo registrado")
 end)
 
+T.Suite("Lobby y servidores")
+
+local function lobbyBuilder()
+    return Engine.RequireServer("World.LobbyBuilder")
+end
+
+local function queueService()
+    return Engine.RequireServer("Lobby.QueueService")
+end
+
+-- Mueve al jugador a un punto del lobby, como si hubiera caminado hasta ahí.
+local function walkTo(player, position)
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    root.CFrame = roblox.CFrame.new(position)
+end
+
+local function enterElevator(player, index)
+    walkTo(player, lobbyBuilder().Elevators()[index].Center)
+end
+
+local function leaveElevator(player)
+    walkTo(player, lobbyBuilder().SpawnCFrame(1).Position)
+end
+
+local function queueView(player)
+    local sent = Engine.LastSent("QueueUpdate", player)
+    return sent and sent[1]
+end
+
+local function lastNotice(player)
+    local sent = Engine.LastSent("StoryNotice", player)
+    return sent and tostring(sent[1]) or ""
+end
+
+T.Test("lobby caminable: materiales reales, ascensores, donaciones y pocas piezas", function()
+    bootServer(1)
+    local lobby = Engine.Workspace:FindFirstChild("NOCTURNA_LOBBY")
+    local parts, lights, emitters = 0, 0, 0
+    for _, descendant in ipairs(lobby:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            parts += 1
+            T.True(descendant.Material ~= roblox.Enum.Material.SmoothPlastic, "sin SmoothPlastic: " .. descendant.Name)
+            T.True(descendant.Anchored, "anclada: " .. descendant.Name)
+        elseif descendant:IsA("Light") then
+            lights += 1
+        elseif descendant:IsA("ParticleEmitter") then
+            emitters += 1
+        end
+    end
+    T.True(parts <= 400, "piezas para celular: " .. parts)
+    T.True(lights <= 16, "luces: " .. lights)
+    T.True(emitters >= 5, "lluvia en los ventanales")
+    T.True(#Engine.CollectionService:GetTagged("NocturnaLobbyFlicker") >= 2, "luces que titilan")
+
+    local LobbyBuilder = lobbyBuilder()
+    T.Equal(#LobbyBuilder.Elevators(), 4, "ascensores")
+    T.Equal(#LobbyBuilder.Podiums(), 3, "podios")
+    T.True(LobbyBuilder.DonationPrompt() ~= nil, "urna de donaciones")
+    for index = 1, 4 do
+        T.True(LobbyBuilder.ElevatorAt(LobbyBuilder.SpawnCFrame(index).Position) == nil, "nadie aparece dentro de un ascensor")
+    end
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("lógica del grupo: entrar, llenarse, salir y pasar el mando", function()
+    Engine.Reset()
+    local PartyLogic = Engine.RequireServer("Lobby.PartyLogic")
+    local party = PartyLogic.new(1)
+    T.True(PartyLogic.Join(party, 10), "entra el primero")
+    T.Equal(party.Host, 10, "y manda")
+    T.True(PartyLogic.SetMaxPlayers(party, 10, 2), "dos lugares")
+    T.True(PartyLogic.Join(party, 20), "entra el segundo")
+    local joined, reason = PartyLogic.Join(party, 30)
+    T.False(joined, "lleno")
+    T.Equal(reason, "Full", "motivo")
+    T.False(PartyLogic.SetMaxPlayers(party, 10, 1), "no menos lugares que gente adentro")
+    T.True(PartyLogic.Leave(party, 10), "sale el anfitrión")
+    T.Equal(party.Host, 20, "manda el siguiente")
+    T.True(PartyLogic.Leave(party, 20), "sale el último")
+    T.Equal(party.Host, nil, "sin anfitrión")
+    T.Equal(party.MaxPlayers, 4, "el ascensor vuelve a cuatro lugares")
+end)
+
+T.Test("ascensor: entrar arma el grupo, otro se suma, salir lo deja y el mando pasa al siguiente", function()
+    local players = bootServer(3)
+    local Queue = queueService()
+
+    enterElevator(players[1], 2)
+    Engine.Run(0.5)
+    local party = Queue.PartyOf(players[1])
+    T.True(party ~= nil, "armó grupo")
+    T.Equal(party.Host, players[1].UserId, "el primero es anfitrión")
+    T.Equal(queueView(players[1]).Kind, "Party", "ve su panel")
+    T.True(queueView(players[1]).IsHost, "panel de anfitrión")
+
+    enterElevator(players[2], 2)
+    Engine.Run(0.5)
+    T.Equal(Queue.PartyOf(players[2]), party, "se suma al mismo grupo")
+    T.Equal(#party.Members, 2, "dos miembros")
+    T.False(queueView(players[2]).IsHost, "el segundo no manda")
+
+    local sign = lobbyBuilder().Elevators()[2].Labels
+    T.True(string.find(sign.Members.Text, "Jugador2", 1, true) ~= nil, "el cartel muestra el grupo")
+    T.True(string.find(sign.Status.Text, "2/4", 1, true) ~= nil, "y los lugares: " .. sign.Status.Text)
+
+    leaveElevator(players[1])
+    Engine.Run(0.5)
+    T.Equal(Queue.PartyOf(players[1]), nil, "salir del ascensor deja el grupo")
+    T.Equal(queueView(players[1]).Kind, "None", "se cierra su panel")
+    T.Equal(party.Host, players[2].UserId, "el anfitrión pasa al siguiente")
+    T.True(queueView(players[2]).IsHost, "el nuevo anfitrión lo ve")
+
+    fire("QueueAction", players[2], "Leave")
+    Engine.Run(0.5)
+    T.Equal(#party.Members, 0, "grupo vacío")
+    T.Equal(party.Host, nil, "sin anfitrión")
+    T.True(string.find(sign.Status.Text, "LIBRE", 1, true) ~= nil, "el ascensor queda libre")
+    T.True(lobbyBuilder().ElevatorAt(players[2].Character.HumanoidRootPart.Position) == nil, "SALIR lo baja del ascensor")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("ajustes del anfitrión: capítulo desbloqueado, de 1 a 4 jugadores y sólo él", function()
+    local players = bootServer(2)
+    local Queue = queueService()
+    local Progression = Engine.RequireServer("Data.ProgressionService")
+    Progression.UnlockChapter(players[1], 2)
+    Progression.UnlockChapter(players[1], 3)
+    Progression.UnlockChapter(players[2], 2)
+
+    enterElevator(players[1], 3)
+    Engine.Run(0.5)
+    enterElevator(players[2], 3)
+    Engine.Run(0.5)
+    local party = Queue.PartyOf(players[1])
+
+    fire("QueueAction", players[1], "SetChapter", 4)
+    fire("QueueAction", players[1], "SetChapter", 2.5)
+    fire("QueueAction", players[1], "SetChapter", "3")
+    fire("QueueAction", players[1], "SetMaxPlayers", 5)
+    fire("QueueAction", players[1], "SetMaxPlayers", 0)
+    fire("QueueAction", players[1], "SetMaxPlayers", 1)
+    fire("QueueAction", players[1], "SetDifficulty", "Imposible")
+    fire("QueueAction", players[1], {})
+    fire("QueueAction", players[2], "SetChapter", 2)
+    fire("QueueAction", players[2], "SetDifficulty", "Pesadilla")
+    fire("QueueAction", players[2], "Start")
+    Engine.Run(0.5)
+    T.Equal(party.Chapter, 1, "capítulo intacto")
+    T.Equal(party.MaxPlayers, 4, "lugares intactos")
+    T.Equal(party.Difficulty, "Normal", "dificultad intacta")
+    T.Equal(party.State, "Open", "sólo el anfitrión empieza")
+
+    Engine.Run(2)
+    fire("QueueAction", players[1], "SetChapter", 3)
+    fire("QueueAction", players[1], "SetDifficulty", "Pesadilla")
+    fire("QueueAction", players[1], "SetMaxPlayers", 2)
+    Engine.Run(0.5)
+    T.Equal(party.Chapter, 3, "hasta el capítulo desbloqueado del anfitrión")
+    T.Equal(party.Difficulty, "Pesadilla", "dificultad")
+    T.Equal(party.MaxPlayers, 2, "lugares")
+    T.Equal(queueView(players[2]).Chapter, 3, "los demás ven el cambio")
+    T.Equal(queueView(players[2]).HighestUnlocked, 3, "el límite es el del anfitrión")
+
+    -- Si se va el anfitrión, el capítulo baja a lo que desbloqueó el nuevo.
+    leaveElevator(players[1])
+    Engine.Run(0.5)
+    T.Equal(party.Host, players[2].UserId, "nuevo anfitrión")
+    T.Equal(party.Chapter, 2, "capítulo ajustado al nuevo anfitrión")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("ascensor lleno: arranca solo, deja afuera al que sobra y sin viajes juega en este servidor", function()
+    local players = bootServer(3)
+    local Queue = queueService()
+
+    enterElevator(players[1], 1)
+    Engine.Run(0.5)
+    fire("QueueAction", players[1], "SetMaxPlayers", 2)
+    Engine.Run(0.3)
+    enterElevator(players[2], 1)
+    Engine.Run(0.5)
+    local party = Queue.PartyOf(players[1])
+    T.Equal(party.State, "Countdown", "lleno: cuenta regresiva")
+    T.False(lobbyBuilder().Elevators()[1].DoorsOpen, "las puertas se cierran")
+
+    enterElevator(players[3], 1)
+    Engine.Run(0.5)
+    T.Equal(Queue.PartyOf(players[3]), nil, "no entra a un grupo lleno")
+    T.True(string.find(lastNotice(players[3]), "saliendo", 1, true) ~= nil, "se le avisa: " .. lastNotice(players[3]))
+
+    T.True(waitForPhase("Loading", 15), "termina la cuenta y arranca la partida en este servidor")
+    T.Equal(#Engine.Teleports, 0, "sin viajes en Studio")
+    T.True(waitForPhase("Playing", 60), "partida")
+    T.Equal(Queue.PartyOf(players[1]), nil, "el grupo se disuelve al empezar")
+    T.True(string.find(lobbyBuilder().Elevators()[1].Labels.Status.Text, "FUERA DE SERVICIO", 1, true) ~= nil, "ascensores apagados durante la partida")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("con viajes: reserva un servidor del mismo lugar y manda al grupo junto con sus datos", function()
+    local stores = {}
+    local players = bootServer(3, {PlaceId = 777, Stores = stores})
+    local Queue = queueService()
+
+    enterElevator(players[1], 1)
+    Engine.Run(0.5)
+    enterElevator(players[2], 1)
+    Engine.Run(0.5)
+    fire("QueueAction", players[1], "SetDifficulty", "Pesadilla")
+    Engine.Run(0.3)
+    fire("QueueAction", players[1], "Start")
+    Engine.Run(1)
+    T.Equal(Queue.PartyOf(players[1]).State, "Countdown", "cuenta regresiva")
+
+    T.True(Engine.RunUntil(function()
+        return #Engine.Teleports > 0
+    end, 15), "viaja al terminar la cuenta")
+    local trip = Engine.Teleports[1]
+    T.Equal(trip.PlaceId, 777, "al mismo lugar")
+    T.Equal(trip.AccessCode, Engine.Reserved[1], "al servidor reservado")
+    T.Equal(#trip.Players, 2, "todo el grupo junto")
+    T.Equal(trip.Data.Difficulty, "Pesadilla", "con la dificultad")
+    T.Equal(trip.Data.Chapter, 1, "con el capítulo")
+    T.Equal(trip.Data.MaxPlayers, 4, "con los lugares")
+    T.Equal(trip.Data.Party[1], players[1].UserId, "con la lista del grupo")
+    T.Equal(trip.Data.Party[2], players[2].UserId, "completa")
+    T.Equal(gameState().Phase, "Lobby", "el lobby no juega")
+
+    Engine.Run(2)
+    T.Equal(#Engine.Services.Players:GetPlayers(), 1, "los viajeros se fueron")
+    T.True(string.find(lobbyBuilder().Elevators()[1].Labels.Status.Text, "LIBRE", 1, true) ~= nil, "el ascensor vuelve a quedar libre")
+    T.True(lobbyBuilder().Elevators()[1].DoorsOpen, "con las puertas abiertas")
+    local record = stores.NOCTURNA_ACTIVE_MATCH_V1 and stores.NOCTURNA_ACTIVE_MATCH_V1["USER_" .. players[1].UserId]
+    T.True(record ~= nil and record.Code == trip.AccessCode, "recuerda la partida para poder volver")
+
+    fire("LobbyAction", players[3], "Ready")
+    fire("LobbyAction", players[3], "Start")
+    Engine.Run(1)
+    T.Equal(gameState().Phase, "Lobby", "en un lobby con viajes nadie juega en el lobby")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("viajes que fallan: reintenta, avisa y vuelve a abrir el ascensor", function()
+    local players = bootServer(2, {PlaceId = 777, Stores = {}, TeleportStays = true, TeleportFailures = 1})
+    local Queue = queueService()
+    local teleportService = Engine.Services.TeleportService
+
+    enterElevator(players[1], 1)
+    Engine.Run(0.5)
+    fire("QueueAction", players[1], "Start")
+    T.True(Engine.RunUntil(function()
+        return #Engine.Teleports > 0
+    end, 20), "el segundo intento sale")
+
+    -- El viaje de alguien falla después de empezar: se reintenta al mismo servidor.
+    teleportService.TeleportInitFailed:Fire(players[1], roblox.Enum.TeleportResult.Failure, "falla", 777, nil)
+    Engine.Run(5)
+    T.Equal(#Engine.Teleports, 2, "reintenta el viaje de quien falló")
+    T.Equal(Engine.Teleports[2].AccessCode, Engine.Teleports[1].AccessCode, "al mismo servidor reservado")
+    teleportService.TeleportInitFailed:Fire(players[1], roblox.Enum.TeleportResult.Flooded, "lleno", 777, nil)
+    Engine.Run(7)
+    T.Equal(#Engine.Teleports, 3, "tercer intento")
+    teleportService.TeleportInitFailed:Fire(players[1], roblox.Enum.TeleportResult.Failure, "falla", 777, nil)
+    Engine.Run(1)
+    T.True(string.find(lastNotice(players[1]), "No pudimos llevarte", 1, true) ~= nil, "se rinde y avisa: " .. lastNotice(players[1]))
+
+    T.True(Engine.RunUntil(function()
+        local party = Queue.PartyOf(players[1])
+        return party ~= nil and party.State == "Open"
+    end, 40), "el ascensor se vuelve a abrir para quien no pudo viajar")
+
+    -- Si no se puede reservar un servidor, se avisa y el ascensor vuelve a abrir.
+    Engine.Options.ReserveFailures = 3
+    enterElevator(players[2], 2)
+    Engine.Run(0.5)
+    fire("QueueAction", players[2], "Start")
+    T.True(Engine.RunUntil(function()
+        return string.find(lastNotice(players[2]), "No se pudo abrir", 1, true) ~= nil
+    end, 30), "avisa que no se pudo abrir el servidor")
+    T.Equal(Queue.PartyOf(players[2]).State, "Open", "y se puede volver a intentar")
+    T.Equal(gameState().Phase, "Lobby", "nunca juega en el lobby público")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("datos de viaje: se validan y se descartan los inventados", function()
+    Engine.Reset()
+    local PartyLogic = Engine.RequireServer("Lobby.PartyLogic")
+    local valid = PartyLogic.ParseTeleportData({Chapter = 2, Difficulty = "Normal", MaxPlayers = 2, Party = {1, 1, 2, 3}, Host = 2})
+    T.True(valid ~= nil, "válidos")
+    T.Equal(#valid.Party, 2, "sin repetidos ni más que los lugares")
+    T.Equal(valid.Host, 2, "anfitrión")
+    local bad = {
+        "texto",
+        {Chapter = 9, Difficulty = "Normal", MaxPlayers = 2, Party = {1}},
+        {Chapter = 1.5, Difficulty = "Normal", MaxPlayers = 2, Party = {1}},
+        {Chapter = 1, Difficulty = "Imposible", MaxPlayers = 2, Party = {1}},
+        {Chapter = 1, Difficulty = "Normal", MaxPlayers = 5, Party = {1}},
+        {Chapter = 1, Difficulty = "Normal", MaxPlayers = 2, Party = {}},
+        {Chapter = 1, Difficulty = "Normal", MaxPlayers = 2, Party = {"a"}},
+    }
+    T.True(PartyLogic.ParseTeleportData(nil) == nil, "sin datos")
+    for index, data in ipairs(bad) do
+        T.True(PartyLogic.ParseTeleportData(data) == nil, "datos inválidos " .. index)
+    end
+end)
+
+T.Test("servidor de partida: detecta el modo, espera al grupo y arranca con sus datos", function()
+    local stores = {NOCTURNA_PLAYER_DATA_V1 = {PLAYER_2001 = {Version = 2, UnlockedChapter = 3, Documents = {}, Endings = {}}}}
+    Engine.Reset({PlaceId = 777, PrivateServerId = "reserved-9", PrivateServerOwnerId = 0, Stores = stores})
+    Engine.StartServer()
+    Engine.Run(0.5)
+    T.True(Engine.RequireServer("Lobby.ServerMode").IsMatchServer(), "es un servidor de partida")
+    T.Equal(#lobbyBuilder().Elevators(), 0, "sin ascensores")
+    T.True(lobbyBuilder().DonationPrompt() == nil, "sin donaciones")
+    T.True(Engine.Workspace:FindFirstChild("NOCTURNA_LOBBY") ~= nil, "con una sala de espera")
+
+    -- Pide el capítulo 5, pero nadie del grupo lo desbloqueó: se limita al 3.
+    local data = {Chapter = 5, Difficulty = "Pesadilla", MaxPlayers = 3, Party = {2001, 2002, 2003}, Host = 2001}
+    local join = {SourcePlaceId = 777, TeleportData = data}
+    local first = Engine.AddPlayer("Jugador1", 2001, join)
+    Engine.AddPlayer("Jugador2", 2002, join)
+    Engine.Run(5)
+    T.Equal(gameState().Phase, "Lobby", "espera al que falta")
+    local view = queueView(first)
+    T.Equal(view.Kind, "Waiting", "ve la espera")
+    T.Equal(view.Arrived, 2, "llegaron dos")
+    T.Equal(view.Expected, 3, "de tres")
+
+    -- El tercero nunca llega: vence la espera y se juega igual.
+    local wait = Engine.RequireShared("Config.LobbyConfig").Teleport.PartyWait
+    T.True(waitForPhase("Loading", wait + 5), "arranca sin el que falta")
+    T.Equal(gameState().Chapter, 3, "capítulo del grupo, limitado a lo desbloqueado")
+    T.Equal(gameState().Difficulty, "Pesadilla", "dificultad del grupo")
+    T.True(waitForPhase("Playing", 60), "partida")
+
+    -- Alguien que se había caído vuelve a entrar en plena partida.
+    local back = Engine.AddPlayer("Jugador3", 2003, join)
+    Engine.Run(2)
+    T.True(back.Character ~= nil, "vuelve a jugar")
+    T.Equal(Engine.Kicked[2003], nil, "no lo expulsan")
+
+    -- Al terminar, todos vuelven a un lobby público.
+    Engine.Options.TeleportStays = true
+    Engine.RequireServer("Multiplayer.MatchService").ReturnToLobby()
+    Engine.Run(1)
+    local trip = Engine.Teleports[#Engine.Teleports]
+    T.True(trip ~= nil, "viaja de vuelta")
+    T.Equal(trip.PlaceId, 777, "al mismo lugar")
+    T.Equal(trip.AccessCode, "", "a un lobby público, no a otro reservado")
+    T.Equal(#trip.Players, 3, "todo el grupo")
+    T.True(trip.Data.ReturnFromMatch, "avisando que vuelve de una partida")
+    T.Equal(queueView(first).Kind, "Returning", "con el botón para reintentar")
+    fire("QueueAction", first, "ReturnToLobby")
+    Engine.Run(1)
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("servidor de partida: si llega todo el grupo arranca sin esperar el límite", function()
+    Engine.Reset({PlaceId = 777, PrivateServerId = "reserved-3", PrivateServerOwnerId = 0, Stores = {}})
+    Engine.StartServer()
+    Engine.Run(0.5)
+    local join = {SourcePlaceId = 777, TeleportData = {Chapter = 1, Difficulty = "Normal", MaxPlayers = 2, Party = {2001, 2002}, Host = 2001}}
+    Engine.AddPlayer("Jugador1", 2001, join)
+    Engine.AddPlayer("Jugador2", 2002, join)
+    T.True(waitForPhase("Loading", 10), "arranca enseguida")
+
+    -- Datos de otro lugar no sirven.
+    Engine.Reset({PlaceId = 777, PrivateServerId = "reserved-4", PrivateServerOwnerId = 0, Stores = {}})
+    Engine.StartServer()
+    Engine.Run(0.5)
+    Engine.AddPlayer("Jugador1", 2001, {SourcePlaceId = 555, TeleportData = {Chapter = 3, Difficulty = "Pesadilla", MaxPlayers = 1, Party = {2001}}})
+    Engine.Run(3)
+    T.Equal(Engine.RequireServer("Lobby.MatchServerService").Settings(), nil, "datos de otro lugar descartados")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("quien se desconectó puede volver a su partida desde el lobby", function()
+    local expires = 1800000000 + 3600
+    local stores = {NOCTURNA_ACTIVE_MATCH_V1 = {
+        USER_2001 = {Code = "access-7", ServerId = "reserved-7", Expires = expires, Data = {Chapter = 2, Difficulty = "Normal", MaxPlayers = 2, Party = {2001, 2002}, Host = 2002}},
+    }}
+    local players = bootServer(1, {PlaceId = 777, Stores = stores, TeleportStays = true})
+    local offer = queueView(players[1])
+    T.Equal(offer.Kind, "Rejoin", "le ofrece volver")
+    T.Equal(offer.Chapter, 2, "a su capítulo")
+
+    fire("QueueAction", players[1], "Rejoin")
+    Engine.Run(1)
+    local trip = Engine.Teleports[1]
+    T.True(trip ~= nil, "viaja")
+    T.Equal(trip.AccessCode, "access-7", "al mismo servidor reservado")
+    T.True(trip.Data.Rejoin, "como regreso")
+    T.Equal(trip.Data.Chapter, 2, "con los datos de la partida")
+
+    -- Quien vuelve de una partida terminada no ve la oferta.
+    local returning = Engine.AddPlayer("Jugador2", 2002, {SourcePlaceId = 777, TeleportData = {ReturnFromMatch = true}})
+    Engine.Run(2)
+    T.True(queueView(returning) == nil or queueView(returning).Kind ~= "Rejoin", "sin oferta al volver")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("donaciones: cada compra se acredita una sola vez y el podio ordena a los mayores", function()
+    local stores = {}
+    local players = bootServer(1, {Stores = stores})
+    local DonationConfig = Engine.RequireShared("Config.DonationConfig")
+    DonationConfig.Products[1].ProductId = 1001
+    DonationConfig.Products[6].ProductId = 1006
+    DonationConfig.Products[51].ProductId = 1051
+    local Decision = roblox.Enum.ProductPurchaseDecision
+    local function receipt(userId, productId, purchaseId)
+        return {PlayerId = userId, ProductId = productId, PurchaseId = purchaseId, CurrencySpent = 0}
+    end
+
+    T.Equal(Engine.ProcessReceipt(receipt(2001, 1006, "p1")), Decision.PurchaseGranted, "acreditada")
+    T.Equal(Engine.ProcessReceipt(receipt(2001, 1006, "p1")), Decision.PurchaseGranted, "el reintento también responde bien")
+    T.Equal(stores.NOCTURNA_DONATIONS_V1.DONOR_2001.Total, 1000, "pero cuenta una sola vez")
+    T.Equal(stores.NOCTURNA_DONATION_RANKING_V1["2001"], 1000, "ranking")
+    T.Equal(Engine.LastSent("DonationUpdate", players[1])[1].Thanks, 1000, "agradece al donante")
+
+    T.Equal(Engine.ProcessReceipt(receipt(2001, 999999, "p2")), Decision.NotProcessedYet, "producto desconocido")
+    T.Equal(Engine.ProcessReceipt(receipt(2001, 0, "p3")), Decision.NotProcessedYet, "un monto sin id")
+
+    Engine.Options.FailStore = {NOCTURNA_DONATIONS_V1 = 1}
+    T.Equal(Engine.ProcessReceipt(receipt(3001, 1051, "p4")), Decision.NotProcessedYet, "si falla el guardado, Roblox reintenta")
+    T.True(stores.NOCTURNA_DONATIONS_V1.DONOR_3001 == nil, "sin acreditar")
+    Engine.Options.FailStore = {NOCTURNA_DONATION_RANKING_V1 = 1}
+    T.Equal(Engine.ProcessReceipt(receipt(3001, 1051, "p4")), Decision.NotProcessedYet, "falla la copia del podio")
+    T.Equal(Engine.ProcessReceipt(receipt(3001, 1051, "p4")), Decision.PurchaseGranted, "reintento")
+    T.Equal(stores.NOCTURNA_DONATIONS_V1.DONOR_3001.Total, 10000, "una sola vez aunque hubo reintentos")
+    T.Equal(stores.NOCTURNA_DONATION_RANKING_V1["3001"], 10000, "podio al día")
+
+    Engine.ProcessReceipt(receipt(4001, 1001, "p5"))
+    Engine.ProcessReceipt(receipt(5001, 1001, "p6"))
+    Engine.ProcessReceipt(receipt(5001, 1001, "p7"))
+    local top = Engine.RequireServer("Lobby.DonationService").RefreshTop()
+    T.Equal(#top, 3, "tres en el podio")
+    T.Equal(top[1].UserId, 3001, "primero el que más donó")
+    T.Equal(top[2].UserId, 2001, "segundo")
+    T.Equal(top[3].UserId, 5001, "tercero: 200 le gana a 100")
+    T.Equal(top[2].Name, "Jugador1", "con su nombre")
+
+    Engine.Run(5)
+    local podiums = lobbyBuilder().Podiums()
+    T.True(string.find(podiums[1].Labels.Name.Text, "Usuario3001", 1, true) ~= nil, "nombre en el podio: " .. podiums[1].Labels.Name.Text)
+    T.Equal(podiums[1].Labels.Total.Text, "10.000 R$", "total en el podio")
+    local statue = lobbyBuilder().StatueFolder():FindFirstChild("Statue1")
+    T.True(statue ~= nil and statue:FindFirstChildOfClass("Humanoid") ~= nil, "estatua con el avatar")
+    T.True(statue:FindFirstChildOfClass("LocalScript") == nil, "sin scripts")
+    for _, piece in ipairs(statue:GetDescendants()) do
+        if piece:IsA("BasePart") then
+            T.True(piece.Anchored, "estatua anclada")
+        end
+    end
+
+    -- Si el avatar no se puede cargar queda una silueta.
+    Engine.Options.AvatarFailures = true
+    Engine.ProcessReceipt(receipt(6001, 1051, "p8"))
+    Engine.ProcessReceipt(receipt(6001, 1051, "p9"))
+    Engine.Run(5)
+    local first = lobbyBuilder().StatueFolder():FindFirstChild("Statue1")
+    T.Equal(lobbyBuilder().Podiums()[1].UserId, 6001, "nuevo primero")
+    T.True(first ~= nil and first:FindFirstChildOfClass("Humanoid") == nil and first:FindFirstChild("Head") ~= nil, "silueta de reemplazo")
+    T.Equal(#lobbyBuilder().StatueFolder():GetChildren(), 3, "una estatua por podio")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("donaciones: 51 montos de 100 a 10000 y los botones sin id no aparecen", function()
+    Engine.Reset()
+    local DonationConfig = Engine.RequireShared("Config.DonationConfig")
+    T.Equal(#DonationConfig.Products, 51, "montos")
+    T.Equal(DonationConfig.Products[1].Robux, 100, "el primero")
+    for index = 2, 51 do
+        T.Equal(DonationConfig.Products[index].Robux, (index - 1) * 200, "de 200 en 200")
+    end
+    T.Equal(#DonationConfig.Visible(), 0, "sin ids no hay botones")
+    T.Equal(DonationConfig.FormatRobux(10000), "10.000", "formato")
+    T.Equal(DonationConfig.FormatRobux(100), "100", "formato corto")
+
+    local players = bootServer(1)
+    local clientConfig = Engine.Require(Engine.SharedFolder:FindFirstChild("Config"):FindFirstChild("DonationConfig"), "Client")
+    clientConfig.Products[1].ProductId = 1001
+    clientConfig.Products[3].ProductId = 1003
+    Engine.StartClient(players[1])
+    Engine.Run(2)
+
+    local panel = players[1]:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaDonations"):FindFirstChild("Root"):FindFirstChild("DonationPanel")
+    T.False(panel.Visible, "cerrado al empezar")
+    local prompt = lobbyBuilder().DonationPrompt()
+    walkTo(players[1], prompt.Parent.Position + Vector3.new(-4, 0, 0))
+    prompt:Fire(players[1])
+    Engine.Run(0.5)
+    T.True(panel.Visible, "la urna abre el panel")
+
+    local amounts = panel:FindFirstChild("Amounts")
+    local buttons = {}
+    for _, child in ipairs(amounts:GetChildren()) do
+        if child:IsA("TextButton") then
+            table.insert(buttons, child)
+        end
+    end
+    T.Equal(#buttons, 2, "sólo los montos con id")
+    T.True(amounts:FindFirstChild("Amount100") ~= nil and amounts:FindFirstChild("Amount400") ~= nil, "100 y 400")
+    T.True(amounts:FindFirstChild("Amount200") == nil, "un monto con id 0 no aparece")
+
+    Engine.GuiInput(amounts:FindFirstChild("Amount400"), "Activated")
+    Engine.Run(0.2)
+    T.Equal(Engine.PurchasePrompts[1].ProductId, 1003, "pide la compra del producto correcto")
+
+    leaveElevator(players[1])
+    Engine.Run(1)
+    T.False(panel.Visible, "alejarse de la urna lo cierra")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("la pantalla queda libre: el panel aparece sólo dentro de un ascensor", function()
+    local players = bootServer(1, {Touch = true, Viewport = roblox.Vector2.new(812, 375)})
+    Engine.StartClient(players[1])
+    Engine.Run(2)
+    local root = players[1]:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaLobby"):FindFirstChild("Root")
+    local panel = root:FindFirstChild("LobbyPanel")
+    T.False(panel.Visible, "nada tapa el lobby")
+    T.True(root:FindFirstChild("LobbyHint").Visible, "sólo una pista")
+    Engine.Run(15)
+    T.False(root:FindFirstChild("LobbyHint").Visible, "la pista se va sola")
+
+    enterElevator(players[1], 1)
+    Engine.Run(1)
+    T.True(panel.Visible, "al entrar al ascensor aparece el panel")
+    T.True(panel.Size.Y.Offset <= 300 and panel.Size.X.Offset <= 320, "panel chico")
+
+    Engine.GuiInput(panel:FindFirstChild("Minus"), "Activated")
+    Engine.Run(0.5)
+    T.Equal(queueService().PartyOf(players[1]).MaxPlayers, 3, "el anfitrión baja los lugares")
+    T.True(string.find(panel:FindFirstChild("Members").Text, "1/3", 1, true) ~= nil, "y lo ve")
+
+    Engine.GuiInput(panel:FindFirstChild("StartButton"), "Activated")
+    Engine.Run(1.2)
+    T.True(string.find(panel:FindFirstChild("Title").Text, "SALE EN", 1, true) ~= nil, "cuenta regresiva en el panel")
+    T.True(waitForPhase("Playing", 60), "partida")
+    T.False(panel.Visible, "oculto en partida")
+    T.NoEngineErrors(Engine)
+end)
+
 local failed = T.Summary()
 process.exit(failed > 0 and 1 or 0)
