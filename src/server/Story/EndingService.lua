@@ -76,7 +76,7 @@ function EndingService.RunVote()
     Remotes.FireAll("EndingPrompt", {Options = payload, Duration = duration})
 
     local deadline = os.clock() + duration
-    while os.clock() < deadline and not allVoted() do
+    while os.clock() < deadline and not allVoted() and #Players:GetPlayers() > 0 do
         task.wait(0.25)
     end
 
@@ -88,6 +88,11 @@ function EndingService.Play(endingId)
     local ending = ChapterConfig.Endings[endingId]
     local duration = #ending.Lines * CARD_TIME + 8
 
+    -- El final se anota a quienes llegaron a verlo, aunque se vayan durante la escena.
+    for _, player in ipairs(Players:GetPlayers()) do
+        ProgressionService.AddEnding(player, endingId)
+    end
+
     Remotes.FireAll("Cutscene", {
         Kind = "Ending",
         EndingId = endingId,
@@ -97,22 +102,24 @@ function EndingService.Play(endingId)
         Duration = duration,
     })
     task.wait(duration)
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        ProgressionService.AddEnding(player, endingId)
-    end
 end
 
 function EndingService.Start()
     Remotes.OnServer("EndingVote", 4, function(player, endingId)
-        if voting and typeof(endingId) == "string" and table.find(options, endingId) then
+        if voting and typeof(endingId) == "string" and table.find(options, endingId)
+            and votes[player] ~= endingId then
             votes[player] = endingId
             Remotes.FireAll("EndingVotes", tally())
         end
     end)
 
     Players.PlayerRemoving:Connect(function(player)
-        votes[player] = nil
+        if votes[player] ~= nil then
+            votes[player] = nil
+            if voting then
+                Remotes.FireAll("EndingVotes", tally())
+            end
+        end
     end)
 end
 

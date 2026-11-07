@@ -41,26 +41,44 @@ local function nearbyLights(range)
     return result
 end
 
+-- Cada luz vuelve a como estaba: las que el servidor dejó a oscuras siguen apagadas.
 local function flicker(times)
     local lights = nearbyLights(70)
+    local original = {}
+    for index, light in ipairs(lights) do
+        original[index] = light.Enabled
+    end
+
     for _ = 1, times do
         for _, light in ipairs(lights) do
             light.Enabled = false
         end
         task.wait(0.07)
-        for _, light in ipairs(lights) do
-            light.Enabled = true
+        for index, light in ipairs(lights) do
+            local fixture = light.Parent
+            light.Enabled = original[index] and fixture ~= nil and fixture:GetAttribute("Dark") ~= true
         end
         task.wait(0.11)
     end
 end
 
+-- El desenfoque sólo está activo mientras dura un pulso: apagado no cuesta nada.
+local blurToken = 0
 local function pulseBlur(size, duration)
     if lowQuality then
         return
     end
+    blurToken += 1
+    local token = blurToken
+    blur.Enabled = true
     blur.Size = size
-    TweenService:Create(blur, TweenInfo.new(duration), {Size = 0}):Play()
+    local tween = TweenService:Create(blur, TweenInfo.new(duration), {Size = 0})
+    tween.Completed:Connect(function()
+        if token == blurToken then
+            blur.Enabled = false
+        end
+    end)
+    tween:Play()
 end
 
 local function redFlash(strength)
@@ -232,6 +250,7 @@ function HorrorEffects.Start()
     blur = Instance.new("BlurEffect")
     blur.Name = "NocturnaBlur"
     blur.Size = 0
+    blur.Enabled = false
     blur.Parent = Lighting
 
     color = Instance.new("ColorCorrectionEffect")

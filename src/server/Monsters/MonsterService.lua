@@ -16,12 +16,14 @@ local TICK = 1 / 15
 local THREAT_INTERVAL = 0.5
 local THREAT_RANGE = 45
 local MIN_SPAWN_STEPS = 3
+local MAX_FAILURES = 30
 
 local MonsterService = {}
 local active = {}
 local world = nil
 local folder = nil
 local paused = false
+local threatWarned = false
 
 local BEHAVIORS = {
     ElOyente = require(Behaviors.ElOyente),
@@ -81,18 +83,33 @@ function MonsterService.Spawn(kind)
     world = world or MonsterWorld.new()
     world:BeginTick()
 
-    local difficulty = GameState.DifficultySettings()
-    local position = GameState.Nav:Center(spawnCell(), settings.BodyHeight)
-    local model, root = MonsterFactory.Build(kind, getFolder(), settings.BodyHeight)
-    local controller = MonsterController.new(kind, settings, BEHAVIORS[settings.Behavior], world, position, {
-        Speed = difficulty.MonsterSpeed,
-        Damage = difficulty.MonsterDamage,
-    })
+    -- Si algo falla al armarla, no queda un cuerpo quieto en el mapa ni se
+    -- cancelan las demás criaturas del capítulo.
+    local model = nil
+    local success, result = pcall(function()
+        local difficulty = GameState.DifficultySettings()
+        local position = GameState.Nav:Center(spawnCell(), settings.BodyHeight)
+        local root
+        model, root = MonsterFactory.Build(kind, getFolder(), settings.BodyHeight)
+        local controller = MonsterController.new(kind, settings, BEHAVIORS[settings.Behavior], world, position, {
+            Speed = difficulty.MonsterSpeed,
+            Damage = difficulty.MonsterDamage,
+        })
 
-    root.CFrame = controller:GetCFrame()
-    local entry = {Controller = controller, Model = model, Root = root, LastSpeed = -1}
-    table.insert(active, entry)
-    return entry
+        root.CFrame = controller:GetCFrame()
+        return {Controller = controller, Model = model, Root = root, LastSpeed = -1, Failures = 0}
+    end)
+
+    if not success then
+        if model then
+            model:Destroy()
+        end
+        warn("[NOCTURNA] No se pudo crear la criatura", kind, result)
+        return nil
+    end
+
+    table.insert(active, result)
+    return result
 end
 
 function MonsterService.SpawnChapter(chapterIndex)
@@ -166,17 +183,44 @@ local function updateThreat()
     end
 end
 
+local function tickEntry(entry, deltaTime)
+    local controller = entry.Controller
+    controller:Tick(deltaTime)
+    entry.Root.CFrame = controller:GetCFrame()
+
+    if entry.LastSpeed ~= controller.Speed then
+        entry.LastSpeed = controller.Speed
+        entry.Model:SetAttribute("MoveSpeed", controller.Speed)
+    end
+end
+
+-- Cada criatura se actualiza por separado: si una falla, las demás siguen.
+-- La que falla seguido se retira para no llenar la consola.
 local function tick(deltaTime)
     world:BeginTick()
 
-    for _, entry in ipairs(active) do
-        local controller = entry.Controller
-        controller:Tick(deltaTime)
-        entry.Root.CFrame = controller:GetCFrame()
+    local broken = nil
+    for index, entry in ipairs(active) do
+        local success, err = pcall(tickEntry, entry, deltaTime)
+        if success then
+            entry.Failures = 0
+        else
+            entry.Failures += 1
+            if entry.Failures == 1 then
+                warn("[NOCTURNA] Error de IA en " .. entry.Model.Name .. ":", err)
+            end
+            if entry.Failures >= MAX_FAILURES then
+                broken = broken or {}
+                table.insert(broken, index)
+            end
+        end
+    end
 
-        if entry.LastSpeed ~= controller.Speed then
-            entry.LastSpeed = controller.Speed
-            entry.Model:SetAttribute("MoveSpeed", controller.Speed)
+    if broken then
+        for position = #broken, 1, -1 do
+            local entry = table.remove(active, broken[position])
+            warn("[NOCTURNA] Se retira " .. entry.Model.Name .. " por errores repetidos.")
+            entry.Model:Destroy()
         end
     end
 end
@@ -203,7 +247,11 @@ function MonsterService.Start()
 
         if threatElapsed >= THREAT_INTERVAL then
             threatElapsed = 0
-            updateThreat()
+            local success, err = pcall(updateThreat)
+            if not success and not threatWarned then
+                threatWarned = true
+                warn("[NOCTURNA] Error calculando la amenaza:", err)
+            end
         end
     end)
 end

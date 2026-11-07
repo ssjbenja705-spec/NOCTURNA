@@ -31,8 +31,12 @@ Studio o el panel de creador. La descripción y los ajustes para copiar están e
 
 ## Verificación ya realizada
 
-- `lune run tests/lune/run.luau`: 81 pruebas, todas correctas, incluida una
-  campaña completa de 5 capítulos jugada por bots, guardado y recarga.
+- `lune run tests/lune/run.luau`: 85 pruebas, todas correctas, incluida una
+  campaña completa de 5 capítulos jugada por bots, guardado y recarga, un
+  capítulo que no se puede armar, una criatura que falla y la recuperación del
+  guardado tras una caída de DataStore.
+- Revisión del 6 de noviembre con cuatro agentes del plugin ecc (seguridad,
+  lógica, fallos silenciosos, rendimiento): ver `SYSTEM_STATUS.md`.
 - `luau-lsp analyze` con las definiciones oficiales de la API: sin errores.
 - `rojo build`: compila.
 - Roblox Studio 0.745 (Play Solo, servidor): 49 de 49 comprobaciones de

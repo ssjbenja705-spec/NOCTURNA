@@ -30,18 +30,20 @@ for _, userId in ipairs(Config.AdminUserIds) do
     end
 end
 
+-- Devuelve si es administrador por rango y si la consulta llegó a responder.
 local function checkGroup(player)
     if game.CreatorType ~= Enum.CreatorType.Group then
-        return false
+        return false, true
     end
 
     local success, rank = pcall(function()
         return player:GetRankInGroup(game.CreatorId)
     end)
     if not success then
-        return false
+        warn("[NOCTURNA] No se pudo leer el rango de", player.Name, rank)
+        return false, false
     end
-    return rank >= (Config.MinimumGroupRank or 255)
+    return rank >= (Config.MinimumGroupRank or 255), true
 end
 
 function AdminService.IsAdmin(player)
@@ -57,13 +59,31 @@ function AdminService.IsAdmin(player)
         return cached
     end
 
-    local result = false
+    local result, answered = false, true
     if Config.AllowCreator then
-        result = (game.CreatorType == Enum.CreatorType.User and game.CreatorId == player.UserId)
-            or checkGroup(player)
+        if game.CreatorType == Enum.CreatorType.User and game.CreatorId == player.UserId then
+            result = true
+        else
+            result, answered = checkGroup(player)
+        end
     end
-    adminCache[player] = result
+    -- Una falla de red no deja a un administrador sin permisos toda la sesión.
+    if answered then
+        adminCache[player] = result
+    end
     return result
+end
+
+-- Los administradores no pueden expulsarse ni sancionarse entre sí.
+local function isProtected(userId)
+    if admins[userId] then
+        return true
+    end
+    if game.CreatorType == Enum.CreatorType.User and game.CreatorId == userId then
+        return true
+    end
+    local online = Players:GetPlayerByUserId(userId)
+    return online ~= nil and AdminService.IsAdmin(online)
 end
 
 local function record(moderator, action, detail)
@@ -196,6 +216,9 @@ function ACTIONS.kick(moderator, args)
     if not target or target == moderator then
         return false, "Jugador no válido."
     end
+    if isProtected(target.UserId) then
+        return false, "No se puede expulsar a otro administrador."
+    end
     target:Kick("Expulsado por un administrador.")
     return true, target.Name
 end
@@ -205,16 +228,23 @@ function ACTIONS.ban(moderator, args)
     if not userId or userId == moderator.UserId then
         return false, "Uso: ban <jugador o UserId> <días, 0 = permanente> <motivo>"
     end
+    if isProtected(userId) then
+        return false, "No se puede sancionar a otro administrador."
+    end
 
     local days = math.clamp(tonumber(args[2]) or 0, 0, Config.MaxBanDays)
     local reason = table.concat(args, " ", 3):sub(1, 120)
-    ModerationStore.Ban(userId, days > 0 and days or nil, reason, moderator.UserId)
+    local _, saved = ModerationStore.Ban(userId, days > 0 and days or nil, reason, moderator.UserId)
 
     local target = Players:GetPlayerByUserId(userId)
     if target then
         target:Kick("Fuiste sancionado. Motivo: " .. (reason ~= "" and reason or "Incumplir las reglas."))
     end
-    return true, string.format("%d (%d días)", userId, days)
+    if not saved then
+        Remotes.FireClient("StoryNotice", moderator,
+            "La sanción no se pudo guardar: sólo vale en este servidor.")
+    end
+    return true, string.format("%d (%d días)%s", userId, days, saved and "" or " sólo en este servidor")
 end
 
 function ACTIONS.unban(_, args)

@@ -14,6 +14,8 @@ Analytics.Match = {
 function Analytics.StartMatch(playerCount)
     Analytics.Match.StartedAt = os.time()
     Analytics.Match.Players = playerCount
+    Analytics.Match.Deaths = 0
+    Analytics.Match.Failures = 0
 end
 
 function Analytics.StartChapter(chapter, playerCount)

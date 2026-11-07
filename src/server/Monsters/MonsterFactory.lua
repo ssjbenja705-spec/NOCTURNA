@@ -42,9 +42,19 @@ local function usesCuts(model)
     return false
 end
 
+local warnedMissing = {}
+
 local function meshTemplate(model, name, index)
     local folder, set, cuts = modelSet(model)
     if not set then
+        -- Se avisa una vez: sin esto, una publicación sin los modelos saldría
+        -- con criaturas de bloques sin que nadie lo note.
+        local kind = model:GetAttribute("ModelSet") or ""
+        if kind ~= "" and not warnedMissing[kind] then
+            warnedMissing[kind] = true
+            warn("[NOCTURNA] Falta el modelo de " .. kind .. " en ServerStorage." .. MODELS_FOLDER
+                .. ": se arma con piezas simples.")
+        end
         return nil
     end
     -- TurnAround corrige un importador que deje las mallas mirando hacia atrás.

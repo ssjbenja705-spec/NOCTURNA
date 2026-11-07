@@ -19,6 +19,9 @@ local shakeStrength = 0
 local bobClock = 0
 local hideCFrame = nil
 local spectating = false
+local spectateReadyAt = 0
+local SPECTATE_DELAY = 2.5
+local SPECTATE_CHECK = 0.5
 local random = Random.new()
 
 function FirstPerson.Shake(strength, duration)
@@ -134,13 +137,30 @@ function FirstPerson.Start()
     Remotes.OnClient("DownState", function(data)
         if data.Spectating then
             spectating = true
-            task.delay(2.5, function()
+            spectateReadyAt = os.clock() + SPECTATE_DELAY
+            task.delay(SPECTATE_DELAY, function()
                 if spectating then
                     spectateNext()
                 end
             end)
         elseif data.Down == false then
             spectating = false
+        end
+    end)
+
+    -- Si el compañero que se mira cae o se va, la cámara pasa al siguiente con vida.
+    task.spawn(function()
+        while true do
+            task.wait(SPECTATE_CHECK)
+            if spectating and os.clock() >= spectateReadyAt then
+                local camera = workspace.CurrentCamera
+                local subject = camera and camera.CameraSubject
+                local watching = subject ~= nil and subject:IsA("Humanoid") and subject.Health > 0
+                    and subject.Parent ~= player.Character and subject:IsDescendantOf(workspace)
+                if not watching then
+                    spectateNext()
+                end
+            end
         end
     end)
 

@@ -121,7 +121,8 @@ local function handleAction(player, action, argument)
     end
 
     if action == "RequestUpdate" then
-        LobbyService.Broadcast()
+        -- Sólo a quien lo pidió: pedirlo muchas veces no satura a los demás.
+        Remotes.FireClient("LobbyUpdate", player, getLobbyData())
         GameState.Broadcast(player)
         ProgressionService.Push(player)
     elseif action == "Ready" then

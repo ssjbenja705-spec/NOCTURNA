@@ -29,13 +29,33 @@ local MODULES = {
     {"Effects", "QualityController"},
 }
 
+local MODULE_TIMEOUT = 30
+
 local function waitForModule(folderName, moduleName)
-    return root:WaitForChild(folderName):WaitForChild(moduleName)
+    local folder = root:WaitForChild(folderName, MODULE_TIMEOUT)
+    return folder and folder:WaitForChild(moduleName, MODULE_TIMEOUT)
 end
 
 for _, path in ipairs(MODULES) do
-    waitForModule(path[1], path[2])
+    if not waitForModule(path[1], path[2]) then
+        warn("[NOCTURNA] Falta el módulo del cliente " .. path[1] .. "/" .. path[2])
+    end
 end
+
+-- Sin botón de reinicio nadie gasta, por error o a propósito, las vidas
+-- compartidas del grupo. SetCore falla hasta que Roblox carga su interfaz.
+task.spawn(function()
+    local StarterGui = game:GetService("StarterGui")
+    for _ = 1, 10 do
+        local success = pcall(function()
+            StarterGui:SetCore("ResetButtonCallback", false)
+        end)
+        if success then
+            return
+        end
+        task.wait(1)
+    end
+end)
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Remotes = require(Shared:WaitForChild("Modules"):WaitForChild("RemoteHelper"))
@@ -43,10 +63,26 @@ local Remotes = require(Shared:WaitForChild("Modules"):WaitForChild("RemoteHelpe
 local ClientState = require(waitForModule("Core", "ClientState"))
 ClientState.Connect()
 
+-- Un módulo que falla no deja al jugador sin el resto de la interfaz ni los controles.
+local failed = {}
 for index = 3, #MODULES do
     local path = MODULES[index]
-    require(waitForModule(path[1], path[2])).Start()
+    local success, err = xpcall(function()
+        local module = waitForModule(path[1], path[2])
+        if not module then
+            error("módulo no encontrado", 0)
+        end
+        require(module).Start()
+    end, debug.traceback)
+    if not success then
+        table.insert(failed, path[2])
+        warn("[NOCTURNA] El módulo " .. path[2] .. " no pudo iniciar:\n" .. tostring(err))
+    end
 end
 
 Remotes.FireServer("LobbyAction", "RequestUpdate")
-print("[NOCTURNA] Cliente iniciado.")
+if #failed > 0 then
+    warn("[NOCTURNA] Cliente iniciado con fallas en: " .. table.concat(failed, ", "))
+else
+    print("[NOCTURNA] Cliente iniciado.")
+end

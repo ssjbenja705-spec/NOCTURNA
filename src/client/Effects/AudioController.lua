@@ -12,6 +12,7 @@ local ClientState = require(script.Parent.Parent.Core.ClientState)
 local SettingsUI = require(script.Parent.Parent.UI.SettingsUI)
 
 local player = Players.LocalPlayer
+local SFX_MAX_DISTANCE = 120
 
 local AudioController = {}
 local musicGroup = nil
@@ -69,7 +70,13 @@ end
 -- Sonido en un punto del mundo, con atenuación por distancia.
 function AudioController.PlayAt(name, position)
     local definition = AudioConfig.Sfx[name]
-    if not definition then
+    if not definition or typeof(position) ~= "Vector3" then
+        return
+    end
+
+    -- Más allá de donde se apaga no se oye: no se crea nada (ahorra en celulares).
+    local camera = workspace.CurrentCamera
+    if camera and (position - camera.CFrame.Position).Magnitude > SFX_MAX_DISTANCE then
         return
     end
 
@@ -80,7 +87,7 @@ function AudioController.PlayAt(name, position)
     local sound = createSound(name, definition, effectsGroup, emitter)
     sound.RollOffMode = Enum.RollOffMode.InverseTapered
     sound.RollOffMinDistance = 12
-    sound.RollOffMaxDistance = 120
+    sound.RollOffMaxDistance = SFX_MAX_DISTANCE
     sound:Play()
     Debris:AddItem(emitter, 8)
 end

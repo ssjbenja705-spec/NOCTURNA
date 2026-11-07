@@ -102,7 +102,10 @@ local function runDialogue(token)
         Remotes.FireAll("StoryDialogue", line)
         task.wait(DIALOGUE_LINE_TIME)
     end
-    dialogueRunning = false
+    -- Un diálogo viejo que despierta tarde no apaga el que ya está corriendo.
+    if token == sessionToken then
+        dialogueRunning = false
+    end
 end
 
 function StoryService.PlayDialogue(lines)

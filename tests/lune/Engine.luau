@@ -842,8 +842,13 @@ function Engine.Reset(options)
     service("StarterPlayer")
     service("Lighting")
     service("SoundService")
-    service("StarterGui")
+    local starterGui = service("StarterGui")
     service("Teams")
+
+    Engine.CoreSettings = {}
+    rawset(starterGui, "SetCore", function(_, name, value)
+        Engine.CoreSettings[name] = value
+    end)
 
     Engine.Workspace.Terrain = mockNew("Terrain", "Terrain")
     Engine.Workspace.CurrentCamera = mockNew("Camera", "Camera")

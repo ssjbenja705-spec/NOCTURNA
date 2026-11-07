@@ -1477,6 +1477,50 @@ T.Test("si se van todos, el servidor vuelve al lobby y limpia el mapa", function
     T.NoEngineErrors(Engine)
 end)
 
+T.Test("si el capítulo no se puede armar, el grupo vuelve al lobby en vez de quedar trabado", function()
+    local players = bootServer(1)
+    local WorldService = Engine.RequireServer("World.WorldService")
+    local attempts = 0
+    WorldService.LoadChapter = function()
+        attempts += 1
+        error("mapa roto")
+    end
+
+    startMatch(players)
+    T.True(waitForPhase("Loading", 30), "empieza a cargar")
+    T.True(waitForPhase("Lobby", 120), "vuelve al lobby")
+    T.Equal(attempts, 2, "prueba con otra semilla antes de rendirse")
+    T.True(Engine.Workspace:FindFirstChild("NOCTURNA_MAP") == nil, "sin mapa a medias")
+    T.True(players[1].Character ~= nil, "el jugador sigue en juego")
+end)
+
+T.Test("una criatura que falla se retira y no congela a las demás", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+
+    local MonsterService = Engine.RequireServer("Monsters.MonsterService")
+    MonsterService.Clear()
+    local broken = MonsterService.Spawn("ElOyente")
+    local healthy = MonsterService.Spawn("ElOyente")
+    T.True(broken ~= nil and healthy ~= nil, "dos criaturas")
+
+    broken.Controller.Tick = function()
+        error("IA rota")
+    end
+    local ticks = 0
+    local originalTick = healthy.Controller.Tick
+    healthy.Controller.Tick = function(self, deltaTime)
+        ticks += 1
+        return originalTick(self, deltaTime)
+    end
+
+    Engine.Run(5)
+    T.True(ticks > 30, "la sana sigue actualizándose")
+    T.True(table.find(MonsterService.Active(), broken) == nil, "la rota se retira")
+    T.True(broken.Model.Parent == nil, "su cuerpo no queda en el mapa")
+end)
+
 T.Test("un capítulo desbloqueado por un amigo se puede jugar en grupo", function()
     local players = bootServer(2)
     local Progression = Engine.RequireServer("Data.ProgressionService")
@@ -1690,6 +1734,24 @@ T.Test("reintenta un fallo pasajero de DataStore", function()
     T.Equal(players[1]:GetAttribute("NocturnaUnlockedChapter"), 4, "datos cargados")
 end)
 
+T.Test("si la carga falló, se recupera más tarde y suma lo jugado en la sesión", function()
+    local stores = {NOCTURNA_PLAYER_DATA_V1 = {PLAYER_2001 = {Version = 2, UnlockedChapter = 4, Deaths = 5, Documents = {}, Endings = {}}}}
+    local players = bootServer(1, {Stores = stores, DataStoreFailures = 3})
+    Engine.Run(15)
+
+    local Progression = Engine.RequireServer("Data.ProgressionService")
+    T.Equal(players[1]:GetAttribute("NocturnaSaveOffline"), true, "empieza en modo sesión")
+    Progression.RecordDeath(players[1])
+
+    Engine.Run(40)
+    T.Equal(players[1]:GetAttribute("NocturnaSaveOffline"), false, "recuperado")
+    T.Equal(players[1]:GetAttribute("NocturnaUnlockedChapter"), 4, "capítulos guardados")
+    T.Equal(players[1]:GetAttribute("NocturnaDeaths"), 6, "suma la muerte de la sesión")
+    T.True(Progression.Save(players[1]), "vuelve a guardar")
+    T.Equal(stores.NOCTURNA_PLAYER_DATA_V1.PLAYER_2001.UnlockedChapter, 4, "nada retrocede")
+    T.Equal(stores.NOCTURNA_PLAYER_DATA_V1.PLAYER_2001.Deaths, 6, "guarda la suma")
+end)
+
 T.Suite("Seguridad")
 
 T.Test("el cliente no puede subir su velocidad ni iniciar con datos inválidos", function()
@@ -1780,6 +1842,16 @@ T.Test("movimiento imposible detectado por el antitrampas", function()
     T.True(AntiCheat.IsMovementValid(Vector3.new(0, 3, 0), Vector3.new(8, 3, 0), 0.5), "correr es válido")
     T.False(AntiCheat.IsMovementValid(Vector3.new(0, 3, 0), Vector3.new(80, 3, 0), 0.5), "teletransporte")
     T.False(AntiCheat.IsMovementValid(Vector3.new(0, 3, 0), Vector3.new(0, 40, 0), 0.5), "volar")
+    T.False(AntiCheat.IsMovementValid(Vector3.new(0, 3, 0), Vector3.new(18, 3, 0), 0.5), "doble de la carrera")
+    T.False(AntiCheat.IsMovementValid(Vector3.new(0, 3, 0), Vector3.new(0, -40, 0), 0.5), "atravesar el piso")
+end)
+
+T.Test("el botón de reiniciar está desactivado: no gasta los reintentos del grupo", function()
+    local players = bootServer(1)
+    Engine.StartClient(players[1])
+    Engine.Run(3)
+    T.Equal(Engine.CoreSettings.ResetButtonCallback, false, "sin reinicio")
+    T.NoEngineErrors(Engine)
 end)
 
 T.Test("la sala se limita a cuatro jugadores", function()

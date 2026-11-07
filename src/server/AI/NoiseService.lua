@@ -22,10 +22,17 @@ local function prune(now)
 end
 
 function NoiseService.Emit(position, radius, source)
+    local now = os.clock()
+    -- Los ruidos llegan en orden: los vencidos están al principio. Así la lista
+    -- no crece aunque ninguna criatura escuche (capítulos 2 y 5).
+    while noises[1] and now - noises[1].Time > CONFIG.Lifetime do
+        table.remove(noises, 1)
+    end
+
     table.insert(noises, {
         Position = position,
         Radius = radius,
-        Time = os.clock(),
+        Time = now,
         Source = source,
     })
 end

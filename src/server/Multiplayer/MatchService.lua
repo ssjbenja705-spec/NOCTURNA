@@ -14,6 +14,7 @@ local GameState = require(script.Parent.Parent.Core.GameState)
 local FlashlightService = require(script.Parent.Parent.Data.FlashlightService)
 local ProgressionService = require(script.Parent.Parent.Data.ProgressionService)
 local InventoryService = require(script.Parent.Parent.Inventory.InventoryService)
+local NoiseService = require(script.Parent.Parent.AI.NoiseService)
 local MonsterService = require(script.Parent.Parent.Monsters.MonsterService)
 local AntiCheat = require(script.Parent.Parent.Security.AntiCheat)
 local EndingService = require(script.Parent.Parent.Story.EndingService)
@@ -29,6 +30,7 @@ local CONFIG = GameConfig.Match
 local TITLE_CARD_TIME = 4
 local PROLOGUE_LINE_TIME = 4.5
 local PARTY_UPDATE_INTERVAL = 1
+local LOAD_ATTEMPTS = 2
 
 local MatchService = {}
 local runToken = 0
@@ -99,6 +101,7 @@ local function clearChapter()
     StoryService.Stop()
     MonsterService.Clear()
     HidingService.Clear()
+    NoiseService.Clear()
     table.clear(down)
 end
 
@@ -169,12 +172,34 @@ local function runChapter(chapterIndex, withPrologue)
     GameState.Lives = GameState.MaxLives
     clearQuestItems()
 
-    local plan = WorldService.LoadChapter(chapterIndex, Random.new():NextInteger(1, 2 ^ 30))
+    -- Si el mapa no se puede armar se prueba con otra semilla; si vuelve a
+    -- fallar, el grupo vuelve al lobby en vez de quedar trabado cargando.
+    local plan = nil
+    for attempt = 1, LOAD_ATTEMPTS do
+        local success, result = pcall(WorldService.LoadChapter, chapterIndex, Random.new():NextInteger(1, 2 ^ 30))
+        if success then
+            plan = result
+            break
+        end
+        warn("[NOCTURNA] No se pudo cargar el capítulo", chapterIndex, "intento", attempt, result)
+        -- Lo que quedó a medio armar se borra antes de volver a intentar.
+        pcall(WorldService.Unload)
+    end
+    if token ~= runToken then
+        return
+    end
+    if not plan then
+        Remotes.FireAll("StoryNotice", "No se pudo cargar el capítulo. Volviendo al lobby.")
+        returnToLobby()
+        return
+    end
     GameState.Checkpoint = nil
 
     for index, player in ipairs(Players:GetPlayers()) do
         FlashlightService.Reset(player)
         ProgressionService.SetCurrentChapter(player, chapterIndex)
+        -- Quien cayó justo antes del cambio de capítulo no queda con el aviso puesto.
+        Remotes.FireClient("DownState", player, {Down = false})
         task.spawn(function()
             player:LoadCharacter()
             if player.Parent == Players then

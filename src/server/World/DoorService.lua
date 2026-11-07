@@ -18,6 +18,7 @@ local RoomGenerator = require(script.Parent.RoomGenerator)
 
 local MAP = GameConfig.Map
 local MONSTER_OPEN_DISTANCE = 7
+local TOGGLE_COOLDOWN = 1
 local TWEEN = TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 
 local DoorService = {}
@@ -90,6 +91,13 @@ local function interact(door, player)
         tryUnlock(door, player)
         return
     end
+
+    -- Abrir y cerrar sin parar haría ruido constante para atraer a las criaturas.
+    local now = os.clock()
+    if door.LastToggle and now - door.LastToggle < TOGGLE_COOLDOWN then
+        return
+    end
+    door.LastToggle = now
 
     setOpen(door, not door.Opened)
     playAt(door, "DoorOpen")

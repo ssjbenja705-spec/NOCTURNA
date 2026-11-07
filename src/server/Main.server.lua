@@ -10,28 +10,41 @@ Players.CharacterAutoLoads = false
 Remotes.Setup()
 
 local SERVICES = {
-    require(script.Parent.Analytics.Analytics),
-    require(script.Parent.Security.AntiCheat),
-    require(script.Parent.Data.ProgressionService),
-    require(script.Parent.Data.HealthService),
-    require(script.Parent.Data.StaminaService),
-    require(script.Parent.Data.FlashlightService),
-    require(script.Parent.Inventory.InventoryService),
-    require(script.Parent.AI.NoiseService),
-    require(script.Parent.World.WorldService),
-    require(script.Parent.World.InteractionService),
-    require(script.Parent.World.HidingService),
-    require(script.Parent.Monsters.MonsterService),
-    require(script.Parent.Story.StoryService),
-    require(script.Parent.Story.EndingService),
-    require(script.Parent.Multiplayer.LobbyService),
-    require(script.Parent.Multiplayer.MatchService),
-    require(script.Parent.Phases.TerrorDirector),
-    require(script.Parent.Admin.AdminService),
+    script.Parent.Analytics.Analytics,
+    script.Parent.Security.AntiCheat,
+    script.Parent.Data.ProgressionService,
+    script.Parent.Data.HealthService,
+    script.Parent.Data.StaminaService,
+    script.Parent.Data.FlashlightService,
+    script.Parent.Inventory.InventoryService,
+    script.Parent.AI.NoiseService,
+    script.Parent.World.WorldService,
+    script.Parent.World.InteractionService,
+    script.Parent.World.HidingService,
+    script.Parent.Monsters.MonsterService,
+    script.Parent.Story.StoryService,
+    script.Parent.Story.EndingService,
+    script.Parent.Multiplayer.LobbyService,
+    script.Parent.Multiplayer.MatchService,
+    script.Parent.Phases.TerrorDirector,
+    script.Parent.Admin.AdminService,
 }
 
-for _, service in ipairs(SERVICES) do
-    service.Start()
+-- Un servicio que falla no frena a los demás: se avisa con su nombre y el
+-- resto del juego arranca igual.
+local failed = {}
+for _, module in ipairs(SERVICES) do
+    local success, err = xpcall(function()
+        require(module).Start()
+    end, debug.traceback)
+    if not success then
+        table.insert(failed, module.Name)
+        warn("[NOCTURNA] El servicio " .. module.Name .. " no pudo iniciar:\n" .. tostring(err))
+    end
 end
 
-print("[NOCTURNA] Servidor iniciado.")
+if #failed > 0 then
+    warn("[NOCTURNA] Servidor iniciado con fallas en: " .. table.concat(failed, ", "))
+else
+    print("[NOCTURNA] Servidor iniciado.")
+end

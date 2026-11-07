@@ -11,11 +11,15 @@ local Remotes = require(Shared.Modules.RemoteHelper)
 local STORE_NAME = "NOCTURNA_PLAYER_DATA_V1"
 local AUTOSAVE_INTERVAL = 60
 local MAX_ATTEMPTS = 3
+local RECOVER_INTERVAL = 30
+local RECOVER_ATTEMPTS = 10
+local COUNTERS = {"Deaths", "CompletedMatches", "MonsterEncounters", "PlayTime"}
 
 local Progression = {}
 local profiles = {}
 local sessionStarted = {}
 local offline = {}
+local saving = {}
 local shuttingDown = false
 local store = nil
 
@@ -78,6 +82,46 @@ function Progression.Push(player)
     end
 end
 
+-- Si la carga falló, se sigue intentando de fondo. Cuando DataStore vuelve, lo
+-- guardado se combina con lo jugado en la sesión y desde ahí se guarda normal.
+local function recover(player)
+    for _ = 1, RECOVER_ATTEMPTS do
+        task.wait(RECOVER_INTERVAL)
+        if player.Parent ~= Players or not offline[player] or shuttingDown then
+            return
+        end
+
+        local dataStore = getStore()
+        local success, stored = false, nil
+        if dataStore then
+            success, stored = pcall(function()
+                return dataStore:GetAsync(getKey(player))
+            end)
+        end
+
+        if success and player.Parent == Players and offline[player] and profiles[player] then
+            local session = profiles[player]
+            local base = SaveSchema.Normalize(stored)
+            local recovered = SaveSchema.Merge(session, base)
+            -- Lo de la sesión empezó en cero: se suma a lo guardado.
+            for _, key in ipairs(COUNTERS) do
+                recovered[key] = base[key] + session[key]
+            end
+
+            profiles[player] = recovered
+            offline[player] = false
+            applyAttributes(player, recovered)
+            Progression.Push(player)
+            print("[NOCTURNA] Datos de " .. player.Name .. " recuperados.")
+            return
+        end
+    end
+
+    if player.Parent == Players and offline[player] then
+        warn("[NOCTURNA] El progreso de " .. player.Name .. " no se guardará en esta sesión.")
+    end
+end
+
 function Progression.Load(player)
     local dataStore = getStore()
     local success, result = false, nil
@@ -92,7 +136,9 @@ function Progression.Load(player)
                 break
             end
             warn("[NOCTURNA] Error cargando datos. Intento:", attempt, result)
-            task.wait(attempt * 2)
+            if attempt < MAX_ATTEMPTS then
+                task.wait(attempt * 2)
+            end
         end
     end
 
@@ -106,6 +152,10 @@ function Progression.Load(player)
     sessionStarted[player] = os.time()
     applyAttributes(player, profiles[player])
     Progression.Push(player)
+
+    if offline[player] and dataStore and not RunService:IsStudio() then
+        task.spawn(recover, player)
+    end
     return true
 end
 
@@ -216,7 +266,7 @@ function Progression.SetSettings(player, settings)
     return true
 end
 
-function Progression.Save(player)
+local function saveNow(player)
     local data = profiles[player]
     if not data then
         return false
@@ -251,11 +301,31 @@ function Progression.Save(player)
         end
 
         warn("[NOCTURNA] Error guardando datos. Intento:", attempt, err)
-        task.wait(attempt * 2)
+        if attempt < MAX_ATTEMPTS then
+            task.wait(attempt * 2)
+        end
     end
 
     warn("[NOCTURNA] No se pudieron guardar los datos de", player.Name)
     return false
+end
+
+-- Los guardados de un mismo jugador van de a uno (al salir y al cerrar el
+-- servidor pueden pedirse a la vez) y un error nunca corta a quien espera.
+function Progression.Save(player)
+    while saving[player] do
+        task.wait(0.1)
+    end
+
+    saving[player] = true
+    local success, result = pcall(saveNow, player)
+    saving[player] = nil
+
+    if not success then
+        warn("[NOCTURNA] Error inesperado guardando a", player.Name, result)
+        return false
+    end
+    return result
 end
 
 function Progression.Remove(player)
@@ -297,7 +367,7 @@ function Progression.Start()
         for _, player in ipairs(Players:GetPlayers()) do
             pending += 1
             task.spawn(function()
-                Progression.Save(player)
+                pcall(Progression.Save, player)
                 pending -= 1
             end)
         end

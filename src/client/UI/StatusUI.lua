@@ -115,6 +115,9 @@ function StatusUI.Start()
     ClientState.Subscribe("Game", function(data)
         if data.Phase ~= "Failed" and retryAt then
             hideDown()
+        elseif (data.Phase == "Loading" or data.Phase == "Lobby") and downPanel.Visible then
+            -- Un capítulo nuevo o el lobby nunca empiezan con el aviso de caída puesto.
+            hideDown()
         end
     end)
 

@@ -9,10 +9,16 @@ local GameConfig = require(Shared.Config.GameConfig)
 local GameState = require(script.Parent.Parent.Core.GameState)
 
 local SAMPLE_INTERVAL = 0.5
-local SPEED_MARGIN = 1.7
-local FLAT_TOLERANCE = 12
+-- Margen sobre la velocidad de carrera para la latencia, más unos studs fijos
+-- por muestra: alcanza para cualquier movimiento legítimo y frena el speed hack.
+local SPEED_MARGIN = 1.3
+local FLAT_ALLOWANCE = 3
 local MAX_HEIGHT = GameConfig.Map.WallHeight + 4
+local MIN_HEIGHT = -15
 local WARNINGS_BEFORE_KICK = 25
+-- Cada tanto sin infracciones se perdona una: un jugador con mala conexión no
+-- termina expulsado tras una hora de pequeños tirones.
+local FORGIVE_AFTER = 30
 
 local AntiCheat = {}
 local states = {}
@@ -32,12 +38,12 @@ end
 local function isMovementValid(previous, current, elapsed)
     local offset = current - previous
     local flat = Vector3.new(offset.X, 0, offset.Z).Magnitude
-    local allowed = GameConfig.Player.SprintSpeed * SPEED_MARGIN * elapsed + FLAT_TOLERANCE * elapsed
+    local allowed = GameConfig.Player.SprintSpeed * SPEED_MARGIN * elapsed + FLAT_ALLOWANCE
     if flat > allowed then
         return false
     end
 
-    return current.Y <= MAX_HEIGHT
+    return current.Y <= MAX_HEIGHT and current.Y >= MIN_HEIGHT
 end
 
 AntiCheat.IsMovementValid = isMovementValid
@@ -74,6 +80,7 @@ local function checkPlayer(player, state, elapsed)
 
     if previous and (not isMovementValid(previous, current, elapsed) or crossedWall(previous, current)) then
         state.Warnings += 1
+        state.LastWarning = os.clock()
         state.GraceUntil = os.clock() + 0.5
         root.CFrame = CFrame.new(previous)
         root.AssemblyLinearVelocity = Vector3.zero
@@ -84,11 +91,15 @@ local function checkPlayer(player, state, elapsed)
         return
     end
 
+    if state.Warnings > 0 and os.clock() - state.LastWarning > FORGIVE_AFTER then
+        state.Warnings -= 1
+        state.LastWarning = os.clock()
+    end
     state.LastPosition = current
 end
 
 local function setupPlayer(player)
-    states[player] = {LastPosition = nil, GraceUntil = os.clock() + 5, Warnings = 0}
+    states[player] = {LastPosition = nil, GraceUntil = os.clock() + 5, Warnings = 0, LastWarning = 0}
 end
 
 function AntiCheat.Start()

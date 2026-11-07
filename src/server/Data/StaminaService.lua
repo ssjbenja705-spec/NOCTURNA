@@ -9,6 +9,7 @@ local Remotes = require(Shared.Modules.RemoteHelper)
 local EventBus = require(script.Parent.Parent.Core.EventBus)
 
 local CONFIG = GameConfig.Player
+local STAMINA_PUBLISH_INTERVAL = 0.1
 
 local StaminaService = {}
 local states = {}
@@ -43,8 +44,14 @@ local function updatePlayer(player, deltaTime)
         humanoid.WalkSpeed = speed
     end
 
+    -- Hasta 10 veces por segundo (y siempre al llegar a 0 o 100): suficiente para
+    -- una barra suave sin replicar un atributo en cada cuadro.
     local stamina = math.floor(state.Stamina)
-    if player:GetAttribute("Stamina") ~= stamina then
+    local now = os.clock()
+    if player:GetAttribute("Stamina") ~= stamina
+        and (now - (state.LastPublished or 0) >= STAMINA_PUBLISH_INTERVAL
+            or stamina <= 0 or stamina >= CONFIG.MaxStamina) then
+        state.LastPublished = now
         player:SetAttribute("Stamina", stamina)
     end
     if player:GetAttribute("IsSprinting") ~= state.Sprinting then
