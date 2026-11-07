@@ -133,6 +133,7 @@ local EVENT_NAMES = {
     CharacterRemoving = true, Died = true, HealthChanged = true, Chatted = true, Completed = true,
     Event = true, WindowFocusReleased = true, Loaded = true, ChildAdded = true, DescendantAdded = true,
     PromptTriggered = true, MouseButton1Click = true, FocusLost = true,
+    TeleportInitFailed = true, PromptProductPurchaseFinished = true,
 }
 
 local INSTANCE_PROPERTIES = {
@@ -145,6 +146,7 @@ local VIRTUAL_CLASSES = {
     DataModel = true, Player = true, DataStoreService = true, AnalyticsService = true,
     CollectionService = true, TweenService = true, RunService = true, Debris = true,
     TextService = true, UserInputService = true, GlobalDataStore = true, Tween = true,
+    TeleportService = true, MarketplaceService = true,
 }
 
 local function classChain(className)
@@ -506,6 +508,21 @@ end
 
 function Methods:GetRankInGroup()
     return 0
+end
+
+-- Datos con los que llegó el jugador (TeleportData de un viaje entre servidores).
+function Methods:GetJoinData()
+    return dataOf(self).JoinData or {}
+end
+
+-- TeleportOptions ------------------------------------------------------------
+
+function Methods:SetTeleportData(value)
+    dataOf(self).TeleportData = value
+end
+
+function Methods:GetTeleportData()
+    return dataOf(self).TeleportData
 end
 
 local function assignParent(self, data, parent)
@@ -872,6 +889,8 @@ function Engine.Reset(options)
     local analytics = service("AnalyticsService")
     local debris = service("Debris")
     local textService = service("TextService")
+    local teleportService = service("TeleportService")
+    local marketplace = service("MarketplaceService")
     Engine.UserInput = service("UserInputService")
     service("ReplicatedStorage")
     service("ServerScriptService")
@@ -905,6 +924,11 @@ function Engine.Reset(options)
     end)
     dataOf(gameRoot).Values.CreatorId = options.CreatorId or 1000
     dataOf(gameRoot).Values.CreatorType = roblox.Enum.CreatorType.User
+    -- Sin PlaceId (como en Studio sin publicar) no hay viajes entre servidores.
+    dataOf(gameRoot).Values.PlaceId = options.PlaceId or 0
+    dataOf(gameRoot).Values.JobId = options.JobId or "job-local"
+    dataOf(gameRoot).Values.PrivateServerId = options.PrivateServerId or ""
+    dataOf(gameRoot).Values.PrivateServerOwnerId = options.PrivateServerOwnerId or 0
 
     rawset(Engine.Workspace, "GetServerTimeNow", function()
         return 1800000000 + clockValue
@@ -1030,6 +1054,16 @@ function Engine.Reset(options)
     end)
 
     Engine.Stores = options.Stores or {}
+
+    -- FailStore = {[nombre] = cantidad}: las próximas llamadas a ese almacén fallan.
+    local function failing(name)
+        local fails = Engine.Options.FailStore
+        if fails and fails[name] and fails[name] > 0 then
+            fails[name] -= 1
+            error("502: API Services rejected request (" .. name .. ")")
+        end
+    end
+
     rawset(dataStores, "GetDataStore", function(_, name)
         if Engine.Options.DataStoreOffline then
             error("You must publish this place to the web to access DataStore.")
@@ -1039,6 +1073,7 @@ function Engine.Reset(options)
         local contents = Engine.Stores[name]
         return {
             GetAsync = function(_, key)
+                failing(name)
                 local isProfile = string.sub(key, 1, 7) == "PLAYER_"
                 if isProfile and Engine.Options.DataStoreFailures and Engine.Options.DataStoreFailures > 0 then
                     Engine.Options.DataStoreFailures -= 1
@@ -1047,15 +1082,161 @@ function Engine.Reset(options)
                 return contents[key]
             end,
             SetAsync = function(_, key, value)
+                failing(name)
                 contents[key] = value
             end,
             RemoveAsync = function(_, key)
+                failing(name)
                 contents[key] = nil
             end,
+            -- Como en Roblox, si la función devuelve nil no se escribe nada.
             UpdateAsync = function(_, key, transform)
-                contents[key] = transform(contents[key])
+                failing(name)
+                local value = transform(contents[key])
+                if value == nil then
+                    return nil
+                end
+                contents[key] = value
+                return value
             end,
         }
+    end)
+
+    rawset(dataStores, "GetOrderedDataStore", function(_, name)
+        if Engine.Options.DataStoreOffline then
+            error("You must publish this place to the web to access DataStore.")
+        end
+
+        Engine.Stores[name] = Engine.Stores[name] or {}
+        local contents = Engine.Stores[name]
+        local function checkValue(value)
+            if type(value) ~= "number" or value % 1 ~= 0 then
+                error("OrderedDataStore sólo guarda números enteros: " .. tostring(value))
+            end
+        end
+        return {
+            GetAsync = function(_, key)
+                failing(name)
+                return contents[key]
+            end,
+            SetAsync = function(_, key, value)
+                failing(name)
+                assert(type(key) == "string", "La clave de un OrderedDataStore es un texto")
+                checkValue(value)
+                contents[key] = value
+            end,
+            IncrementAsync = function(_, key, delta)
+                failing(name)
+                contents[key] = (contents[key] or 0) + (delta or 1)
+                return contents[key]
+            end,
+            RemoveAsync = function(_, key)
+                failing(name)
+                contents[key] = nil
+            end,
+            GetSortedAsync = function(_, ascending, pageSize)
+                failing(name)
+                assert(type(pageSize) == "number" and pageSize >= 1 and pageSize <= 100, "pageSize entre 1 y 100")
+                local entries = {}
+                for key, value in pairs(contents) do
+                    table.insert(entries, {key = key, value = value})
+                end
+                table.sort(entries, function(a, b)
+                    if a.value == b.value then
+                        return a.key < b.key
+                    end
+                    if ascending then
+                        return a.value < b.value
+                    end
+                    return a.value > b.value
+                end)
+                local page = {}
+                for index = 1, math.min(pageSize, #entries) do
+                    page[index] = entries[index]
+                end
+                return {
+                    IsFinished = #entries <= pageSize,
+                    GetCurrentPage = function()
+                        return page
+                    end,
+                    AdvanceToNextPageAsync = function() end,
+                }
+            end,
+        }
+    end)
+
+    -- Viajes entre servidores: se registran en Engine.Teleports y, salvo que la
+    -- prueba pida lo contrario, los viajeros dejan el servidor un segundo después.
+    Engine.Teleports = {}
+    Engine.Reserved = {}
+    local reserveCounter = 0
+    rawset(teleportService, "ReserveServer", function(_, placeId)
+        assert(type(placeId) == "number" and placeId > 0, "ReserveServer necesita un PlaceId publicado")
+        if Engine.Options.ReserveFailures and Engine.Options.ReserveFailures > 0 then
+            Engine.Options.ReserveFailures -= 1
+            error("HTTP 503 (ReserveServer)")
+        end
+        reserveCounter += 1
+        local code = "access-" .. reserveCounter
+        table.insert(Engine.Reserved, code)
+        return code, "reserved-" .. reserveCounter
+    end)
+    rawset(teleportService, "TeleportAsync", function(_, placeId, travellers, teleportOptions)
+        assert(type(placeId) == "number" and placeId > 0, "TeleportAsync necesita un PlaceId publicado")
+        assert(type(travellers) == "table" and #travellers > 0 and #travellers <= 50, "TeleportAsync necesita de 1 a 50 jugadores")
+        if teleportOptions ~= nil then
+            assert(isMock(teleportOptions) and teleportOptions.ClassName == "TeleportOptions", "Las opciones tienen que ser TeleportOptions")
+        end
+        if Engine.Options.TeleportFailures and Engine.Options.TeleportFailures > 0 then
+            Engine.Options.TeleportFailures -= 1
+            error("Teleport failed: HTTP 500")
+        end
+
+        local entry = {
+            PlaceId = placeId,
+            Players = table.clone(travellers),
+            AccessCode = teleportOptions and teleportOptions.ReservedServerAccessCode or "",
+            Data = teleportOptions and teleportOptions:GetTeleportData() or nil,
+        }
+        table.insert(Engine.Teleports, entry)
+        if not Engine.Options.TeleportStays then
+            for _, traveller in ipairs(travellers) do
+                taskLibrary.delay(1, function()
+                    if traveller.Parent == players then
+                        Engine.RemovePlayer(traveller)
+                    end
+                end)
+            end
+        end
+        return {PrivateServerId = "", ReservedServerAccessCode = entry.AccessCode}
+    end)
+
+    Engine.PurchasePrompts = {}
+    rawset(marketplace, "PromptProductPurchase", function(_, player, productId)
+        assert(type(productId) == "number" and productId > 0, "PromptProductPurchase con un id inválido")
+        table.insert(Engine.PurchasePrompts, {Player = player, ProductId = productId})
+    end)
+
+    Engine.UserNames = options.UserNames or {}
+    rawset(players, "GetNameFromUserIdAsync", function(_, userId)
+        return Engine.UserNames[userId] or ("Usuario" .. tostring(userId))
+    end)
+    rawset(players, "CreateHumanoidModelFromUserId", function(_, userId)
+        if Engine.Options.AvatarFailures then
+            error("HTTP 500 (avatar)")
+        end
+        local model = mockNew("Model", "Avatar" .. tostring(userId))
+        local humanoid = mockNew("Humanoid", "Humanoid")
+        humanoid.Parent = model
+        local root = mockNew("Part", "HumanoidRootPart")
+        root.Size = roblox.Vector3.new(2, 2, 1)
+        root.Parent = model
+        for _, name in ipairs({"Head", "UpperTorso", "LowerTorso"}) do
+            mockNew("Part", name).Parent = model
+        end
+        mockNew("LocalScript", "Animate").Parent = model
+        model.PrimaryPart = root
+        return model
     end)
 
     rawset(analytics, "LogCustomEvent", function(_, player, name)
@@ -1149,9 +1330,11 @@ end
 
 local userCounter = 1000
 
-function Engine.AddPlayer(name, userId)
+-- joinData simula lo que devuelve Player:GetJoinData() (por ejemplo TeleportData).
+function Engine.AddPlayer(name, userId, joinData)
     userCounter += 1
     local player = mockNew("Player", name)
+    dataOf(player).JoinData = joinData
     local values = dataOf(player).Values
     values.UserId = userId or userCounter
     values.DisplayName = name
@@ -1263,6 +1446,13 @@ end
 
 function Engine.Failures()
     return failures
+end
+
+-- Roblox entrega cada compra a MarketplaceService.ProcessReceipt; acá se llama igual.
+function Engine.ProcessReceipt(receipt)
+    local callback = dataOf(Engine.Services.MarketplaceService).Values.ProcessReceipt
+    assert(type(callback) == "function", "MarketplaceService.ProcessReceipt no está definido")
+    return callback(receipt)
 end
 
 function Engine.Warnings()

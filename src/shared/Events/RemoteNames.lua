@@ -7,6 +7,7 @@ return {
         "UseItem",
         "ExitHiding",
         "LobbyAction",
+        "QueueAction",
         "EndingVote",
         "SettingsUpdate",
         "AdminAction",
@@ -14,6 +15,8 @@ return {
     ServerToClient = {
         "GameState",
         "LobbyUpdate",
+        "QueueUpdate",
+        "DonationUpdate",
         "PartyUpdate",
         "ObjectiveUpdate",
         "StoryDialogue",

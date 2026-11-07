@@ -121,6 +121,8 @@ local function returnToLobby()
     end
 
     LobbyService.ResetReady()
+    -- En el servidor de una partida esto devuelve al grupo a un lobby público.
+    EventBus.Emit("ReturnedToLobby")
 end
 
 local function playPrologue(token)
