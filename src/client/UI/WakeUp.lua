@@ -137,21 +137,37 @@ local function ensureBlur()
     return blur
 end
 
--- Balanceo de la cámara: se aplica después de la cámara del juego y se apaga solo.
-local function sway()
-    local now = os.clock()
-    if now >= swayUntil then
-        return
+-- Balanceo de la cámara. La cámara de Roblox arranca cada cuadro desde hacia dónde
+-- miraba, así que el balanceo del cuadro anterior se deshace antes de que corra
+-- (si no, se acumularía y el jugador terminaría mirando al piso) y se vuelve a
+-- aplicar después. Cuando termina, la cámara queda exactamente como estaba.
+local appliedOffset = nil
+local appliedCamera = nil
+
+local function undoSway()
+    if appliedOffset then
+        local camera = workspace.CurrentCamera
+        if camera and camera == appliedCamera then
+            camera.CFrame = camera.CFrame * appliedOffset:Inverse()
+        end
+        appliedOffset = nil
+        appliedCamera = nil
     end
+end
+
+local function applySway()
+    local now = os.clock()
     local camera = workspace.CurrentCamera
-    if not camera then
+    if now >= swayUntil or not camera then
         return
     end
     local elapsed = now - swayStart
     local strength = math.clamp((swayUntil - now) / math.max(0.01, swayUntil - swayStart), 0, 1)
     local roll = math.sin(elapsed * 1.7) * 0.06 * strength
     local pitch = (math.sin(elapsed * 1.1 + 0.6) * 0.035 - 0.025) * strength
-    camera.CFrame *= CFrame.Angles(pitch, 0, roll)
+    appliedOffset = CFrame.Angles(pitch, 0, roll)
+    appliedCamera = camera
+    camera.CFrame = camera.CFrame * appliedOffset
 end
 
 function WakeUp.IsPlaying()
@@ -244,7 +260,8 @@ function WakeUp.Start()
     bottomLid = buildLid(holder, "BottomLid", 0)
     setGap(1)
 
-    RunService:BindToRenderStep("NocturnaWakeSway", Enum.RenderPriority.Camera.Value + 2, sway)
+    RunService:BindToRenderStep("NocturnaWakeSwayUndo", Enum.RenderPriority.First.Value, undoSway)
+    RunService:BindToRenderStep("NocturnaWakeSway", Enum.RenderPriority.Camera.Value + 2, applySway)
 end
 
 return WakeUp

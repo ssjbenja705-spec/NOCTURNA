@@ -14,6 +14,7 @@ local LINE_TIME = 10
 local FADE_TIME = 0.5
 local MAX_LINES = 3
 local LINE_WIDTH = 580
+local VITALS_CLEARANCE = 262
 local BACKING = 0.3
 
 -- Cómo suena cada voz: la radio con estática, Alma y lo desconocido en susurros.
@@ -262,8 +263,9 @@ function StoryUI.Start()
         slots[index] = buildLine(stack, index)
     end
 
+    -- Angosto lo justo para no pisar las barras de vida (abajo a la izquierda en PC).
     Theme.OnLayout(function(safe)
-        stack.Size = UDim2.fromOffset(math.min(LINE_WIDTH, math.floor(safe.X - 40)), 260)
+        stack.Size = UDim2.fromOffset(math.floor(math.clamp(safe.X - 2 * VITALS_CLEARANCE, 420, LINE_WIDTH)), 260)
     end)
 
     local backing = Theme.New("Frame", {

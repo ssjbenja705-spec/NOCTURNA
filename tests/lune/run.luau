@@ -2172,6 +2172,10 @@ T.Test("despertar: tras el título del capítulo los ojos se abren y la pantalla
     T.False(eyes.Visible, "ojos abiertos")
     local blur = Engine.Services.Lighting:FindFirstChild("NocturnaWakeBlur")
     T.True(blur == nil or blur.Enabled == false, "sin desenfoque al terminar")
+    -- El balanceo no se acumula: la cámara termina mirando igual que antes.
+    local look = Engine.Workspace.CurrentCamera.CFrame.LookVector
+    local original = roblox.Instance.new("Camera").CFrame.LookVector
+    T.True((look - original).Magnitude < 0.001, "la cámara vuelve a su inclinación: " .. tostring(look))
     T.NoEngineErrors(Engine)
 end)
 
