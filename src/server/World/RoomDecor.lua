@@ -645,8 +645,8 @@ function RoomDecor.Passage(parent, cframe, thickness, palette)
         Part(parent, "PassageSide", Vector3.new(0.3, height, sleeve), cframe * at(side * (width / 2 + 0.15), height / 2, 0), metal, M("CorrodedMetal"), SOLID)
     end
     Part(parent, "LooseGrate", Vector3.new(width - 0.4, 0.12, 3), cframe * at(1.2, 0.08, -(sleeve / 2 + 1.6)) * CFrame.Angles(0, 0.5, 0.06), palette.Metal, M("DiamondPlate"))
-    Part(parent, "Plank", Vector3.new(width + 1.4, 0.5, 0.15), cframe * at(0, height - 0.6, -(sleeve / 2 + 0.1)) * CFrame.Angles(0, 0, 0.18), palette.Wood, M("WoodPlanks"))
-    Part(parent, "Plank", Vector3.new(width + 1, 0.45, 0.15), cframe * at(0.3, height - 1.5, sleeve / 2 + 0.1) * CFrame.Angles(0, 0, -0.22), Shade(palette.Wood, 0.85), M("WoodPlanks"))
+    Part(parent, "Plank", Vector3.new(width + 1.4, 0.5, 0.15), cframe * at(0, height - 0.4, -(sleeve / 2 + 0.1)) * CFrame.Angles(0, 0, 0.18), palette.Wood, M("WoodPlanks"))
+    Part(parent, "Plank", Vector3.new(width + 1, 0.45, 0.15), cframe * at(0.3, height - 0.8, sleeve / 2 + 0.1) * CFrame.Angles(0, 0, -0.22), Shade(palette.Wood, 0.85), M("WoodPlanks"))
 end
 
 return RoomDecor

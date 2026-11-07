@@ -48,11 +48,24 @@ end
 
 AntiCheat.IsMovementValid = isMovementValid
 
+-- Muebles, máquinas y escondites no cuentan como paredes: rodearlos caminando no
+-- es atravesarlos, aunque la recta entre dos muestras corte una esquina.
+local FURNISHING = {"Decor", "Props", "Hides", "Objects", "Mechanisms", "Mannequins"}
+
 local function crossedWall(previous, current)
     local characters = {}
     for _, player in ipairs(Players:GetPlayers()) do
         if player.Character then
             table.insert(characters, player.Character)
+        end
+    end
+    local map = workspace:FindFirstChild("NOCTURNA_MAP")
+    if map then
+        for _, name in ipairs(FURNISHING) do
+            local folder = map:FindFirstChild(name)
+            if folder then
+                table.insert(characters, folder)
+            end
         end
     end
 
