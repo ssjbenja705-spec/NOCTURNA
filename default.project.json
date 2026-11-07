@@ -31,7 +31,16 @@
     "Lighting": {
       "$className": "Lighting",
       "$properties": {
-        "Technology": "ShadowMap"
+        "Technology": "Future",
+        "ClockTime": 0,
+        "Brightness": 1,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.35,
+        "ExposureCompensation": 0.3,
+        "EnvironmentDiffuseScale": 0.3,
+        "EnvironmentSpecularScale": 0.5,
+        "Ambient": [0.13, 0.13, 0.15],
+        "OutdoorAmbient": [0.13, 0.13, 0.15]
       }
     },
     "Workspace": {

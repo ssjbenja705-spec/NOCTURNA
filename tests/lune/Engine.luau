@@ -134,6 +134,7 @@ local EVENT_NAMES = {
     Event = true, WindowFocusReleased = true, Loaded = true, ChildAdded = true, DescendantAdded = true,
     PromptTriggered = true, MouseButton1Click = true, FocusLost = true,
     TeleportInitFailed = true, PromptProductPurchaseFinished = true,
+    InputChanged = true,
 }
 
 local INSTANCE_PROPERTIES = {
@@ -917,6 +918,7 @@ function Engine.Reset(options)
         end
     end)
     service("Teams")
+    service("ProximityPromptService")
 
     Engine.CoreSettings = {}
     rawset(starterGui, "SetCore", function(_, name, value)

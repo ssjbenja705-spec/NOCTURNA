@@ -284,4 +284,98 @@ function LayoutPlanner.Validate(plan)
     return true
 end
 
+-- Extras del mundo ------------------------------------------------------------------
+-- Escondites además de los que pide el capítulo y pasadizos secretos. Se agregan
+-- después de Plan y no tocan nada de lo que ya quedó ubicado.
+
+-- Suma hasta `count` escondites en rincones libres. Devuelve cuántos entraron.
+function LayoutPlanner.AddHides(plan, count)
+    local before = #plan.Hides
+    placeSimple(plan, plan.Layout, plan.Hides, count, plan.Layout.Rng, {Kind = "Locker"})
+    return #plan.Hides - before
+end
+
+-- Una celda sirve de boca de pasadizo si se llega sin abrir puertas trabadas y no
+-- es la salida, una sala cerrada ni una zona de la historia.
+local function passageCell(layout, cell, reachable)
+    return reachable[cell.Index] ~= nil
+        and cell.Index ~= layout.Exit
+        and cell.Index ~= layout.Start
+        and cell.Role ~= "Locked"
+        and cell.Zone == nil
+end
+
+-- Pasadizos entre celdas vecinas separadas por una pared, que por los pasillos
+-- quedan lejos (al menos `minimumSteps` pasos). No forman parte del grafo de
+-- MazeLayout, así que las criaturas no los usan y la validación no cambia.
+function LayoutPlanner.AddPassages(plan, count, minimumSteps)
+    local layout = plan.Layout
+    local rng = layout.Rng
+    minimumSteps = minimumSteps or 3
+    plan.Passages = plan.Passages or {}
+    plan.PassageEdges = plan.PassageEdges or {}
+
+    local reachable = MazeLayout.Flood(layout, layout.Start, plan.LockedEdges)
+    local candidates = {}
+    for _, cell in ipairs(layout.Cells) do
+        for _, direction in ipairs({"E", "S"}) do
+            local neighbor = MazeLayout.Neighbor(layout, cell, direction)
+            if neighbor
+                and not cell.Open[direction]
+                and passageCell(layout, cell, reachable)
+                and passageCell(layout, neighbor, reachable) then
+                table.insert(candidates, {cell.Index, neighbor.Index})
+            end
+        end
+    end
+    rng:Shuffle(candidates)
+
+    local used = {}
+    for _, pair in ipairs(plan.Passages) do
+        used[pair.A], used[pair.B] = true, true
+    end
+
+    for _, pair in ipairs(candidates) do
+        if #plan.Passages >= count then
+            break
+        end
+        local a, b = pair[1], pair[2]
+        if not used[a] and not used[b] then
+            local path = MazeLayout.PathBetween(layout, a, b)
+            if path and #path - 1 >= minimumSteps then
+                local passage = {A = a, B = b, Key = MazeLayout.EdgeKey(a, b)}
+                table.insert(plan.Passages, passage)
+                plan.PassageEdges[passage.Key] = passage
+                used[a], used[b] = true, true
+            end
+        end
+    end
+
+    return #plan.Passages
+end
+
+-- Un pasadizo válido une dos vecinas con pared de por medio, las dos alcanzables
+-- sin puertas trabadas, y nunca lleva a la salida ni a una sala cerrada.
+function LayoutPlanner.ValidatePassages(plan)
+    local layout = plan.Layout
+    local reachable = MazeLayout.Flood(layout, layout.Start, plan.LockedEdges)
+
+    for _, passage in ipairs(plan.Passages or {}) do
+        local a, b = layout.Cells[passage.A], layout.Cells[passage.B]
+        if not a or not b or math.abs(a.X - b.X) + math.abs(a.Z - b.Z) ~= 1 then
+            return false, "Pasadizo entre celdas que no son vecinas"
+        end
+        for direction in pairs(MazeLayout.Directions) do
+            if MazeLayout.Neighbor(layout, a, direction) == b and a.Open[direction] then
+                return false, "Pasadizo sobre una abertura común"
+            end
+        end
+        if not passageCell(layout, a, reachable) or not passageCell(layout, b, reachable) then
+            return false, "Pasadizo que saltea una puerta trabada"
+        end
+    end
+
+    return true
+end
+
 return LayoutPlanner

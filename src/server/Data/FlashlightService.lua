@@ -10,7 +10,22 @@ local GameState = require(script.Parent.Parent.Core.GameState)
 
 local CONFIG = GameConfig.Flashlight
 
+-- Aspecto del haz. La batería y su duración siguen en GameConfig.Flashlight; esto
+-- sólo define cómo ilumina: más fuerte y más abierto que antes, con un halo suave
+-- alrededor para que lo cercano no quede negro fuera del cono.
+local BEAM = {
+    Color = Color3.fromRGB(255, 244, 222),
+    Brightness = math.max(CONFIG.Brightness, 3.4),
+    Range = math.max(CONFIG.Range, 56),
+    Angle = math.max(CONFIG.Angle, 76),
+}
+local SPILL = {
+    Brightness = 0.45,
+    Range = 12,
+}
+
 local FlashlightService = {}
+FlashlightService.Beam = BEAM
 local states = {}
 
 local function publish(player, state)
@@ -22,7 +37,7 @@ local function getLight(player)
     local character = player.Character
     local head = character and character:FindFirstChild("Head")
     if not head then
-        return nil
+        return nil, nil
     end
 
     local attachment = head:FindFirstChild("NocturnaFlashlightAttachment")
@@ -37,20 +52,38 @@ local function getLight(player)
         light = Instance.new("SpotLight")
         light.Name = "NocturnaFlashlight"
         light.Face = Enum.NormalId.Front
-        light.Brightness = CONFIG.Brightness
-        light.Range = CONFIG.Range
-        light.Angle = CONFIG.Angle
-        light.Shadows = false
+        light.Color = BEAM.Color
+        light.Brightness = BEAM.Brightness
+        light.Range = BEAM.Range
+        light.Angle = BEAM.Angle
+        -- Sombras reales del haz: el cliente las apaga en bajo consumo.
+        light.Shadows = true
         light.Enabled = false
         light.Parent = attachment
     end
-    return light
+
+    local spill = attachment:FindFirstChild("NocturnaFlashlightSpill")
+    if not spill then
+        spill = Instance.new("PointLight")
+        spill.Name = "NocturnaFlashlightSpill"
+        spill.Color = BEAM.Color
+        spill.Brightness = SPILL.Brightness
+        spill.Range = SPILL.Range
+        spill.Shadows = false
+        spill.Enabled = false
+        spill.Parent = attachment
+    end
+    return light, spill
 end
 
 local function apply(player, state)
-    local light = getLight(player)
+    local light, spill = getLight(player)
+    local on = state.Enabled and state.Battery > 0
     if light then
-        light.Enabled = state.Enabled and state.Battery > 0
+        light.Enabled = on
+    end
+    if spill then
+        spill.Enabled = on
     end
     publish(player, state)
 end
