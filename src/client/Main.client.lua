@@ -20,6 +20,7 @@ local MODULES = {
     {"UI", "EndingUI"},
     {"UI", "CutsceneUI"},
     {"UI", "AdminUI"},
+    {"UI", "PuzzleUI"},
     {"Movement", "MovementInput"},
     {"UI", "MobileControls"},
     {"Camera", "FirstPerson"},
@@ -27,6 +28,7 @@ local MODULES = {
     {"Effects", "HorrorEffects"},
     {"Effects", "MonsterAnimator"},
     {"Effects", "QualityController"},
+    {"Effects", "Cinematics"},
 }
 
 local MODULE_TIMEOUT = 30

@@ -24,6 +24,7 @@ local SERVICES = {
     script.Parent.Monsters.MonsterService,
     script.Parent.Story.StoryService,
     script.Parent.Story.EndingService,
+    script.Parent.Puzzles.PuzzleService,
     script.Parent.Multiplayer.LobbyService,
     script.Parent.Multiplayer.MatchService,
     script.Parent.Phases.TerrorDirector,

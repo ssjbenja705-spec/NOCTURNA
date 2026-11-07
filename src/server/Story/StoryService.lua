@@ -14,7 +14,11 @@ local DoorService = require(script.Parent.Parent.World.DoorService)
 local InteractionService = require(script.Parent.Parent.World.InteractionService)
 local MechanismService = require(script.Parent.Parent.World.MechanismService)
 
-local DIALOGUE_LINE_TIME = 3.8
+-- Cada línea queda 10 segundos en pantalla: alcanza para leerla tranquilo en un
+-- celular. Lo que espera demasiado en la cola ya no sirve y se descarta.
+local DIALOGUE_LINE_TIME = 10
+local DIALOGUE_STALE_AFTER = 30
+local DIALOGUE_MAX_QUEUE = 4
 local ZONE_CHECK_INTERVAL = 0.4
 
 local StoryService = {}
@@ -24,7 +28,7 @@ local readDocuments = {}
 local deadline = nil
 local dialogueQueue = {}
 local dialogueRunning = false
-local sessionToken = 0
+local dialogueToken = 0
 
 local function zonePosition(zoneId)
     local layout = GameState.Layout
@@ -68,11 +72,19 @@ local function buildUpdate()
     end
 
     local count, total = tracker:Progress()
+    local puzzleType, puzzleId = nil, nil
+    if objective.Type == "Activate" then
+        puzzleType, puzzleId = MechanismService.PuzzleFor(objective.Target)
+    end
     return {
         Chapter = chapterIndex,
         ChapterName = chapter.Name,
         ObjectiveId = objective.Id,
         Objective = objective.Name,
+        Type = objective.Type,
+        Hint = objective.Hint,
+        Puzzle = puzzleType,
+        PuzzleId = puzzleId,
         Count = count,
         Total = total,
         Index = tracker.Index,
@@ -95,26 +107,66 @@ function StoryService.Broadcast(player)
     end
 end
 
+local function sendLine(line)
+    Remotes.FireAll("StoryDialogue", {
+        Speaker = line.Speaker,
+        Text = line.Text,
+        Duration = DIALOGUE_LINE_TIME,
+    })
+    -- La voz que llega por la radio viene con estática.
+    if line.Radio or line.Speaker == "Radio" then
+        Remotes.FireAll("PlaySound", "Radio")
+    end
+end
+
 local function runDialogue(token)
     dialogueRunning = true
-    while #dialogueQueue > 0 and token == sessionToken do
-        local line = table.remove(dialogueQueue, 1)
-        Remotes.FireAll("StoryDialogue", line)
-        task.wait(DIALOGUE_LINE_TIME)
+    while #dialogueQueue > 0 and token == dialogueToken do
+        local entry = table.remove(dialogueQueue, 1)
+        if os.clock() - entry.QueuedAt <= DIALOGUE_STALE_AFTER then
+            sendLine(entry.Line)
+            task.wait(DIALOGUE_LINE_TIME)
+        end
     end
     -- Un diálogo viejo que despierta tarde no apaga el que ya está corriendo.
-    if token == sessionToken then
+    if token == dialogueToken then
         dialogueRunning = false
     end
 end
 
-function StoryService.PlayDialogue(lines)
-    for _, line in ipairs(lines or {}) do
-        table.insert(dialogueQueue, line)
+-- Nada del juego espera a esta cola: los objetivos siguen mientras se habla. Si
+-- se llena, se pierden las líneas más viejas; al cerrar el capítulo (o con
+-- interrupt) lo pendiente se descarta y lo nuevo arranca enseguida.
+function StoryService.PlayDialogue(lines, interrupt)
+    if not lines or #lines == 0 then
+        return
     end
+
+    if interrupt or GameState.Phase == "Cutscene" then
+        dialogueToken += 1
+        table.clear(dialogueQueue)
+        dialogueRunning = false
+    end
+
+    local now = os.clock()
+    for _, line in ipairs(lines) do
+        table.insert(dialogueQueue, {Line = line, QueuedAt = now})
+    end
+    while #dialogueQueue > DIALOGUE_MAX_QUEUE do
+        table.remove(dialogueQueue, 1)
+    end
+
     if not dialogueRunning then
-        task.spawn(runDialogue, sessionToken)
+        task.spawn(runDialogue, dialogueToken)
     end
+end
+
+function StoryService.LineTime()
+    return DIALOGUE_LINE_TIME
+end
+
+function StoryService.PendingLines()
+    return #dialogueQueue
 end
 
 function StoryService.DialogueDuration(lines)
@@ -173,7 +225,7 @@ local function signal(kind, target, unique)
 end
 
 function StoryService.Begin(index)
-    sessionToken += 1
+    dialogueToken += 1
     chapterIndex = index
     tracker = ObjectiveTracker.new(ChapterConfig[index].Objectives)
     GameState.Tracker = tracker
@@ -188,7 +240,7 @@ function StoryService.Begin(index)
 end
 
 function StoryService.Stop()
-    sessionToken += 1
+    dialogueToken += 1
     tracker = nil
     chapterIndex = 0
     deadline = nil
@@ -245,6 +297,11 @@ function StoryService.Start()
 
     EventBus.On("DoorUnlocked", function(_, doorId)
         signal("Unlock", doorId, doorId)
+    end)
+
+    -- Leer una pista cambia adónde apunta la radio.
+    EventBus.On("PuzzleClueRead", function()
+        StoryService.Broadcast()
     end)
 
     EventBus.On("FeatureActivated", function(_, feature)

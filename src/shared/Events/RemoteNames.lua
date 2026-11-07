@@ -10,6 +10,7 @@ return {
         "EndingVote",
         "SettingsUpdate",
         "AdminAction",
+        "PuzzleAction",
     },
     ServerToClient = {
         "GameState",
@@ -32,5 +33,7 @@ return {
         "DownState",
         "AdminMessage",
         "AdminData",
+        "PuzzleUpdate",
+        "Cinematic",
     },
 }

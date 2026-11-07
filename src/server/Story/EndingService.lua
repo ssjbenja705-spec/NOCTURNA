@@ -9,7 +9,8 @@ local Remotes = require(Shared.Modules.RemoteHelper)
 
 local ProgressionService = require(script.Parent.Parent.Data.ProgressionService)
 
-local CARD_TIME = 4.5
+-- Las tarjetas del final duran lo suficiente para leerlas en un celular.
+local CARD_TIME = 6
 
 local EndingService = {}
 local votes = {}
