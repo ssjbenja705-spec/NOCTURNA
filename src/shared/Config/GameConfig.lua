@@ -6,16 +6,21 @@ Config.MaxPlayers = 4
 Config.MinPlayers = 1
 Config.FirstPerson = true
 
+-- Equilibrio de velocidades (ver MonsterConfig): corriendo se deja atrás a
+-- cualquier criatura (su persecución es el 75-90 % del sprint) y caminando no,
+-- así que correr importa. El AIRE alcanza para unos 9 s de carrera.
 Config.Player = {
     MaxHealth = 100,
-    WalkSpeed = 10,
-    SprintSpeed = 17,
-    CrouchSpeed = 5,
+    WalkSpeed = 11,
+    SprintSpeed = 19,
+    CrouchSpeed = 6,
     MaxStamina = 100,
-    StaminaDrain = 22,
-    StaminaRecovery = 16,
-    ExhaustedRecovery = 7,
+    StaminaDrain = 11,
+    StaminaRecovery = 14,
+    ExhaustedRecovery = 8,
     ExhaustedUnlock = 25,
+    -- Pausa antes de recuperar aire después de correr.
+    RecoveryDelay = 0.6,
     FieldOfView = 78,
     SprintFieldOfView = 86,
 }
@@ -32,9 +37,9 @@ Config.Flashlight = {
 
 -- Radio (en studs) del ruido que oyen los monstruos.
 Config.Noise = {
-    Walk = 24,
+    Walk = 22,
     Sprint = 60,
-    Crouch = 5,
+    Crouch = 4,
     Door = 40,
     Item = 16,
     Machine = 70,
@@ -56,6 +61,7 @@ Config.Difficulties = {
     Normal = {
         DisplayName = "Normal",
         MonsterSpeed = 1,
+        MonsterSenses = 1,
         MonsterDamage = 1,
         ExtraLives = 0,
         BatteryDrain = 1,
@@ -63,7 +69,9 @@ Config.Difficulties = {
     },
     Pesadilla = {
         DisplayName = "Pesadilla",
-        MonsterSpeed = 1.15,
+        -- Más cerca del sprint (hasta el 90 %), pero siempre se puede escapar.
+        MonsterSpeed = 1.06,
+        MonsterSenses = 1.15,
         MonsterDamage = 1.4,
         ExtraLives = -2,
         BatteryDrain = 1.4,

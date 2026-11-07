@@ -418,7 +418,41 @@ function Methods:TakeDamage(amount)
     self.Health = math.max(0, self.Health - amount)
 end
 
-function Methods:MoveTo() end
+function Methods:MoveTo(position)
+    dataOf(self).MoveTarget = position
+end
+
+-- Animator: devuelve una pista simulada y anota qué se reprodujo.
+function Methods:LoadAnimation(animation)
+    local id = animation.AnimationId
+    local track = {Animation = animation, Looped = false, IsPlaying = false, Speed = 1, Length = 2}
+    function track.Play(this)
+        this.IsPlaying = true
+        table.insert(Engine.AnimationLog, id)
+    end
+    function track.Stop(this)
+        this.IsPlaying = false
+    end
+    function track.AdjustSpeed(this, speed)
+        this.Speed = speed
+    end
+    function track.AdjustWeight() end
+    return track
+end
+
+-- ParticleEmitter: cuenta las partículas emitidas.
+function Methods:Emit(count)
+    local data = dataOf(self)
+    data.Emitted = (data.Emitted or 0) + (count or 16)
+end
+
+function Engine.MoveTarget(humanoid)
+    return dataOf(humanoid).MoveTarget
+end
+
+function Engine.Emitted(emitter)
+    return dataOf(emitter).Emitted or 0
+end
 
 -- Sound -----------------------------------------------------------------------
 
@@ -676,6 +710,9 @@ local function makeEnvironment(realm, moduleInstance)
         Enum = roblox.Enum,
         NumberSequence = roblox.NumberSequence,
         NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
+        NumberRange = roblox.NumberRange,
+        ColorSequence = roblox.ColorSequence,
+        ColorSequenceKeypoint = roblox.ColorSequenceKeypoint,
         Random = Engine.RandomClass,
         TweenInfo = {new = function(...)
             return {...}
@@ -895,6 +932,50 @@ function Engine.Reset(options)
     rawset(players, "GetPlayers", function()
         return players:GetChildren()
     end)
+    -- Avatar R15 mínimo (cabeza con cara, torso, brazos y piernas con sus
+    -- articulaciones). Con AvatarOffline falla como sin conexión.
+    Engine.AnimationLog = {}
+    rawset(players, "CreateHumanoidModelFromDescription", function(_, description, rigType)
+        if Engine.Options.AvatarOffline then
+            error("HTTP 403 (Forbidden)")
+        end
+        assert(isMock(description) and description:IsA("HumanoidDescription"), "se esperaba una HumanoidDescription")
+        assert(rigType == roblox.Enum.HumanoidRigType.R15, "se esperaba R15")
+        local scale = description.HeightScale
+        local rig = mockNew("Model", "Player")
+        local function piece(name, size, parent0, c0, c1)
+            local part = mockNew("MeshPart", name)
+            part.Size = size * scale
+            part.Parent = rig
+            if parent0 then
+                local motor = mockNew("Motor6D", name == "LowerTorso" and "Root" or name .. "Joint")
+                motor.Part0 = parent0
+                motor.Part1 = part
+                motor.C0 = c0
+                motor.C1 = c1
+                motor.Parent = part
+            end
+            return part
+        end
+        local root = piece("HumanoidRootPart", roblox.Vector3.new(2, 2, 1))
+        root.Transparency = 1
+        local lower = piece("LowerTorso", roblox.Vector3.new(2, 0.4, 1), root, roblox.CFrame.new(), roblox.CFrame.new())
+        local upper = piece("UpperTorso", roblox.Vector3.new(2, 1.6, 1), lower, roblox.CFrame.new(0, 0.2, 0), roblox.CFrame.new(0, -0.8, 0))
+        local head = piece("Head", roblox.Vector3.new(1.2, 1.2, 1.2) * description.HeadScale, upper, roblox.CFrame.new(0, 0.8, 0), roblox.CFrame.new(0, -0.6, 0))
+        mockNew("Decal", "face").Parent = head
+        for _, side in ipairs({"Left", "Right"}) do
+            local x = side == "Left" and -1 or 1
+            piece(side .. "UpperArm", roblox.Vector3.new(1, 1.2, 1), upper, roblox.CFrame.new(x * 1.5, 0.5, 0), roblox.CFrame.new(0, 0.4, 0))
+            piece(side .. "UpperLeg", roblox.Vector3.new(1, 1.2, 1), lower, roblox.CFrame.new(x * 0.5, -0.2, 0), roblox.CFrame.new(0, 0.6, 0))
+        end
+        local humanoid = mockNew("Humanoid", "Humanoid")
+        humanoid.HipHeight = 2 * scale
+        humanoid.Parent = rig
+        mockNew("Animator", "Animator").Parent = humanoid
+        rig.PrimaryPart = root
+        return rig
+    end)
+
     rawset(players, "GetPlayerByUserId", function(_, userId)
         for _, player in ipairs(players:GetChildren()) do
             if player.UserId == userId then

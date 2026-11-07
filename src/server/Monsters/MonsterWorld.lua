@@ -64,14 +64,17 @@ function MonsterWorld:Players()
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
         if root and humanoid and humanoid.Health > 0 then
+            local position = root.Position
             table.insert(snapshots, {
                 Player = player,
-                Position = root.Position,
+                Position = position,
                 Look = root.CFrame.LookVector,
                 Speed = (root.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude,
                 Hidden = HidingService.IsHidden(player),
                 HiddenFor = HidingService.HiddenFor(player),
                 Flashlight = FlashlightService.IsOn(player),
+                Crouching = player:GetAttribute("IsCrouching") == true,
+                Lit = WorldService.IsLit(position),
             })
         end
     end
@@ -96,20 +99,29 @@ function MonsterWorld:RandomInt(minimum, maximum)
     return self.Random:NextInteger(minimum, maximum)
 end
 
--- Tiende a merodear cerca del grupo para que la amenaza nunca desaparezca del todo.
+-- A veces merodea por la zona general del grupo para que la amenaza nunca
+-- desaparezca del todo, pero nunca va derecho a la celda de nadie: encontrar a
+-- alguien depende de verlo u oírlo, no de saber dónde está.
 function MonsterWorld:PatrolCell(monster)
     local nav = self.Nav
     if not nav then
         return nil
     end
 
-    local origin = nav:CellAt(monster.Position)
-    local nearest = monster:NearestPlayer(true)
-    if nearest and self.Random:NextNumber() < 0.6 then
-        origin = nav:CellAt(nearest.Position)
+    local cells = nil
+    local visible = {}
+    for _, snapshot in ipairs(self:Players()) do
+        if not snapshot.Hidden then
+            table.insert(visible, snapshot)
+        end
     end
-
-    local cells = nav:CellsBetween(origin, 1, 3)
+    if #visible > 0 and self.Random:NextNumber() < 0.4 then
+        local someone = visible[self:RandomInt(1, #visible)]
+        cells = nav:CellsBetween(nav:CellAt(someone.Position), 2, 4)
+    end
+    if not cells or #cells == 0 then
+        cells = nav:CellsBetween(nav:CellAt(monster.Position), 1, 3)
+    end
     if #cells == 0 then
         return nil
     end

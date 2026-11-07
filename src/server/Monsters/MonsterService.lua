@@ -94,10 +94,13 @@ function MonsterService.Spawn(kind)
         local controller = MonsterController.new(kind, settings, BEHAVIORS[settings.Behavior], world, position, {
             Speed = difficulty.MonsterSpeed,
             Damage = difficulty.MonsterDamage,
+            Senses = difficulty.MonsterSenses,
         })
 
         root.CFrame = controller:GetCFrame()
-        return {Controller = controller, Model = model, Root = root, LastSpeed = -1, Failures = 0}
+        local entry = {Controller = controller, Model = model, Root = root, Published = {}, Failures = 0}
+        MonsterService.Publish(entry)
+        return entry
     end)
 
     if not success then
@@ -183,15 +186,51 @@ local function updateThreat()
     end
 end
 
+-- Estado visible para el cliente, que anima a partir de estos atributos. Sólo se
+-- escribe lo que cambió (y la mirada, cuando se movió algo), así la red no se llena.
+local LOOK_STEP = 1.5
+
+local function publishValue(entry, name, value)
+    if entry.Published[name] ~= value then
+        entry.Published[name] = value
+        entry.Model:SetAttribute(name, value)
+    end
+end
+
+function MonsterService.Publish(entry)
+    local controller = entry.Controller
+    local attack = controller.Attack
+
+    publishValue(entry, "MoveSpeed", math.floor(controller.ActualSpeed * 2 + 0.5) / 2)
+    publishValue(entry, "State", controller:PublicState())
+    publishValue(entry, "BehaviorState", controller.State)
+    publishValue(entry, "AttackPhase", attack and attack.Phase or "")
+    publishValue(entry, "Rage", controller.Rage == true)
+
+    local look = controller.LookTarget
+    local published = entry.Published.LookTarget
+    if look == nil then
+        if published ~= nil then
+            entry.Published.LookTarget = nil
+            entry.Model:SetAttribute("LookTarget", nil)
+        end
+    elseif published == nil or (published - look).Magnitude >= LOOK_STEP then
+        entry.Published.LookTarget = look
+        entry.Model:SetAttribute("LookTarget", look)
+    end
+
+    if entry.Published.GestureCount ~= controller.GestureCount then
+        entry.Published.GestureCount = controller.GestureCount
+        entry.Model:SetAttribute("Gesture", controller.GestureName or "")
+        entry.Model:SetAttribute("GestureCount", controller.GestureCount)
+    end
+end
+
 local function tickEntry(entry, deltaTime)
     local controller = entry.Controller
     controller:Tick(deltaTime)
     entry.Root.CFrame = controller:GetCFrame()
-
-    if entry.LastSpeed ~= controller.Speed then
-        entry.LastSpeed = controller.Speed
-        entry.Model:SetAttribute("MoveSpeed", controller.Speed)
-    end
+    MonsterService.Publish(entry)
 end
 
 -- Cada criatura se actualiza por separado: si una falla, las demás siguen.

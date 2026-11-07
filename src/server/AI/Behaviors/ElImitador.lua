@@ -7,7 +7,8 @@ function Behavior.Init(monster)
     monster:SetState("Patrol")
 end
 
--- Quien tenga a sus compañeros más lejos es la presa más fácil.
+-- Quien tenga a sus compañeros más lejos es la presa más fácil. La voz es un
+-- señuelo: elige a quién llamar, pero no lo persigue hasta verlo u oírlo.
 local function mostIsolated(monster)
     local snapshots = monster.World:Players()
     local best, bestScore = nil, -1
@@ -60,6 +61,7 @@ local function startLure(monster)
     monster.Position = position
     monster:ClearPath()
     monster.AmbushTarget = target.Player
+    monster.LookTarget = nil
 
     local line = monster.Settings.Lines[world:RandomInt(1, #monster.Settings.Lines)]
     world:Effect("ImitatorVoice", {
@@ -67,6 +69,7 @@ local function startLure(monster)
         Speaker = world:VoiceFor(target.Player),
         Text = line,
     }, target.Player)
+    monster:Gesture("Voice")
 
     monster:SetState("Ambush")
     return true
@@ -86,36 +89,77 @@ local function retreat(monster)
         end
     end
     monster.Target = nil
+    monster.LastKnown = nil
+    monster.LookTarget = nil
     monster.LureClock = 0
     monster:SetState("Patrol")
+end
+
+-- En la emboscada salta sobre quien ve, escucha caminar cerca o huele pegado,
+-- aunque sea del otro lado de la pared: para eso eligió ese lugar.
+local function ambushPrey(monster)
+    local settings = monster.Settings
+    for _, snapshot in ipairs(monster.World:Players()) do
+        local distance = monster:Distance(snapshot.Position)
+        if not snapshot.Hidden and distance <= settings.AmbushRange then
+            local noisy = snapshot.Speed > 1 and not snapshot.Crouching
+            if noisy or distance <= settings.CloseSense or monster:CanSee(snapshot) then
+                return snapshot
+            end
+        end
+    end
+    return nil
+end
+
+local function engage(monster, snapshot)
+    monster:Engage(snapshot)
+    monster:Remember(snapshot, true)
+    monster:SetState("Chase")
+    monster.World:Effect("ImitatorScream", {Position = monster.Position})
+    monster:Gesture("Scream")
 end
 
 function Behavior.Update(monster, deltaTime)
     local settings = monster.Settings
     monster.LureClock += deltaTime
 
-    if monster.State == "Patrol" then
-        monster.Speed = settings.PatrolSpeed
-        monster:Wander()
-
+    if monster.State == "Patrol" or monster.State == "Investigate" then
         local visible = monster:NearestVisible()
         if visible then
-            monster:Engage(visible)
-            monster:SetState("Chase")
-            monster.World:Effect("ImitatorScream", {Position = monster.Position})
-        elseif monster.LureClock >= settings.LureInterval then
-            monster.LureClock = 0
-            startLure(monster)
+            engage(monster, visible)
+            return
+        end
+
+        local noise = monster:Hear()
+        if noise then
+            monster.NoisePosition = noise.Position
+            monster.LastKnown = noise.Position
+            monster:SetState("Investigate")
+            monster:GoTo(noise.Position, true)
+        end
+
+        if monster.State == "Patrol" then
+            monster.Speed = settings.PatrolSpeed
+            monster.LookTarget = nil
+            monster:Wander()
+            if monster.LureClock >= settings.LureInterval then
+                monster.LureClock = 0
+                startLure(monster)
+            end
+        else
+            monster.Speed = settings.InvestigateSpeed
+            monster.LookTarget = monster.NoisePosition
+            if not monster:HasPath() then
+                monster:SetState("Search")
+                monster:BeginSearch()
+            end
         end
     elseif monster.State == "Ambush" then
         monster.Speed = 0
-        for _, snapshot in ipairs(monster.World:Players()) do
-            if not snapshot.Hidden and monster:Distance(snapshot.Position) <= settings.AmbushRange then
-                monster:Engage(snapshot)
-                monster:SetState("Chase")
-                monster.World:Effect("ImitatorScream", {Position = monster.Position})
-                return
-            end
+        local prey = ambushPrey(monster)
+        if prey then
+            engage(monster, prey)
+            return
         end
         if monster.StateTime >= settings.AmbushTime then
             retreat(monster)
@@ -123,7 +167,17 @@ function Behavior.Update(monster, deltaTime)
     elseif monster.State == "Chase" then
         monster.Speed = settings.ChaseSpeed
         local chasing = monster:UpdateChase()
-        if not chasing or monster.StateTime >= settings.ChaseLimit then
+        if monster.StateTime >= settings.ChaseLimit then
+            retreat(monster)
+        elseif not chasing then
+            monster:SetState("Search")
+            monster:BeginSearch()
+        end
+    elseif monster.State == "Search" then
+        local visible = monster:NearestVisible()
+        if visible then
+            engage(monster, visible)
+        elseif not monster:UpdateSearch(settings.InvestigateSpeed) then
             retreat(monster)
         end
     end

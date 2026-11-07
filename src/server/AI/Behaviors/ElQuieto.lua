@@ -1,13 +1,14 @@
 -- El Quieto: un maniquí más entre los maniquíes. Se congela si alguien lo mira,
 -- pero en la oscuridad mirarlo no alcanza: hace falta luz o estar muy cerca.
+-- Sólo acecha a quien vio (o a quien lo estuvo mirando); a los demás no los conoce.
 local Behavior = {}
 
 function Behavior.Init(monster)
-    monster.Frozen = true
     monster:SetState("Frozen")
 end
 
-local function isObserved(monster)
+-- Devuelve a quien lo está mirando con luz (o de muy cerca), si hay alguien.
+local function observer(monster)
     local settings = monster.Settings
     local world = monster.World
 
@@ -25,43 +26,81 @@ local function isObserved(monster)
                     or world:IsLit(monster.Position)
 
                 if facing and illuminated and world:LineOfSight(snapshot.Position, monster.Position) then
-                    return true
+                    return snapshot
                 end
             end
         end
     end
 
-    return false
+    return nil
+end
+
+-- Mientras lo miran no puede terminar el zarpazo.
+function Behavior.AttackAllowed(monster)
+    return observer(monster) == nil
+end
+
+-- Después de atacar se desvanece lejos: nunca se lo ve llegar dos veces.
+function Behavior.OnAttackEnd(monster, hit, target)
+    if not hit or not target then
+        return
+    end
+    local world = monster.World
+    local cells = world.Nav:CellsBetween(world.Nav:CellAt(target.Position), 3, 5)
+    if #cells > 0 then
+        monster.Position = world.Nav:Center(cells[world:RandomInt(1, #cells)], monster.Height)
+        monster:ClearPath()
+    end
+    monster.Target = nil
+    monster.LastKnown = nil
+    monster:SetState("Patrol")
 end
 
 function Behavior.Update(monster)
-    if isObserved(monster) then
+    local settings = monster.Settings
+    local watcher = observer(monster)
+    if watcher then
+        -- Quien lo mira sabe que está ahí, y él también sabe de quien lo mira.
+        monster:Remember(watcher, true)
+        if not monster.Target then
+            monster:Engage(watcher)
+        end
         monster.Speed = 0
+        monster.LookTarget = nil
         monster:ClearPath()
         monster:SetState("Frozen")
         return
     end
 
-    local target = monster:NearestPlayer(false)
-    if not target then
-        monster.Speed = 0
+    if not monster.Target then
+        local visible = monster:NearestVisible()
+        if visible then
+            monster:Engage(visible)
+        end
+    end
+
+    if monster.Target then
+        monster:SetState("Stalk")
+        monster.Speed = settings.ChaseSpeed
+        if not monster:UpdateChase() then
+            monster:SetState("Search")
+            monster:BeginSearch()
+        end
         return
     end
 
-    monster:Engage(target)
-    monster:SetState("Stalk")
-    monster.Speed = monster.Settings.ChaseSpeed
-    monster:GoTo(target.Position)
-
-    if monster:TryAttack(target) then
-        -- Después de atacar se desvanece lejos: nunca se lo ve llegar dos veces.
-        local world = monster.World
-        local cells = world.Nav:CellsBetween(world.Nav:CellAt(target.Position), 3, 5)
-        if #cells > 0 then
-            monster.Position = world.Nav:Center(cells[world:RandomInt(1, #cells)], monster.Height)
-            monster:ClearPath()
+    if monster.State == "Search" then
+        if not monster:UpdateSearch(settings.InvestigateSpeed) then
+            monster:SetState("Patrol")
         end
+        return
     end
+
+    -- Nadie a la vista: se desplaza despacio mientras nadie lo ilumina.
+    monster:SetState("Patrol")
+    monster.Speed = settings.PatrolSpeed
+    monster.LookTarget = nil
+    monster:Wander()
 end
 
 return Behavior

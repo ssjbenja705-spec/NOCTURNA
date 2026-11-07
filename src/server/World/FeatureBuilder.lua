@@ -2,6 +2,8 @@
 local Shared = game:GetService("ReplicatedStorage").Shared
 local ItemConfig = require(Shared.Config.ItemConfig)
 
+local AlmaBuilder = require(script.Parent.AlmaBuilder)
+
 local FeatureBuilder = {}
 
 local function part(parent, name, size, offset, color, material, shape)
@@ -242,47 +244,11 @@ function FeatureBuilder.Exit(parent, feature, cframe)
     return holder, FeatureBuilder.AddPrompt(frame, feature.Prompt, feature.Id == "ELEVATOR" and "Ascensor de servicio" or "Salida", feature.Hold), panel
 end
 
+-- Alma la arma AlmaBuilder (área de criaturas): una nena de verdad que se alegra
+-- al ver al grupo y lo sigue. El cartel va en el ancla que la acompaña.
 function FeatureBuilder.Sister(parent, feature, cframe)
-    local holder = model(parent, feature.Id)
-    local skin = Color3.fromRGB(216, 190, 165)
-    local hospital = Color3.fromRGB(200, 205, 205)
-
-    local chair = part(
-        holder,
-        "Chair",
-        Vector3.new(4, 2, 4),
-        cframe * CFrame.new(0, 1, 0),
-        Color3.fromRGB(70, 56, 48),
-        Enum.Material.WoodPlanks
-    )
-    holder.PrimaryPart = chair
-    part(holder, "Torso", Vector3.new(2, 2.4, 1), cframe * CFrame.new(0, 3.2, 0.4), hospital, Enum.Material.Fabric)
-    part(holder, "Head", Vector3.new(1.3, 1.3, 1.3), cframe * CFrame.new(0, 5.1, 0.4), skin, Enum.Material.SmoothPlastic)
-    part(holder, "Hair", Vector3.new(1.5, 1.5, 0.8), cframe * CFrame.new(0, 5.2, 0.8), Color3.fromRGB(50, 34, 26), Enum.Material.Fabric)
-    part(holder, "ArmLeft", Vector3.new(0.7, 2.2, 0.7), cframe * CFrame.new(-1.4, 3.2, 0.2), hospital, Enum.Material.Fabric)
-    part(holder, "ArmRight", Vector3.new(0.7, 2.2, 0.7), cframe * CFrame.new(1.4, 3.2, 0.2), hospital, Enum.Material.Fabric)
-    part(holder, "Legs", Vector3.new(2, 1, 2.4), cframe * CFrame.new(0, 2.4, -0.8), hospital, Enum.Material.Fabric)
-
-    for index = 1, 3 do
-        local cable = part(
-            holder,
-            "Cable",
-            Vector3.new(0.25, 7, 0.25),
-            cframe * CFrame.new((index - 2) * 0.7, 9, 1) * CFrame.Angles(0.15, 0, 0),
-            Color3.fromRGB(90, 30, 45),
-            Enum.Material.SmoothPlastic
-        )
-        cable.CanCollide = false
-    end
-
-    local glow = Instance.new("PointLight")
-    glow.Color = Color3.fromRGB(255, 220, 180)
-    glow.Brightness = 1
-    glow.Range = 16
-    glow.Shadows = false
-    glow.Parent = chair
-
-    return holder, FeatureBuilder.AddPrompt(chair, feature.Prompt, "Alma", feature.Hold), chair
+    local holder, host = AlmaBuilder.Build(parent, feature, cframe)
+    return holder, FeatureBuilder.AddPrompt(host, feature.Prompt, "Alma", feature.Hold), nil
 end
 
 function FeatureBuilder.Locker(parent, cframe)

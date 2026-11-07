@@ -480,7 +480,7 @@ T.Test("resistencia: se agota, bloquea el sprint y se recupera", function()
     local config = GameConfig.Player
     local state = StaminaModel.new(config)
     T.True(StaminaModel.Request(state, true), "puede correr")
-    for _ = 1, 60 do
+    for _ = 1, math.ceil(StaminaModel.SprintDuration(config) * 10) + 5 do
         StaminaModel.Step(state, 0.1, true, config)
     end
     T.True(state.Exhausted, "agotado")
@@ -1927,6 +1927,327 @@ T.Test("las analíticas registran capítulo, objetivo y final sin afectar la par
     end
     T.True(names.ChapterStarted, "capítulo iniciado")
     T.True(names.Objective_C1_ENTRY, "objetivo registrado")
+end)
+
+T.Suite("Criaturas y Alma")
+
+T.Test("velocidades: corriendo se deja atrás a toda criatura y caminando no", function()
+    local player = GameConfig.Player
+    for difficultyName, difficulty in pairs(GameConfig.Difficulties) do
+        for kind, settings in pairs(MonsterConfig) do
+            local label = kind .. " en " .. difficultyName
+            local scale = difficulty.MonsterSpeed
+            local pursuit = math.max(settings.ChaseSpeed, settings.RageSpeed or 0) * scale
+            T.True(pursuit <= player.SprintSpeed * 0.9, label .. ": persigue a " .. pursuit .. ", hasta el 90 % del sprint")
+            T.True(settings.ChaseSpeed * scale >= player.SprintSpeed * 0.75, label .. ": no es un trámite")
+            T.True(settings.ChaseSpeed * scale > player.WalkSpeed + 2, label .. ": caminando te alcanza")
+            T.True(settings.PatrolSpeed * scale < player.WalkSpeed, label .. ": merodea más lento que un jugador")
+            T.True((settings.LungeDistance or 0) <= 4, label .. ": la estocada es corta")
+            T.True((settings.AttackWindup or 0) >= 0.15, label .. ": el ataque se anticipa")
+            T.True((settings.FleeSpeed or 0) * scale < player.SprintSpeed, label .. ": ni huyendo supera al sprint")
+        end
+    end
+end)
+
+T.Test("AIRE: la carrera dura el doble que antes y se recupera con una pausa", function()
+    local config = GameConfig.Player
+    local duration = StaminaModel.SprintDuration(config)
+    T.True(duration >= 2 * (100 / 22) * 0.95 and duration <= 11, "dura " .. duration .. " s (antes 4,5 s)")
+
+    local state = StaminaModel.new(config)
+    StaminaModel.Request(state, true)
+    for _ = 1, 80 do
+        StaminaModel.Step(state, 0.1, true, config)
+    end
+    T.False(state.Exhausted, "8 s corriendo todavía queda aire")
+    local running = 8
+    while not state.Exhausted and running < 20 do
+        StaminaModel.Step(state, 0.1, true, config)
+        running += 0.1
+    end
+    T.True(state.Exhausted and running <= 10, "se agota a los " .. running .. " s")
+
+    local before = state.Stamina
+    StaminaModel.Step(state, 0.3, false, config)
+    T.Equal(state.Stamina, before, "pausa antes de recuperar")
+    local seconds = 0
+    while state.Exhausted do
+        StaminaModel.Step(state, 0.1, false, config)
+        seconds += 0.1
+    end
+    T.True(seconds <= 5, "vuelve a poder correr en " .. seconds .. " s")
+    while state.Stamina < config.MaxStamina do
+        StaminaModel.Step(state, 0.1, true, config)
+        seconds += 0.1
+    end
+    T.True(seconds <= 10, "barra llena en " .. seconds .. " s")
+end)
+
+-- Mundo con una pared: nadie ve a través de x = 25.
+local function walledWorld(snapshots)
+    local world = fakeWorld(snapshots)
+    function world:LineOfSight(from, to)
+        return (from.X < 25) == (to.X < 25)
+    end
+    return world
+end
+
+T.Test("sigilo: cada criatura persigue sólo a quien vio u oyó, nunca a todos", function()
+    local sneaky = snapshot(Vector3.new(-18, 3, 0), {Crouching = true, Speed = 6, Look = Vector3.new(-1, 0, 0)})
+    local loud = snapshot(Vector3.new(60, 3, 0), {Flashlight = true, Look = Vector3.new(1, 0, 0)})
+    local world = walledWorld({sneaky, loud})
+    world.PatrolCell = function()
+        return nil
+    end
+    -- Agachado hace poco ruido: no llega a ninguna de las dos.
+    table.insert(world.NoiseList, {Position = sneaky.Position, Radius = GameConfig.Noise.Crouch, Time = 10, Source = sneaky.Player})
+
+    local Controller = Engine.RequireServer("AI.MonsterController")
+    local Behavior = Engine.RequireServer("AI.Behaviors.ElColoso")
+    -- Una mira hacia +Z (el agachado queda detrás, a oscuras); la otra está del otro lado de la pared.
+    local blind = Controller.new("ElColoso", MonsterConfig.ElColoso, Behavior, world, Vector3.new(0, 4, 0))
+    local seer = Controller.new("ElColoso", MonsterConfig.ElColoso, Behavior, world, Vector3.new(40, 4, 0))
+    seer.Facing = Vector3.new(1, 0, 0)
+
+    for _ = 1, 30 do
+        blind:Tick(1 / 15)
+        seer:Tick(1 / 15)
+    end
+    T.True(blind.Target == nil, "la que no vio a nadie no persigue a nadie")
+    T.True(blind.State ~= "Chase", "ni sale a cazar")
+    T.Equal(seer.State, "Chase", "la que lo ve, persigue")
+    T.True(seer.Target == loud.Player, "y persigue a quien vio, no al agachado")
+
+    -- Corriendo cerca se lo oye: ahí sí lo busca (cada una por su cuenta).
+    table.insert(world.NoiseList, {Position = sneaky.Position, Radius = GameConfig.Noise.Sprint, Time = 20, Source = sneaky.Player})
+    blind:Tick(1 / 15)
+    T.Equal(blind.State, "Investigate", "el ruido fuerte sí lo atrae")
+end)
+
+T.Test("perder de vista: va a la última posición, busca y se rinde", function()
+    local target = snapshot(Vector3.new(20, 3, 0), {Flashlight = true})
+    local world = fakeWorld({target})
+    world.PatrolCell = function()
+        return nil
+    end
+    local monster = newMonster("ElImitador", world)
+    monster.Facing = Vector3.new(1, 0, 0)
+    tick(monster, 0.3)
+    T.Equal(monster.State, "Chase", "lo ve y lo persigue")
+
+    -- Dobla la esquina y se aleja: ya no lo ve ni lo oye.
+    world.Sight = false
+    target.Position = Vector3.new(150, 3, 0)
+    local lastKnown = monster.LastKnown
+    tick(monster, MonsterConfig.ElImitador.LoseTime + 1.5)
+    T.True(monster.Target == nil, "lo dio por perdido")
+    T.True(monster.State == "Search" or monster.State == "Patrol", "busca o vuelve a merodear: " .. monster.State)
+    T.True(lastKnown ~= nil and (lastKnown - Vector3.new(20, 3, 0)).Magnitude < 1, "recordaba dónde lo vio")
+    T.True(monster:Distance(Vector3.new(150, 3, 0)) > 60, "no fue derecho a donde está ahora")
+
+    tick(monster, MonsterConfig.ElImitador.SearchTime + 2)
+    T.Equal(monster.State, "Patrol", "después de buscar se rinde")
+end)
+
+T.Test("ataque: anticipación que se esquiva corriendo; caminando te alcanza", function()
+    for _, case in ipairs({{Speed = GameConfig.Player.SprintSpeed, Hit = false}, {Speed = GameConfig.Player.WalkSpeed, Hit = true}}) do
+        local target = snapshot(Vector3.new(4, 3, 0), {Flashlight = true})
+        local world = fakeWorld({target})
+        world.PatrolCell = function()
+            return nil
+        end
+        local monster = newMonster("ElOyente", world)
+        target.Speed = 8
+        monster:Tick(1 / 15)
+        T.True(monster.Attack ~= nil, "empieza el ataque")
+        T.Equal(monster:PublicState(), "Attack", "estado público de ataque")
+        -- El jugador ya venía escapando: se aleja en línea recta durante la anticipación.
+        for _ = 1, 30 do
+            target.Position += Vector3.new(case.Speed / 15, 0, 0)
+            monster:Tick(1 / 15)
+            if not monster.Attack then
+                break
+            end
+        end
+        T.Equal(#world.Damaged > 0, case.Hit, "a " .. case.Speed .. " studs/s")
+    end
+end)
+
+T.Test("las criaturas publican su estado para que el cliente las anime", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+
+    local MonsterService = Engine.RequireServer("Monsters.MonsterService")
+    MonsterService.Clear()
+    local entry = MonsterService.Spawn("ElColoso")
+    T.True(entry ~= nil, "criatura creada")
+    Engine.Run(2)
+    local model = entry.Model
+    local state = model:GetAttribute("State")
+    T.True(table.find({"Patrol", "Investigate", "Search", "Chase", "Attack", "Stunned"}, state) ~= nil, "estado público: " .. tostring(state))
+    T.True(model:GetAttribute("BehaviorState") ~= nil, "estado interno")
+    T.True(type(model:GetAttribute("MoveSpeed")) == "number", "velocidad real")
+    T.True(model:GetAttribute("AttackPhase") ~= nil, "fase del ataque")
+
+    entry.Controller:Gesture("Roar")
+    entry.Controller.LookTarget = Vector3.new(10, 3, 10)
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("Gesture"), "Roar", "gesto")
+    T.Equal(model:GetAttribute("LookTarget"), Vector3.new(10, 3, 10), "hacia dónde mira")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("animación: paso al ritmo de la velocidad, cabeza al objetivo y El Quieto inmóvil", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = Engine.Require(Engine.ClientFolder:FindFirstChild("Effects"):FindFirstChild("MonsterAnimator"), "Client")
+
+    local coloso = Factory.Build("ElColoso", Engine.Workspace, 5.5)
+    local root = coloso.PrimaryPart
+    root.CFrame = roblox.CFrame.new(0, 5.5, 0)
+    local rig = Animator.Track(coloso)
+    T.True(rig ~= nil and #rig.Joints >= 6, "articulaciones encontradas")
+
+    local camera = roblox.CFrame.lookAt(Vector3.new(0, 5, 25), Vector3.new(0, 5, 0))
+    local function legC0()
+        for _, entry in ipairs(rig.Joints) do
+            if entry.Role == "Leg" then
+                return entry.Joint.C0
+            end
+        end
+    end
+
+    coloso:SetAttribute("State", "Chase")
+    coloso:SetAttribute("LookTarget", Vector3.new(30, 5, -10))
+    local samples = {}
+    for frame = 1, 90 do
+        root.CFrame = roblox.CFrame.new(0, 5.5, -frame * 14 / 60)
+        Animator.Update(1 / 60, camera)
+        if frame % 10 == 0 then
+            table.insert(samples, legC0())
+        end
+    end
+    T.False(rig.Broken, "sin errores al animar")
+    T.True(rig.Speed > 10 and rig.Speed < 18, "mide la velocidad real: " .. rig.Speed)
+    T.True(rig.Gait > 0.5, "camina")
+    T.True(samples[2] ~= samples[3], "las piernas se mueven")
+    T.True(rig.HeadYaw < -0.2, "gira la cabeza hacia el objetivo (a su derecha)")
+    T.True(rig.Stomps > 0, "El Coloso pisa fuerte al ritmo del paso")
+
+    local quieto = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    quieto.PrimaryPart.CFrame = roblox.CFrame.new(0, 3.6, 5)
+    local frozenRig = Animator.Track(quieto)
+    quieto:SetAttribute("State", "Stalk")
+    for _ = 1, 30 do
+        Animator.Update(1 / 60, camera)
+    end
+    quieto:SetAttribute("State", "Frozen")
+    local held = {}
+    for index, entry in ipairs(frozenRig.Joints) do
+        held[index] = entry.Joint.C0
+    end
+    for _ = 1, 60 do
+        Animator.Update(1 / 60, camera)
+    end
+    for index, entry in ipairs(frozenRig.Joints) do
+        T.Equal(entry.Joint.C0, held[index], "El Quieto observado no se mueve ni respira")
+    end
+    T.NoEngineErrors(Engine)
+end)
+
+local function almaScene(options)
+    Engine.Reset(options)
+    local player = Engine.AddPlayer("Hermano", 3001)
+    local character = Engine.CreateCharacter(player)
+    character:FindFirstChild("HumanoidRootPart").CFrame = roblox.CFrame.new(0, 3, 60)
+    local AlmaBuilder = Engine.RequireServer("World.AlmaBuilder")
+    local holder, host = AlmaBuilder.Build(Engine.Workspace, {Id = "ALMA"}, roblox.CFrame.new(0, 0, 0))
+    return holder, host, character, AlmaBuilder
+end
+
+T.Test("Alma: una nena R15 de verdad que respira y espera", function()
+    local holder, host, _, AlmaBuilder = almaScene()
+    local rig = holder:FindFirstChild("Alma")
+    T.True(rig ~= nil, "cuerpo armado")
+    T.Equal(rig:GetAttribute("Source"), "Avatar", "avatar de Roblox")
+    local humanoid = rig:FindFirstChildOfClass("Humanoid")
+    T.True(humanoid ~= nil and humanoid:FindFirstChildOfClass("Animator") ~= nil, "Humanoid con Animator")
+    T.Equal(humanoid.DisplayDistanceType, roblox.Enum.HumanoidDisplayDistanceType.None, "sin nombre flotante")
+
+    local description = AlmaBuilder.Description()
+    T.Equal(description.HeightScale, 0.75, "más bajita")
+    T.True(math.abs(description.HeadScale - 1.1) < 1e-3, "cabeza grande")
+    T.Equal(description.BodyTypeScale, 0, "proporciones de nena")
+    T.Equal(description.ProportionScale, 0, "proporciones clásicas")
+    T.True(rig:FindFirstChild("Hair") ~= nil and rig:FindFirstChild("Pigtail") ~= nil, "pelo con colitas")
+    T.True(rig:FindFirstChild("Head"):FindFirstChild("face") ~= nil, "cara feliz")
+
+    T.True(holder.PrimaryPart == host, "el ancla es la pieza principal")
+    T.False(host.Anchored, "el ancla va soldada a ella")
+    T.True(table.find(Engine.AnimationLog, AlmaBuilder.Animations.Idle) ~= nil, "respira (animación de reposo)")
+    Engine.Run(2)
+    T.Equal(holder:GetAttribute("AlmaState"), "Idle", "lejos, sigue esperando")
+    T.False(holder:GetAttribute("Found"), "todavía no la encontraron")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Alma: al encontrarla salta, saluda, festeja, brilla y sigue al más cercano", function()
+    local holder, _, character, AlmaBuilder = almaScene()
+    local rig = holder:FindFirstChild("Alma")
+    local root = rig:FindFirstChild("HumanoidRootPart")
+    local glow = root:FindFirstChild("AlmaGlow")
+    local brightness = glow.Brightness
+    local playerRoot = character:FindFirstChild("HumanoidRootPart")
+
+    playerRoot.CFrame = roblox.CFrame.new(0, 3, 9)
+    Engine.Run(0.5)
+    T.True(holder:GetAttribute("Found"), "la encontraron")
+    T.Equal(holder:GetAttribute("AlmaState"), "Happy", "se alegra")
+    T.True(table.find(Engine.AnimationLog, AlmaBuilder.Animations.Wave) ~= nil, "saluda con la mano")
+    T.True(Engine.Emitted(root:FindFirstChild("AlmaSparkles")) >= 20, "chispas")
+    T.True(glow.Brightness > brightness, "luz cálida")
+
+    Engine.Run(3)
+    T.True(table.find(Engine.AnimationLog, AlmaBuilder.Animations.Cheer) ~= nil, "festeja")
+    Engine.Run(2.5)
+    T.Equal(holder:GetAttribute("AlmaState"), "Follow", "después lo sigue")
+
+    playerRoot.CFrame = roblox.CFrame.new(30, 3, 40)
+    Engine.Run(0.5)
+    T.Equal(holder:GetAttribute("Following"), "Hermano", "sigue al jugador más cercano")
+    local goal = Engine.MoveTarget(rig:FindFirstChildOfClass("Humanoid"))
+    T.True(goal ~= nil and (goal - root.Position).Magnitude > 1, "camina hacia él")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("Alma: sin el servicio de avatares se arma con piezas y funciona igual", function()
+    local holder, _, character, AlmaBuilder = almaScene({AvatarOffline = true})
+    local rig = holder:FindFirstChild("Alma")
+    T.Equal(rig:GetAttribute("Source"), "Fallback", "cuerpo de piezas")
+    T.True(rig:FindFirstChildOfClass("Humanoid") ~= nil, "con Humanoid")
+    for _, name in ipairs({"Root", "Waist", "Neck", "LeftShoulder", "RightElbow", "LeftHip", "RightKnee", "LeftAnkle"}) do
+        local found = false
+        for _, descendant in ipairs(rig:GetDescendants()) do
+            if descendant.Name == name and descendant:IsA("Motor6D") then
+                found = true
+            end
+        end
+        T.True(found, "articulación R15 " .. name)
+    end
+    local head = rig:FindFirstChild("Head")
+    local foot = rig:FindFirstChild("LeftFoot")
+    T.True(head.Position.Y > foot.Position.Y + 2.5 and head.Position.Y < 5, "de pie y chiquita")
+
+    character:FindFirstChild("HumanoidRootPart").CFrame = roblox.CFrame.new(0, 3, 8)
+    Engine.Run(0.5)
+    T.True(holder:GetAttribute("Found"), "reacciona igual")
+    T.True(table.find(Engine.AnimationLog, AlmaBuilder.Animations.Wave) ~= nil, "saluda")
+
+    local FeatureBuilder = Engine.RequireServer("World.FeatureBuilder")
+    local sister, prompt = FeatureBuilder.Sister(Engine.Workspace, {Id = "ALMA2", Prompt = "Tomarle la mano", Hold = 2}, roblox.CFrame.new(50, 0, 0))
+    T.True(prompt.Parent == sister.PrimaryPart, "el cartel va en el ancla que la acompaña")
+    T.NoEngineErrors(Engine)
 end)
 
 local failed = T.Summary()

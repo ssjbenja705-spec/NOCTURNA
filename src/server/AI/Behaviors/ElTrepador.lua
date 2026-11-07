@@ -45,74 +45,120 @@ end
 
 local function flee(monster)
     local world = monster.World
+    if monster.Height < ceilingHeight(monster) then
+        climb(monster)
+    end
     local cells = world.Nav:CellsBetween(world.Nav:CellAt(monster.Position), 2, 4)
     if #cells > 0 then
         local cell = cells[world:RandomInt(1, #cells)]
         monster:GoTo(world.Nav:Center(cell, monster.Height), true)
     end
+    monster.Target = nil
+    monster.LookTarget = nil
     monster:SetState("Flee")
     world:Effect("TrepadorSkitter", {Position = monster.Position})
+    monster:Gesture("Skitter")
+end
+
+local function backToCeiling(monster)
+    climb(monster)
+    monster.Target = nil
+    monster:ClearPath()
+    monster:SetState("Crawl")
+end
+
+-- Después del zarpazo vuelve a subir: nunca se queda peleando en el piso.
+function Behavior.OnAttackEnd(monster)
+    backToCeiling(monster)
+end
+
+-- Acecho desde el techo: sigue a quien percibe; si lo pierde, busca y se rinde.
+local function stalk(monster)
+    local settings = monster.Settings
+    local snapshot = monster.Target and monster:FindSnapshot(monster.Target)
+    if not snapshot or snapshot.Hidden then
+        monster.Target = nil
+        monster:SetState("Search")
+        monster:BeginSearch()
+        return
+    end
+
+    monster:Perceive(snapshot)
+    local since = monster:SinceSensed(snapshot.Player)
+    if since > settings.LoseTime or monster.StateTime >= settings.StalkLimit then
+        monster.Target = nil
+        monster:SetState("Search")
+        monster:BeginSearch()
+        return
+    end
+
+    local goal = since <= 1.2 and snapshot.Position or monster.LastKnown or snapshot.Position
+    monster.LookTarget = goal
+    monster:GoTo(goal)
+    if since <= 1.2 and monster:Distance(snapshot.Position) <= settings.DropRange * 0.5 then
+        drop(monster)
+        monster:ClearPath()
+        monster:SetState("Pounce")
+        monster.World:Effect("TrepadorDrop", {Position = monster.Position})
+        monster:Gesture("Drop")
+    end
 end
 
 function Behavior.Update(monster)
     local settings = monster.Settings
 
-    if monster.State == "Crawl" then
-        monster.Speed = settings.PatrolSpeed
-        if isRepelled(monster) then
-            flee(monster)
-            return
-        end
+    if monster.State ~= "Flee" and monster.State ~= "Pounce" and isRepelled(monster) then
+        flee(monster)
+        return
+    end
 
+    if monster.State == "Crawl" or monster.State == "Investigate" then
         local visible = monster:NearestVisible()
-        local noise = monster:Hear()
         if visible then
             monster:Engage(visible)
             monster:SetState("Stalk")
-        elseif noise then
+            return
+        end
+
+        local noise = monster:Hear()
+        if noise then
+            monster.NoisePosition = noise.Position
+            monster.LastKnown = noise.Position
+            monster:SetState("Investigate")
             monster:GoTo(noise.Position, true)
-        else
+        end
+
+        if monster.State == "Crawl" then
+            monster.Speed = settings.PatrolSpeed
+            monster.LookTarget = nil
             monster:Wander()
+        else
+            monster.Speed = settings.InvestigateSpeed
+            monster.LookTarget = monster.NoisePosition
+            if not monster:HasPath() then
+                monster:SetState("Search")
+                monster:BeginSearch()
+            end
         end
     elseif monster.State == "Stalk" then
         monster.Speed = settings.ChaseSpeed
-        if isRepelled(monster) then
-            monster.Target = nil
-            flee(monster)
-            return
-        end
-
-        local snapshot = monster.Target and monster:FindSnapshot(monster.Target)
-        if not snapshot or snapshot.Hidden then
-            monster.Target = nil
-            monster:SetState("Crawl")
-            return
-        end
-
-        monster:GoTo(snapshot.Position)
-        if monster:Distance(snapshot.Position) <= settings.DropRange * 0.5 then
-            drop(monster)
-            monster:ClearPath()
-            monster:SetState("Pounce")
-            monster.World:Effect("TrepadorDrop", {Position = monster.Position})
-        elseif monster.StateTime >= 20 then
-            monster.Target = nil
+        stalk(monster)
+    elseif monster.State == "Search" then
+        local visible = monster:NearestVisible()
+        if visible then
+            monster:Engage(visible)
+            monster:SetState("Stalk")
+        elseif not monster:UpdateSearch(settings.InvestigateSpeed) then
             monster:SetState("Crawl")
         end
     elseif monster.State == "Pounce" then
         monster.Speed = settings.ChaseSpeed
-        local snapshot = monster.Target and monster:FindSnapshot(monster.Target)
-        if snapshot and not snapshot.Hidden then
-            monster:GoTo(snapshot.Position)
-            monster:TryAttack(snapshot)
-        end
-        if monster.StateTime >= 2.5 or monster.Clock - monster.LastAttack < 0.2 then
-            climb(monster)
-            monster.Target = nil
-            monster:SetState("Crawl")
+        local chasing = monster:UpdateChase()
+        if not chasing or monster.StateTime >= settings.PounceTime then
+            backToCeiling(monster)
         end
     elseif monster.State == "Flee" then
-        monster.Speed = settings.ChaseSpeed * 1.2
+        monster.Speed = settings.FleeSpeed
         if not monster:HasPath() or monster.StateTime >= settings.RepelTime then
             monster:SetState("Crawl")
         end
