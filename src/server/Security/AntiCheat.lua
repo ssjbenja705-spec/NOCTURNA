@@ -50,7 +50,7 @@ AntiCheat.IsMovementValid = isMovementValid
 
 -- Muebles, máquinas y escondites no cuentan como paredes: rodearlos caminando no
 -- es atravesarlos, aunque la recta entre dos muestras corte una esquina.
-local FURNISHING = {"Decor", "Props", "Hides", "Objects", "Mechanisms", "Mannequins"}
+local FURNISHING = {"Decor", "Props", "Hides", "Objects", "Mannequins"}
 
 local function crossedWall(previous, current)
     local characters = {}
@@ -65,6 +65,16 @@ local function crossedWall(previous, current)
             local folder = map:FindFirstChild(name)
             if folder then
                 table.insert(characters, folder)
+            end
+        end
+        -- Las máquinas tampoco, pero las compuertas de las pruebas sí son paredes:
+        -- si no, se podría atravesar una cerrada y saltear la prueba.
+        local machines = map:FindFirstChild("Mechanisms")
+        if machines then
+            for _, machine in ipairs(machines:GetChildren()) do
+                if machine:GetAttribute("NocturnaGate") ~= true then
+                    table.insert(characters, machine)
+                end
             end
         end
     end
