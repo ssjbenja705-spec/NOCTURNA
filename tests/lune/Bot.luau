@@ -255,7 +255,8 @@ function Solvers.Keypad(Engine, player, session, memory)
         local digits = Bot.DocumentCode(Engine, session.View.ClueDocument)
         code = digits and table.concat(digits)
     end
-    if code and not session.View.Locked then
+    -- Si el teclado sigue bloqueado, el servidor lo dice y se reintenta en el próximo paso.
+    if code then
         act(Engine, player, session.Id, "Submit", code)
     end
 end
@@ -457,22 +458,22 @@ function Bot.SolvePuzzle(Engine, player, update)
 
     local memory = memoryFor(player)
     local waypoints = update.Waypoints or {}
-    local session = Bot.PuzzleSession(Engine, player, puzzleId)
 
-    if not isOpen(session) then
-        -- La clave pintada en una pared: primero hay que ir a leerla.
-        if kind == "Keypad" and not memory.Codes[puzzleId] then
-            local cluePosition = findClue(Engine, puzzleId)
-            if cluePosition then
-                Bot.Use(Engine, player, cluePosition)
-                local clue = lastClue(Engine, player, puzzleId)
-                if clue and clue.Code then
-                    memory.Codes[puzzleId] = clue.Code
-                end
-                return
+    -- La clave pintada en una pared: primero hay que ir a leerla.
+    if kind == "Keypad" and not memory.Codes[puzzleId] then
+        local cluePosition = findClue(Engine, puzzleId)
+        if cluePosition then
+            Bot.Use(Engine, player, cluePosition)
+            local clue = lastClue(Engine, player, puzzleId)
+            if clue and clue.Code then
+                memory.Codes[puzzleId] = clue.Code
             end
+            return
         end
+    end
 
+    local session = Bot.PuzzleSession(Engine, player, puzzleId)
+    if not isOpen(session) then
         local target = waypoints[#waypoints]
         if not target then
             return

@@ -10,6 +10,7 @@ local Remotes = require(Shared.Modules.RemoteHelper)
 
 local EventBus = require(script.Parent.Parent.Core.EventBus)
 local GameState = require(script.Parent.Parent.Core.GameState)
+local MonsterService = require(script.Parent.Parent.Monsters.MonsterService)
 local RoomGenerator = require(script.Parent.Parent.World.RoomGenerator)
 
 local CONFIG = PuzzleConfig.Cinematic
@@ -51,7 +52,6 @@ end
 
 -- Las criaturas se pausan; si ya estaban pausadas (por un administrador) no se tocan.
 local function holdMonsters(duration)
-    local MonsterService = require(script.Parent.Parent.Monsters.MonsterService)
     if holds == 0 and not MonsterService.IsPaused() then
         pausedByScene = true
         MonsterService.SetPaused(true)

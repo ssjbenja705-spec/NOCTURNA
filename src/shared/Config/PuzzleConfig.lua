@@ -102,8 +102,10 @@ PuzzleConfig.Memory = {
     Symbols = {"LINTERNA", "SOL", "RADIO", "MATE", "CASA", "CINCO", "MAMÁ", "LLUVIA"},
 }
 
--- Ventana para bajar las dos palancas: corta con compañeros, larga para quien juega solo.
-PuzzleConfig.Levers = {TeamWindow = 2, SoloWindow = 30, Hold = 1}
+-- Ventana para bajar las dos palancas: corta con compañeros, larga para quien juega
+-- solo. Si el grupo no lo logra en TeamGrace segundos (alguien ausente, por ejemplo),
+-- el mecanismo cede y pasa a la ventana larga: nadie queda trabado.
+PuzzleConfig.Levers = {TeamWindow = 2, SoloWindow = 30, TeamGrace = 45, Hold = 1}
 
 -- Cinemática al abrirse una compuerta o puerta por una prueba u objetivo.
 PuzzleConfig.Cinematic = {Duration = 2.8, Range = 150}

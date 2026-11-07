@@ -300,8 +300,10 @@ function PuzzleRules.PowerFlow(state)
 
     reached[start] = true
     local queue = {{1, state.Source}}
-    while #queue > 0 do
-        local x, y = table.unpack(table.remove(queue, 1))
+    local head = 1
+    while queue[head] do
+        local x, y = queue[head][1], queue[head][2]
+        head += 1
         local tile = tiles[cellIndex(state, x, y)]
         for side in pairs(PuzzleRules.PowerOpenings(tile.Type, tile.Rot)) do
             local nx, ny = x + STEPS[side][1], y + STEPS[side][2]

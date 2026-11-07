@@ -12,7 +12,6 @@ local NoiseService = require(script.Parent.Parent.AI.NoiseService)
 local EventBus = require(script.Parent.Parent.Core.EventBus)
 local GameState = require(script.Parent.Parent.Core.GameState)
 local InteractionService = require(script.Parent.Parent.World.InteractionService)
-local CinematicService = require(script.Parent.CinematicService)
 local GateService = require(script.Parent.GateService)
 local PuzzleProps = require(script.Parent.PuzzleProps)
 local PuzzleRules = require(script.Parent.PuzzleRules)
@@ -129,10 +128,11 @@ end
 -- juega solo tiene tiempo de correr de una a la otra.
 local function pullLever(puzzle, feature, player)
     local config = PuzzleConfig.Levers
-    local team = alivePlayers() >= 2
-    local window = team and config.TeamWindow or config.SoloWindow
     local index = feature.Lever or 1
     local now = os.clock()
+    puzzle.FirstPull = puzzle.FirstPull or now
+    local team = alivePlayers() >= 2 and now - puzzle.FirstPull < config.TeamGrace
+    local window = team and config.TeamWindow or config.SoloWindow
 
     local outcome = PuzzleRules.Levers.Pull(puzzle.State, index, now, window)
     if outcome == "Invalid" then
@@ -354,7 +354,6 @@ end
 
 function PuzzleService.Start()
     GateService.Start()
-    CinematicService.Start()
 
     Remotes.OnServer("PuzzleAction", PuzzleConfig.ActionsPerSecond, handleAction)
 
