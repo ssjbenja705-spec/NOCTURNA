@@ -2734,12 +2734,22 @@ T.Test("donaciones: 51 montos de 100 a 10000 y los botones sin id no aparecen", 
     for index = 2, 51 do
         T.Equal(DonationConfig.Products[index].Robux, (index - 1) * 200, "de 200 en 200")
     end
-    T.Equal(#DonationConfig.Visible(), 0, "sin ids no hay botones")
+    -- Los 51 productos ya existen en Creator Hub: cada monto tiene su id, sin repetir.
+    T.Equal(#DonationConfig.Visible(), 51, "todos los montos tienen producto")
+    local seen = {}
+    for _, product in ipairs(DonationConfig.Products) do
+        T.True(product.ProductId > 0 and not seen[product.ProductId], "id único para " .. product.Robux)
+        seen[product.ProductId] = true
+    end
     T.Equal(DonationConfig.FormatRobux(10000), "10.000", "formato")
     T.Equal(DonationConfig.FormatRobux(100), "100", "formato corto")
 
+    -- En el cliente se dejan sólo dos montos con id para probar que un id 0 no aparece.
     local players = bootServer(1)
     local clientConfig = Engine.Require(Engine.SharedFolder:FindFirstChild("Config"):FindFirstChild("DonationConfig"), "Client")
+    for _, product in ipairs(clientConfig.Products) do
+        product.ProductId = 0
+    end
     clientConfig.Products[1].ProductId = 1001
     clientConfig.Products[3].ProductId = 1003
     Engine.StartClient(players[1])
