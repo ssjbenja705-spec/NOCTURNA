@@ -214,8 +214,25 @@ function LayoutPlanner.Plan(layout, spec)
     placeSimple(plan, layout, plan.Hides, spec.Hides, rng, {Kind = "Locker"})
     placeSimple(plan, layout, plan.Mannequins, spec.Mannequins, rng, {Kind = "Mannequin"})
     placeNormalDoors(plan, layout, spec, rng)
+    LayoutPlanner.ExtractGates(plan)
 
     return plan
+end
+
+-- Compuertas de las pruebas: puertas marcadas con Gate = true que se abren solas
+-- cuando el grupo activa su RequiresFlag. Salen de la lista de puertas comunes
+-- (las arma el módulo de pruebas) pero siguen contando como borde trabado.
+function LayoutPlanner.ExtractGates(plan)
+    plan.Gates = plan.Gates or {}
+    for index = #plan.Doors, 1, -1 do
+        local door = plan.Doors[index]
+        if door.Gate then
+            table.remove(plan.Doors, index)
+            table.insert(plan.Gates, 1, door)
+            plan.LockedEdges[door.Key] = true
+        end
+    end
+    return plan.Gates
 end
 
 -- Comprueba que el capítulo se pueda completar. Devuelve ok, motivo.

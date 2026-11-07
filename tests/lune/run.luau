@@ -3085,5 +3085,749 @@ T.Test("HUD: nada debajo de la barra de Roblox y los botones no pisan el objetiv
     end
 end)
 
+T.Suite("Pruebas e historia")
+
+local PuzzleConfig = Engine.RequireShared("Config.PuzzleConfig")
+
+local function chapterPuzzles(index)
+    local spec = ChapterConfig[index].Layout
+    local list = {}
+    for _, feature in ipairs(spec.Features or {}) do
+        if feature.Kind == "Puzzle" then
+            table.insert(list, feature)
+        end
+    end
+    for _, room in ipairs(spec.LockedRooms or {}) do
+        for _, feature in ipairs(room.Features or {}) do
+            if feature.Kind == "Puzzle" then
+                table.insert(list, feature)
+            end
+        end
+    end
+    return list
+end
+
+-- Texto estable de una tabla, para comparar estados sin depender del orden.
+local function serialize(value)
+    if type(value) ~= "table" then
+        return tostring(value)
+    end
+    local keys = {}
+    for key in pairs(value) do
+        table.insert(keys, tostring(key))
+    end
+    table.sort(keys)
+    local parts = {}
+    for _, key in ipairs(keys) do
+        local inner = value[key]
+        if inner == nil then
+            inner = value[tonumber(key)]
+        end
+        table.insert(parts, key .. "=" .. serialize(inner))
+    end
+    return "{" .. table.concat(parts, ",") .. "}"
+end
+
+-- Partida en el capítulo pedido, con las criaturas quietas para probar tranquilo.
+local function puzzleMatch(chapter, playerCount, options)
+    local players = bootServer(playerCount or 1, options)
+    if options and options.Client then
+        Engine.StartClient(players[1])
+        Engine.Run(1)
+    end
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    if chapter ~= 1 then
+        Engine.RequireServer("Multiplayer.MatchService").SetChapter(chapter)
+        T.True(Engine.RunUntil(function()
+            return gameState().Chapter == chapter and gameState().Phase == "Playing"
+        end, 40), "capítulo " .. chapter)
+    end
+    if not (options and options.Monsters) then
+        Engine.RequireServer("Monsters.MonsterService").SetPaused(true)
+    end
+    Engine.Run(0.5)
+    return players
+end
+
+local function skipTo(objectiveId)
+    local Story = Engine.RequireServer("Story.StoryService")
+    local tracker = gameState().Tracker
+    local guard = 0
+    while tracker:Current() and tracker:Current().Id ~= objectiveId and guard < 12 do
+        Story.SkipObjective()
+        guard += 1
+    end
+    Engine.Run(0.3)
+    T.Equal(tracker:Current().Id, objectiveId, "objetivo actual")
+end
+
+local function puzzleModel(puzzleId)
+    for _, descendant in ipairs(Engine.Workspace:GetDescendants()) do
+        if descendant:IsA("Model") and descendant:GetAttribute("NocturnaPuzzleId") == puzzleId then
+            return descendant
+        end
+    end
+    return nil
+end
+
+local function openPuzzle(player, puzzleId)
+    local model = puzzleModel(puzzleId)
+    T.True(model ~= nil, "utilería de " .. puzzleId .. " en el mapa")
+    Bot.Use(Engine, player, model.PrimaryPart.Position)
+    Engine.Run(0.1)
+    return Bot.PuzzleSession(Engine, player, puzzleId)
+end
+
+local function solveWithBot(player, objectiveId, maxSteps)
+    local tracker = gameState().Tracker
+    for _ = 1, maxSteps or 120 do
+        if tracker:IsDone(objectiveId) then
+            return true
+        end
+        Bot.Act(Engine, player)
+        Engine.Run(0.4)
+    end
+    return tracker:IsDone(objectiveId)
+end
+
+T.Test("cada capítulo combina al menos 2 tipos de prueba y ninguna mezcla se repite", function()
+    local mixes, used = {}, {}
+    for index = 1, 5 do
+        local types, list = {}, {}
+        for _, feature in ipairs(chapterPuzzles(index)) do
+            T.True(PuzzleConfig.Types[feature.Puzzle] ~= nil, "tipo conocido: " .. tostring(feature.Puzzle))
+            if not types[feature.Puzzle] then
+                types[feature.Puzzle] = true
+                table.insert(list, feature.Puzzle)
+                used[feature.Puzzle] = true
+            end
+        end
+        table.sort(list)
+        T.True(#list >= 2, "capítulo " .. index .. " con " .. #list .. " tipos")
+        local mix = table.concat(list, "+")
+        T.True(mixes[mix] == nil, "mezcla repetida en el capítulo " .. index .. ": " .. mix)
+        mixes[mix] = true
+
+        local declared = table.clone(ChapterConfig[index].Puzzles)
+        table.sort(declared)
+        T.Equal(table.concat(declared, "+"), mix, "lista Puzzles del capítulo " .. index)
+    end
+    for kind in pairs(PuzzleConfig.Types) do
+        T.True(used[kind], "el tipo " .. kind .. " aparece en algún capítulo")
+    end
+end)
+
+T.Test("las claves de los documentos coinciden con sus pruebas", function()
+    local checked = 0
+    for index = 1, 5 do
+        for _, feature in ipairs(chapterPuzzles(index)) do
+            local documentId = feature.Clue and feature.Clue.Document
+            if documentId then
+                T.True(table.find(ChapterConfig[index].Layout.Documents, documentId) ~= nil, documentId .. " está en el mismo capítulo")
+                local digits = Bot.DocumentCode(Engine, documentId)
+                T.True(digits ~= nil, "clave escrita en " .. documentId)
+                local expected = feature.Sequence and table.concat(feature.Sequence) or feature.Code
+                T.Equal(table.concat(digits), expected, "clave de " .. feature.Id)
+                checked += 1
+            end
+            if feature.Sequence then
+                local seen = {}
+                for _, value in ipairs(feature.Sequence) do
+                    T.False(seen[value], "secuencia sin repetidos")
+                    seen[value] = true
+                    T.True(value >= 1 and value <= #feature.Sequence, "secuencia válida")
+                end
+            end
+        end
+    end
+    T.True(checked >= 2, "hay pruebas con clave en documentos")
+
+    -- Ningún otro documento tiene números con puntos medios que confundan.
+    local marked = 0
+    for _, document in pairs(DocumentConfig) do
+        if string.find(document.Body, "%d ·") then
+            marked += 1
+        end
+    end
+    T.Equal(marked, checked, "documentos con clave")
+end)
+
+T.Test("las compuertas salen del plan como bordes trabados, no como puertas comunes", function()
+    for index = 1, 5 do
+        local spec = ChapterConfig[index].Layout
+        local layout = MazeLayout.Generate({
+            Width = spec.Width,
+            Depth = spec.Depth,
+            Seed = 1234 + index,
+            LoopChance = spec.LoopChance,
+            ReservedLeaves = spec.LockedRooms and #spec.LockedRooms or 0,
+        })
+        local plan = LayoutPlanner.Plan(layout, spec)
+        local wanted = 0
+        if spec.Exit.Door and spec.Exit.Door.Gate then
+            wanted += 1
+        end
+        for _, room in ipairs(spec.LockedRooms or {}) do
+            if room.Door.Gate then
+                wanted += 1
+            end
+        end
+        T.Equal(#plan.Gates, wanted, "compuertas del capítulo " .. index)
+        for _, gate in ipairs(plan.Gates) do
+            T.True(plan.LockedEdges[gate.Key], "la compuerta traba el borde")
+            T.True(gate.RequiresFlag ~= nil, "la compuerta se abre con una marca")
+            for _, door in ipairs(plan.Doors) do
+                T.True(door.Key ~= gate.Key, "sin puerta común encima de la compuerta")
+            end
+        end
+    end
+end)
+
+T.Test("reglas: cada tipo ignora jugadas mal formadas sin cambiar nada", function()
+    local PuzzleRules = Engine.RequireServer("Puzzles.PuzzleRules")
+    local rng = Engine.RandomClass.new(77)
+    -- La posición 1 queda vacía a propósito: también se prueba nil.
+    local garbage = {"nil", 0, -1, 1.5, 0 / 0, math.huge, -math.huge, 1e9, "1", "", {}, true}
+    local seconds = {"nil", 2, 0 / 0, "x"}
+    local specs = {
+        Wires = {}, Breakers = {Sequence = {3, 1, 4, 2}}, Valves = {}, Keypad = {Code = "0315"},
+        Power = {}, Simon = {}, Memory = {}, Levers = {},
+    }
+    for _, kind in ipairs(PuzzleRules.Types) do
+        local rules = PuzzleRules[kind]
+        local state = rules.New(specs[kind], rng)
+        local before = serialize(rules.View(state, 0))
+        for action in pairs(rules.Actions) do
+            for _, first in ipairs(garbage) do
+                for _, second in ipairs(seconds) do
+                    local a = first ~= "nil" and first or nil
+                    local b = second ~= "nil" and second or nil
+                    local outcome = rules.Apply(state, action, a, b, 0)
+                    T.Equal(outcome, "Invalid", string.format("%s %s(%s, %s)", kind, action, tostring(a), tostring(b)))
+                end
+            end
+        end
+        T.Equal(rules.Apply(state, "Solve", 1, 1, 0), "Invalid", kind .. ": no existe la jugada 'resolver'")
+        T.Equal(serialize(rules.View(state, 0)), before, kind .. " no cambió")
+    end
+end)
+
+T.Test("reglas: los errores se castigan y la solución correcta se acepta", function()
+    local PuzzleRules = Engine.RequireServer("Puzzles.PuzzleRules")
+    local rng = Engine.RandomClass.new(31)
+
+    -- Cables: color equivocado, después todos bien.
+    local wires = PuzzleRules.Wires.New({}, rng)
+    local wrongRight = nil
+    for right, color in ipairs(wires.Right) do
+        if color ~= wires.Left[1] then
+            wrongRight = right
+        end
+    end
+    T.Equal(PuzzleRules.Wires.Apply(wires, "Connect", 1, wrongRight), "Wrong", "cable equivocado")
+    local outcome = nil
+    for left, color in ipairs(wires.Left) do
+        outcome = PuzzleRules.Wires.Apply(wires, "Connect", left, table.find(wires.Right, color))
+    end
+    T.Equal(outcome, "Solved", "cables")
+    T.Equal(PuzzleRules.Wires.Apply(wires, "Connect", 1, 1), "Blocked", "ya conectados")
+
+    -- Disyuntores: un error reinicia todo el tablero.
+    local breakers = PuzzleRules.Breakers.New({Sequence = {3, 1, 4, 2}}, rng)
+    T.Equal(PuzzleRules.Breakers.Apply(breakers, "Flip", 3), "Ok", "primera")
+    T.Equal(PuzzleRules.Breakers.Apply(breakers, "Flip", 4), "Wrong", "orden equivocado")
+    T.False(breakers.On[3], "saltó todo")
+    for _, index in ipairs({3, 1, 4}) do
+        T.Equal(PuzzleRules.Breakers.Apply(breakers, "Flip", index), "Ok", "en orden")
+    end
+    T.Equal(PuzzleRules.Breakers.Apply(breakers, "Flip", 2), "Solved", "tablero")
+
+    -- Válvulas: pasarse de presión es un error; el camino corto las equilibra.
+    local valves = PuzzleRules.Valves.New({}, rng)
+    valves.Gauges = {8, 4, 4}
+    T.Equal(PuzzleRules.Valves.Apply(valves, "Turn", 1, 1), "Wrong", "sobrepresión")
+    T.Equal(serialize(valves.Gauges), serialize({8, 4, 4}), "no se aplicó")
+    local scrambled = PuzzleRules.Valves.New({}, rng)
+    local moves = Bot.ValveMoves(PuzzleRules.Valves.View(scrambled))
+    T.True(moves ~= nil and #moves > 0, "siempre tiene solución")
+    for index, move in ipairs(moves) do
+        outcome = PuzzleRules.Valves.Apply(scrambled, "Turn", move[1], move[2])
+        T.Equal(outcome, index == #moves and "Solved" or "Ok", "giro " .. index)
+    end
+
+    -- Clave: el error bloquea el teclado un rato, aunque después llegue la correcta.
+    local keypad = PuzzleRules.Keypad.New({Code = "0315"}, rng)
+    T.Equal(PuzzleRules.Keypad.Apply(keypad, "Submit", "1234", nil, 10), "Wrong", "clave equivocada")
+    T.Equal(PuzzleRules.Keypad.Apply(keypad, "Submit", "0315", nil, 10.5), "Blocked", "bloqueado")
+    T.Equal(PuzzleRules.Keypad.Apply(keypad, "Submit", "0315", nil, 10 + PuzzleConfig.Keypad.Lockout + 0.1), "Solved", "clave")
+    local random = PuzzleRules.Keypad.New({}, rng)
+    T.True(string.match(random.Code, "^%d%d%d%d$") ~= nil, "clave al azar de 4 números")
+
+    -- Tablero de distribución: arranca cortado y el camino del bot lo conecta.
+    for seed = 1, 25 do
+        local power = PuzzleRules.Power.New({}, Engine.RandomClass.new(seed))
+        T.False(select(2, PuzzleRules.PowerFlow(power)), "arranca cortado")
+        local view = PuzzleRules.Power.View(power)
+        local targets = Bot.PowerTargets(Engine, view)
+        T.True(targets ~= nil, "tiene solución " .. seed)
+        local last = nil
+        for cell, rotation in pairs(targets) do
+            for _ = 1, (rotation - power.Tiles[cell].Rot) % 4 do
+                if last ~= "Solved" then
+                    last = PuzzleRules.Power.Apply(power, "Rotate", cell)
+                end
+            end
+        end
+        T.Equal(last, "Solved", "se resuelve " .. seed)
+        T.True(select(2, PuzzleRules.PowerFlow(power)), "corriente conectada " .. seed)
+    end
+
+    -- Señal: un error pide empezar de nuevo con otra señal.
+    local simon = PuzzleRules.Simon.New({}, rng)
+    local first = simon.Sequence[1]
+    T.Equal(PuzzleRules.Simon.Apply(simon, "Press", first % 4 + 1), "Wrong", "botón equivocado")
+    T.Equal(simon.Round, 1, "vuelve a la primera señal")
+    local guard = 0
+    repeat
+        guard += 1
+        local view = PuzzleRules.Simon.View(simon)
+        outcome = PuzzleRules.Simon.Apply(simon, "Press", view.Show[view.Position + 1])
+    until outcome == "Solved" or guard > 20
+    T.Equal(outcome, "Solved", "señal completa")
+
+    -- Recuerdos: la vista nunca muestra una foto boca abajo.
+    local memory = PuzzleRules.Memory.New({}, rng)
+    for _, card in ipairs(PuzzleRules.Memory.View(memory).Cards) do
+        T.Equal(card.Symbol, "", "fotos ocultas")
+    end
+    T.Equal(PuzzleRules.Memory.Apply(memory, "Flip", 1), "Ok", "primera foto")
+    T.Equal(PuzzleRules.Memory.Apply(memory, "Flip", 1), "Blocked", "la misma foto dos veces")
+    local byPair = {}
+    for index, symbol in ipairs(memory.Cards) do
+        byPair[symbol] = byPair[symbol] or {}
+        table.insert(byPair[symbol], index)
+    end
+    table.clear(memory.Revealed)
+    for _, indexes in pairs(byPair) do
+        PuzzleRules.Memory.Apply(memory, "Flip", indexes[1])
+        outcome = PuzzleRules.Memory.Apply(memory, "Flip", indexes[2])
+    end
+    T.Equal(outcome, "Solved", "todos los pares")
+
+    -- Palancas: separadas no alcanzan; juntas sí.
+    local levers = PuzzleRules.Levers.New({})
+    T.Equal(PuzzleRules.Levers.Pull(levers, 1, 0, 2), "Ok", "una sola")
+    T.Equal(PuzzleRules.Levers.Pull(levers, 2, 5, 2), "Ok", "la otra, tarde")
+    T.Equal(PuzzleRules.Levers.Pull(levers, 1, 6, 2), "Solved", "las dos a la vez")
+    T.Equal(PuzzleRules.Levers.Pull(levers, 3, 6, 2), "Invalid", "palanca inexistente")
+end)
+
+-- Cada tipo, de punta a punta por el remoto: mal formadas ignoradas, errores
+-- rechazados y la solución completa el objetivo.
+local REMOTE_CASES = {
+    {
+        Kind = "Wires", Chapter = 1, Objective = "C1_WIRES", Id = "WIRES_C1",
+        Wrong = function(view)
+            for right, color in ipairs(view.Right) do
+                if color ~= view.Left[1] then
+                    return {"Connect", 1, right}
+                end
+            end
+            return nil
+        end,
+        Malformed = {{"Connect", 0, 1}, {"Connect", 1.5, 1}, {"Connect", 0 / 0, 2}, {"Connect", 99, 1}, {"Connect", "1", "2"}, {"Cut", 1, 1}},
+    },
+    {
+        Kind = "Breakers", Chapter = 1, Objective = "C1_BREAKERS", Id = "BREAKERS_C1",
+        Setup = function()
+            gameState().SetFlag("POWER")
+        end,
+        Wrong = function()
+            return {"Flip", 1}
+        end,
+        Malformed = {{"Flip", 0}, {"Flip", 5}, {"Flip", -1}, {"Flip", math.huge}, {"Flip", "3"}},
+    },
+    {
+        Kind = "Keypad", Chapter = 2, Objective = "C2_CODE", Id = "KEYPAD_C2",
+        Wrong = function(_, state)
+            return {"Submit", state.Code == "1111" and "2222" or "1111"}
+        end,
+        Malformed = {{"Submit", "12"}, {"Submit", "12345"}, {"Submit", "12a4"}, {"Submit", 1234}, {"Submit", "123456789"}},
+    },
+    {
+        Kind = "Simon", Chapter = 2, Objective = "C2_RECORDING", Id = "TERM_RECORD",
+        Setup = function(players)
+            Engine.RequireServer("Inventory.InventoryService").AddItem(players[1], "Radio", 1)
+        end,
+        Wrong = function(view)
+            return {"Press", view.Show[1] % 4 + 1}
+        end,
+        Malformed = {{"Press", 0}, {"Press", 5}, {"Press", 2.5}, {"Press", "1"}},
+    },
+    {
+        Kind = "Valves", Chapter = 3, Objective = "C3_PRESSURE", Id = "VALVES_C3",
+        Wrong = function(view)
+            for valve, effects in ipairs(view.Effects) do
+                for _, direction in ipairs({1, -1}) do
+                    for gauge, change in ipairs(effects) do
+                        local value = view.Gauges[gauge] + change * direction
+                        if value < 0 or value > view.Max then
+                            return {"Turn", valve, direction}
+                        end
+                    end
+                end
+            end
+            return nil
+        end,
+        Malformed = {{"Turn", 1, 0}, {"Turn", 1, 2}, {"Turn", 4, 1}, {"Turn", 1, 0.5}, {"Turn", "1", 1}},
+    },
+    {
+        Kind = "Power", Chapter = 4, Objective = "C4_ROUTE", Id = "ROUTE_C4",
+        Malformed = {{"Rotate", 0}, {"Rotate", 13}, {"Rotate", 1.2}, {"Rotate", "3"}},
+    },
+    {
+        Kind = "Keypad", Chapter = 4, Objective = "C4_UNLOCK", Id = "CORE_LOCK",
+        Wrong = function()
+            return {"Submit", "9999"}
+        end,
+        Malformed = {{"Submit", "315"}, {"Submit", "0315 "}, {"Submit", 315}},
+    },
+    {
+        Kind = "Memory", Chapter = 5, Objective = "C5_PHOTO", Id = "MEMORY_C5",
+        Setup = function(players)
+            Engine.RequireServer("Inventory.InventoryService").AddItem(players[1], "MemoryShard", 3)
+        end,
+        Malformed = {{"Flip", 0}, {"Flip", 13}, {"Flip", 1.5}, {"Flip", "2"}},
+    },
+}
+
+for _, case in ipairs(REMOTE_CASES) do
+    T.Test(string.format("prueba %s (%s): el servidor valida cada jugada y completa el objetivo", case.Kind, case.Id), function()
+        local players = puzzleMatch(case.Chapter)
+        local player = players[1]
+        local Puzzles = Engine.RequireServer("Puzzles.PuzzleService")
+        skipTo(case.Objective)
+        if case.Setup then
+            case.Setup(players)
+        end
+
+        -- Sin panel abierto no hay jugada que valga, ni "ya la resolví".
+        Bot.Fire(Engine, player, "PuzzleAction", case.Id, "Solve")
+        Bot.Fire(Engine, player, "PuzzleAction", case.Id, "Submit", "0315")
+        Engine.Run(0.2)
+        T.False(Puzzles.IsSolved(case.Id), "sin abrir no se resuelve")
+
+        local session = openPuzzle(player, case.Id)
+        T.True(session ~= nil and session.Event == "Open", "panel abierto")
+        T.Equal(session.Type, case.Kind, "tipo")
+        local puzzle = Puzzles.Get(case.Id)
+        local before = serialize(Engine.RequireServer("Puzzles.PuzzleRules")[case.Kind].View(puzzle.State, 0))
+
+        for _, bad in ipairs(case.Malformed) do
+            Bot.Fire(Engine, player, "PuzzleAction", case.Id, bad[1], bad[2], bad[3])
+            Engine.Run(0.15)
+        end
+        Bot.Fire(Engine, player, "PuzzleAction", case.Id, "Solve")
+        Bot.Fire(Engine, player, "PuzzleAction", {}, "Connect", 1, 1)
+        Engine.Run(0.3)
+        T.Equal(serialize(Engine.RequireServer("Puzzles.PuzzleRules")[case.Kind].View(puzzle.State, 0)), before, "mal formadas sin efecto")
+        T.False(puzzle.Solved, "no se resolvió con basura")
+
+        if case.Wrong then
+            local wrong = case.Wrong(session.View, puzzle.State)
+            if wrong then
+                local noisesBefore = #Engine.RequireServer("AI.NoiseService").Recent()
+                Bot.Fire(Engine, player, "PuzzleAction", case.Id, wrong[1], wrong[2], wrong[3])
+                Engine.Run(0.1)
+                local reply = Bot.PuzzleSession(Engine, player, case.Id)
+                T.Equal(reply.Event, "Wrong", "error rechazado")
+                T.True(typeof(reply.Message) == "string" and #reply.Message > 0, "aviso del error")
+                T.True(#Engine.RequireServer("AI.NoiseService").Recent() > noisesBefore, "el error hace ruido")
+                T.False(gameState().Tracker:IsDone(case.Objective), "el error no completa nada")
+                -- La clave equivocada bloquea el teclado: se espera antes de seguir.
+                Engine.Run(PuzzleConfig.Keypad.Lockout + 0.5)
+            end
+        end
+
+        T.True(solveWithBot(player, case.Objective), "el objetivo se completa")
+        T.True(Puzzles.IsSolved(case.Id), "prueba resuelta en el servidor")
+        T.NoEngineErrors(Engine)
+    end)
+end
+
+T.Test("el panel se cierra si el jugador se aleja y no acepta jugadas a distancia", function()
+    local players = puzzleMatch(1)
+    local player = players[1]
+    local Puzzles = Engine.RequireServer("Puzzles.PuzzleService")
+    skipTo("C1_WIRES")
+    local session = openPuzzle(player, "WIRES_C1")
+    T.Equal(session.Event, "Open", "abierto")
+
+    Bot.MoveTo(Engine, player, Vector3.new(5000, 3, 5000))
+    local color = session.View.Left[1]
+    Bot.Fire(Engine, player, "PuzzleAction", "WIRES_C1", "Connect", 1, table.find(session.View.Right, color))
+    Engine.Run(0.2)
+    T.Equal(Bot.PuzzleSession(Engine, player, "WIRES_C1").Event, "Close", "se cerró por distancia")
+    T.Equal(next(Puzzles.Get("WIRES_C1").State.Links), nil, "la jugada a distancia no cuenta")
+    T.Equal(Puzzles.SessionOf(player), nil, "sin sesión")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("palancas: con compañeros hay que bajarlas a la vez; solo, alcanza con correr", function()
+    local players = puzzleMatch(3, 2)
+    local Puzzles = Engine.RequireServer("Puzzles.PuzzleService")
+    local Mechanisms = Engine.RequireServer("World.MechanismService")
+    skipTo("C3_PURGE")
+    local positions = Mechanisms.PositionsFor("LEVERS_C3")
+    T.Equal(#positions, 2, "dos palancas en el mapa")
+
+    Bot.Use(Engine, players[1], positions[1])
+    Engine.Run(PuzzleConfig.Levers.TeamWindow + 0.5)
+    Bot.Use(Engine, players[2], positions[2])
+    Engine.Run(0.2)
+    T.False(Puzzles.IsSolved("LEVERS_C3"), "separadas en el tiempo no alcanza")
+    Engine.Run(PuzzleConfig.Levers.TeamWindow + 0.5)
+
+    Bot.Use(Engine, players[1], positions[1])
+    Engine.Run(0.3)
+    Bot.Use(Engine, players[2], positions[2])
+    Engine.Run(0.3)
+    T.True(Puzzles.IsSolved("LEVERS_C3"), "juntas sí")
+    T.True(gameState().Tracker:IsDone("C3_PURGE"), "objetivo")
+
+    -- Con un compañero ausente, el mecanismo termina cediendo: nadie queda trabado.
+    local absent = puzzleMatch(5, 2)
+    skipTo("C5_DOOR")
+    local switches = Engine.RequireServer("World.MechanismService").PositionsFor("LAMPS_C5")
+    Bot.Use(Engine, absent[1], switches[1])
+    Engine.Run(PuzzleConfig.Levers.TeamGrace + 1)
+    Bot.Use(Engine, absent[1], switches[1])
+    Engine.Run(6)
+    Bot.Use(Engine, absent[1], switches[2])
+    Engine.Run(0.3)
+    T.True(gameState().Tracker:IsDone("C5_DOOR"), "un solo jugador lo logra tras la espera")
+
+    -- Solo: tiene tiempo de correr de una palanca a la otra.
+    local solo = puzzleMatch(5, 1)
+    skipTo("C5_DOOR")
+    local lamps = Engine.RequireServer("World.MechanismService").PositionsFor("LAMPS_C5")
+    Bot.Use(Engine, solo[1], lamps[1])
+    Engine.Run(8)
+    T.False(Engine.RequireServer("Puzzles.PuzzleService").IsSolved("LAMPS_C5"), "falta la otra")
+    Bot.Use(Engine, solo[1], lamps[2])
+    Engine.Run(0.3)
+    T.True(gameState().Tracker:IsDone("C5_DOOR"), "solo también se puede")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("la pista pintada aparece primero en la radio y le enseña la clave a quien la lee", function()
+    local players = puzzleMatch(2)
+    local Puzzles = Engine.RequireServer("Puzzles.PuzzleService")
+    local Mechanisms = Engine.RequireServer("World.MechanismService")
+    skipTo("C2_CODE")
+    local positions = Mechanisms.PositionsFor("KEYPAD_C2")
+    T.Equal(#positions, 2, "pista y teclado")
+
+    Bot.Use(Engine, players[1], positions[1])
+    Engine.Run(0.2)
+    local clue = nil
+    for index = #Engine.Sent, 1, -1 do
+        local entry = Engine.Sent[index]
+        if entry.Name == "PuzzleUpdate" and entry.Args[1].Event == "Clue" then
+            clue = entry.Args[1]
+            break
+        end
+    end
+    T.True(clue ~= nil, "la pista llega a quien la lee")
+    T.Equal(clue.Code, Puzzles.Get("KEYPAD_C2").State.Code, "la clave pintada es la real")
+    T.True(Puzzles.IsClueRead("KEYPAD_C2"), "pista leída")
+    T.Equal(#Mechanisms.PositionsFor("KEYPAD_C2"), 1, "la radio ya apunta sólo al teclado")
+    local update = Engine.LastSent("ObjectiveUpdate")[1]
+    T.Equal(update.Puzzle, "Keypad", "el objetivo dice qué prueba es")
+    T.True(typeof(update.Hint) == "string", "con su pista")
+end)
+
+T.Test("una prueba que abre una compuerta dispara la cinemática y protege al grupo", function()
+    local players = puzzleMatch(1, 1, {Monsters = true})
+    local player = players[1]
+    local Gates = Engine.RequireServer("Puzzles.GateService")
+    local Monsters = Engine.RequireServer("Monsters.MonsterService")
+    skipTo("C1_WIRES")
+
+    local gate = gameState().Plan.Gates[1]
+    T.Equal(gate.Id, "ELEVATOR_GATE", "compuerta del ascensor")
+    T.False(Gates.IsOpen("ELEVATOR_GATE"), "cerrada")
+    T.True(gameState().Nav:IsBlocked(gate.A, gate.B), "traba a las criaturas")
+    local sentBefore = Engine.CountRemote and (Engine.Remotes.Cinematic or 0) or 0
+
+    T.True(solveWithBot(player, "C1_WIRES"), "cables resueltos")
+    Engine.Run(0.1)
+    T.True(Gates.IsOpen("ELEVATOR_GATE"), "se abrió")
+    T.False(gameState().Nav:IsBlocked(gate.A, gate.B), "paso libre")
+    T.True((Engine.Remotes.Cinematic or 0) > sentBefore, "se mandó la cinemática")
+
+    local scene = Engine.LastSent("Cinematic", player)[1]
+    T.Equal(scene.Kind, "DoorOpen", "escena de puerta")
+    T.True(scene.Duration >= 2 and scene.Duration <= 3, "dura entre 2 y 3 segundos")
+    T.Equal(scene.Label, "Compuerta del ascensor", "nombre de la compuerta")
+    T.True((scene.Focus - (scene.To)).Magnitude > 5, "la cámara mira la compuerta desde afuera")
+    T.True(Monsters.IsPaused(), "criaturas quietas durante la escena")
+    T.True(player.Character:FindFirstChild("NocturnaCinematicShield") ~= nil, "jugador protegido")
+
+    Engine.Run(scene.Duration + 1)
+    T.False(Monsters.IsPaused(), "las criaturas vuelven")
+    T.True(player.Character:FindFirstChild("NocturnaCinematicShield") == nil, "sin protección después")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("abrir la puerta de investigación con la tarjeta también tiene su cinemática", function()
+    local players = puzzleMatch(2)
+    skipTo("C2_DOOR")
+    Engine.RequireServer("Inventory.InventoryService").AddItem(players[1], "Keycard", 1)
+    Bot.Use(Engine, players[1], Engine.RequireServer("World.DoorService").PositionOf("RESEARCH_DOOR"))
+    Engine.Run(0.3)
+    T.True(gameState().Tracker:IsDone("C2_DOOR"), "puerta abierta")
+    local scene = Engine.LastSent("Cinematic", players[1])
+    T.True(scene ~= nil, "cinemática")
+    T.Equal(scene[1].Label, "Sector de investigación", "encuadra esa puerta")
+end)
+
+T.Test("cliente: la cinemática toma la cámara con franjas y siempre la devuelve", function()
+    local players = puzzleMatch(1, 1, {Client = true})
+    local player = players[1]
+    skipTo("C1_WIRES")
+    T.True(solveWithBot(player, "C1_WIRES"), "cables resueltos")
+    Engine.Run(0.2)
+
+    local camera = Engine.Workspace.CurrentCamera
+    local root = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaCinematic"):FindFirstChild("Root")
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Scriptable, "cámara de la escena")
+    T.True(Engine.RenderBindings.NocturnaCinematic ~= nil, "la escena mueve la cámara")
+    T.True(root:FindFirstChild("TopBar").Size.Y.Scale > 0, "franjas visibles")
+
+    Engine.Run(4)
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Custom, "cámara devuelta")
+    T.True(Engine.RenderBindings.NocturnaCinematic == nil, "sin escena activa")
+    T.Equal(root:FindFirstChild("TopBar").Size.Y.Scale, 0, "franjas guardadas")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente táctil: los cables se conectan tocando el cable y su borne", function()
+    local players = puzzleMatch(1, 1, {Client = true, Touch = true, Viewport = roblox.Vector2.new(812, 375)})
+    local player = players[1]
+    skipTo("C1_WIRES")
+    openPuzzle(player, "WIRES_C1")
+    Engine.Run(0.2)
+
+    local panel = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaPuzzle"):FindFirstChild("Root"):FindFirstChild("PuzzlePanel")
+    T.True(panel.Visible, "panel abierto")
+
+    for _ = 1, PuzzleConfig.Wires.Count do
+        local board = panel:FindFirstChild("Board")
+        local pending = nil
+        for index = 1, PuzzleConfig.Wires.Count do
+            local left = board:FindFirstChild("Left" .. index)
+            if left and not string.find(left.Text, "listo", 1, true) then
+                pending = left
+                break
+            end
+        end
+        if not pending then
+            break
+        end
+        local name = string.match(pending.Text, "^(%S+)")
+        T.True(pending.Size.X.Offset >= 44 and pending.Size.Y.Offset >= 44, "botón cómodo para el dedo")
+        Engine.GuiInput(pending, "Activated")
+        Engine.Run(0.05)
+        board = panel:FindFirstChild("Board")
+        for index = 1, PuzzleConfig.Wires.Count do
+            local right = board:FindFirstChild("Right" .. index)
+            if right and string.find(right.Text, "Borne " .. name, 1, true) then
+                Engine.GuiInput(right, "Activated")
+                break
+            end
+        end
+        Engine.Run(0.2)
+    end
+
+    T.True(gameState().Tracker:IsDone("C1_WIRES"), "resuelto con toques")
+    Engine.Run(2)
+    T.False(panel.Visible, "el panel se cierra solo")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("los diálogos duran 10 segundos y ninguna línea es demasiado larga para leerla", function()
+    local Story = Engine.RequireServer("Story.StoryService")
+    T.Equal(Story.LineTime(), 10, "segundos por línea")
+
+    local function check(line, where)
+        T.True(typeof(line.Text) == "string" and #line.Text > 0, "texto en " .. where)
+        T.True(utf8.len(line.Text) <= 130, "línea larga en " .. where .. ": " .. line.Text)
+        T.True(typeof(line.Speaker) == "string", "quién habla en " .. where)
+    end
+    for index = 1, 5 do
+        local chapter = ChapterConfig[index]
+        for _, line in ipairs(chapter.Intro) do
+            check(line, "intro " .. index)
+        end
+        for _, line in ipairs(chapter.Outro or {}) do
+            check(line, "cierre " .. index)
+        end
+        for _, objective in ipairs(chapter.Objectives) do
+            for _, line in ipairs(objective.OnComplete and objective.OnComplete.Dialogue or {}) do
+                check(line, objective.Id)
+            end
+        end
+    end
+    -- El prólogo se lee a 4,5 segundos por tarjeta: frases cortas.
+    for _, line in ipairs(ChapterConfig.Prologue) do
+        T.True(utf8.len(line) <= 80, "prólogo largo: " .. line)
+    end
+    -- La cuenta de la radio avanza capítulo a capítulo hasta el cuatro.
+    for index, word in ipairs({"uno", "dos", "tres", "cuatro"}) do
+        local outro = ChapterConfig[index].Outro
+        T.True(string.find(outro[#outro].Text, word, 1, true) ~= nil, "la radio cuenta " .. word)
+    end
+end)
+
+T.Test("la cola de diálogos no frena el juego: descarta lo viejo y el cierre entra enseguida", function()
+    puzzleMatch(1)
+    local Story = Engine.RequireServer("Story.StoryService")
+    Engine.Run(35)
+
+    local lines = {}
+    for index = 1, 6 do
+        table.insert(lines, {Speaker = "Vos", Text = "L" .. index})
+    end
+    Story.PlayDialogue(lines)
+    Engine.Run(0.1)
+    local sentLine = Engine.LastSent("StoryDialogue")[1]
+    T.Equal(sentLine.Duration, 10, "el cliente recibe la duración")
+    T.True(Story.PendingLines() <= 4, "la cola no crece sin límite")
+
+    -- El objetivo avanza aunque haya diálogo pendiente.
+    local tracker = gameState().Tracker
+    Story.SkipObjective()
+    Engine.Run(0.1)
+    T.True(tracker.Index >= 2, "el juego sigue")
+
+    -- Al cerrar el capítulo lo pendiente se descarta y el cierre se muestra ya.
+    gameState().Phase = "Cutscene"
+    Story.PlayDialogue({{Speaker = "Radio", Text = "...uno..."}})
+    Engine.Run(0.1)
+    T.Equal(Engine.LastSent("StoryDialogue")[1].Text, "...uno...", "el cierre no espera")
+    T.Equal(Story.PendingLines(), 0, "nada viejo en la cola")
+    gameState().Phase = "Playing"
+
+    -- Un capítulo nuevo descarta lo que quedaba.
+    Story.PlayDialogue(lines)
+    Story.Stop()
+    T.Equal(Story.PendingLines(), 0, "cola vacía al cortar")
+    local before = Engine.Remotes.StoryDialogue or 0
+    Engine.Run(25)
+    T.Equal(Engine.Remotes.StoryDialogue or 0, before, "no siguen llegando líneas viejas")
+end)
+
 local failed = T.Summary()
 process.exit(failed > 0 and 1 or 0)

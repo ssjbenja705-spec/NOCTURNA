@@ -50,6 +50,7 @@ local MODULES = {
     {"UI", "WakeUp"},
     {"UI", "CutsceneUI"},
     {"UI", "AdminUI"},
+    {"UI", "PuzzleUI"},
     {"Movement", "MovementInput"},
     {"UI", "MobileControls"},
     {"Camera", "FirstPerson"},
@@ -58,6 +59,7 @@ local MODULES = {
     {"Effects", "MonsterAnimator"},
     {"Effects", "QualityController"},
     {"Lobby", "LobbyAmbience"},
+    {"Effects", "Cinematics"},
 }
 
 for _, path in ipairs(MODULES) do

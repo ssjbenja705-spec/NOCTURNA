@@ -147,6 +147,7 @@ local VIRTUAL_CLASSES = {
     CollectionService = true, TweenService = true, RunService = true, Debris = true,
     TextService = true, UserInputService = true, GlobalDataStore = true, Tween = true,
     TeleportService = true, MarketplaceService = true,
+    GuiService = true,
 }
 
 local function classChain(className)
@@ -965,9 +966,22 @@ function Engine.Reset(options)
     rawset(runService, "IsStudio", function()
         return options.Studio == true
     end)
-    rawset(runService, "BindToRenderStep", function(_, _, _, callback)
-        signalFor(dataOf(runService), "RenderStepped"):Connect(callback)
+    local renderBindings = {}
+    rawset(runService, "BindToRenderStep", function(_, name, _, callback)
+        local connection = signalFor(dataOf(runService), "RenderStepped"):Connect(callback)
+        if renderBindings[name] then
+            renderBindings[name].Disconnect()
+        end
+        renderBindings[name] = connection
     end)
+    rawset(runService, "UnbindFromRenderStep", function(_, name)
+        local connection = renderBindings[name]
+        if connection then
+            connection.Disconnect()
+            renderBindings[name] = nil
+        end
+    end)
+    Engine.RenderBindings = renderBindings
 
     rawset(players, "GetPlayers", function()
         return players:GetChildren()

@@ -1,4 +1,4 @@
--- Generadores, terminales, válvulas, Núcleo y salidas de cada capítulo.
+-- Generadores, terminales, válvulas, Núcleo, salidas y pruebas de cada capítulo.
 local Shared = game:GetService("ReplicatedStorage").Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local ItemConfig = require(Shared.Config.ItemConfig)
@@ -8,6 +8,8 @@ local NoiseService = require(script.Parent.Parent.AI.NoiseService)
 local EventBus = require(script.Parent.Parent.Core.EventBus)
 local GameState = require(script.Parent.Parent.Core.GameState)
 local InventoryService = require(script.Parent.Parent.Inventory.InventoryService)
+local GateService = require(script.Parent.Parent.Puzzles.GateService)
+local PuzzleService = require(script.Parent.Parent.Puzzles.PuzzleService)
 local FeatureBuilder = require(script.Parent.FeatureBuilder)
 local InteractionService = require(script.Parent.InteractionService)
 local RoomGenerator = require(script.Parent.RoomGenerator)
@@ -22,17 +24,21 @@ local function deny(player, text)
     Remotes.FireClient("StoryNotice", player, text)
 end
 
-local function finish(mechanism, player)
-    local feature = mechanism.Feature
+local function disable(mechanism)
     mechanism.Done = true
     mechanism.Prompt.Enabled = false
     if mechanism.Indicator then
         mechanism.Indicator.Color = DONE_COLOR
     end
+end
+
+local function finish(mechanism, player)
+    local feature = mechanism.Feature
+    disable(mechanism)
 
     if feature.Flag then
         GameState.SetFlag(feature.Flag)
-        EventBus.Emit("FlagSet", feature.Flag)
+        EventBus.Emit("FlagSet", feature.Flag, player)
     end
 
     if feature.CountFlag then
@@ -40,7 +46,7 @@ local function finish(mechanism, player)
         flagCounts[flag.Name] = (flagCounts[flag.Name] or 0) + 1
         if flagCounts[flag.Name] >= flag.Needed then
             GameState.SetFlag(flag.Name)
-            EventBus.Emit("FlagSet", flag.Name)
+            EventBus.Emit("FlagSet", flag.Name, player)
         end
     end
 
@@ -137,6 +143,23 @@ local function useExit(mechanism, player)
     finish(mechanism, player)
 end
 
+-- Las pruebas pueden pedir un objeto del grupo para abrirse (sin gastarlo).
+local function usePuzzle(mechanism, player)
+    local feature = mechanism.Feature
+    if feature.RequiredItem then
+        local amount = feature.RequiredAmount or 1
+        if InventoryService.CountParty(feature.RequiredItem) < amount then
+            deny(player, feature.DeniedText or ("Falta: " .. ItemConfig[feature.RequiredItem].DisplayName))
+            return
+        end
+    end
+    PuzzleService.Interact(player, feature, mechanism.Prompt)
+end
+
+local function readClue(mechanism, player)
+    PuzzleService.ReadClue(player, mechanism.Feature)
+end
+
 local HANDLERS = {
     Generator = useGenerator,
     Terminal = useTerminal,
@@ -144,6 +167,8 @@ local HANDLERS = {
     Core = useCore,
     Exit = useExit,
     Sister = useExit,
+    Puzzle = usePuzzle,
+    Clue = readClue,
 }
 
 local BUILDERS = {
@@ -153,7 +178,27 @@ local BUILDERS = {
     Core = FeatureBuilder.Core,
     Exit = FeatureBuilder.Exit,
     Sister = FeatureBuilder.Sister,
+    Puzzle = PuzzleService.Build,
+    Clue = PuzzleService.BuildClue,
 }
+
+-- Una prueba resuelta completa su mecanismo. Si tiene varias piezas (dos
+-- palancas), cuenta una sola vez y las demás quedan fuera de uso.
+PuzzleService.OnSolved(function(key, player)
+    local first = nil
+    for _, mechanism in ipairs(mechanisms) do
+        if mechanism.PuzzleKey == key and not mechanism.Done then
+            if first then
+                disable(mechanism)
+            else
+                first = mechanism
+            end
+        end
+    end
+    if first then
+        finish(first, player)
+    end
+end)
 
 function MechanismService.Populate(plan, map)
     table.clear(mechanisms)
@@ -162,6 +207,8 @@ function MechanismService.Populate(plan, map)
     local folder = Instance.new("Folder")
     folder.Name = "Mechanisms"
     folder.Parent = map
+
+    PuzzleService.Prepare(plan)
 
     for _, feature in ipairs(plan.Features) do
         local cframe = RoomGenerator.SlotCFrame(plan.Layout, feature.Cell, feature.Slot)
@@ -173,6 +220,7 @@ function MechanismService.Populate(plan, map)
             Indicator = indicator,
             Inserted = 0,
             Done = false,
+            PuzzleKey = feature.Kind == "Puzzle" and PuzzleService.KeyFor(feature) or nil,
         }
         table.insert(mechanisms, mechanism)
 
@@ -183,23 +231,54 @@ function MechanismService.Populate(plan, map)
             HANDLERS[feature.Kind](mechanism, player)
         end)
     end
+
+    GateService.Populate(plan, folder)
 end
 
 function MechanismService.Clear()
     table.clear(mechanisms)
     table.clear(flagCounts)
+    PuzzleService.Clear()
+    GateService.Clear()
 end
 
--- Posiciones pendientes de un objetivo, por Id o por grupo.
+local function matches(feature, target)
+    return feature.Id == target or feature.Group == target
+end
+
+-- Posiciones pendientes de un objetivo, por Id o por grupo. Si la prueba tiene una
+-- pista pintada que nadie leyó, la pista va primero.
 function MechanismService.PositionsFor(target)
     local result = {}
+    local clueFor = {}
     for _, mechanism in ipairs(mechanisms) do
         local feature = mechanism.Feature
-        if not mechanism.Done and (feature.Id == target or feature.Group == target) then
+        if not mechanism.Done and matches(feature, target) then
             table.insert(result, mechanism.Model.PrimaryPart.Position)
+            if mechanism.PuzzleKey then
+                clueFor[mechanism.PuzzleKey] = true
+            end
+        end
+    end
+
+    for _, mechanism in ipairs(mechanisms) do
+        local feature = mechanism.Feature
+        if feature.Kind == "Clue" and clueFor[feature.For] and not PuzzleService.IsClueRead(feature.For) then
+            table.insert(result, 1, mechanism.Model.PrimaryPart.Position)
         end
     end
     return result
+end
+
+-- Tipo e identificador de la prueba que resuelve un objetivo, si la hay.
+function MechanismService.PuzzleFor(target)
+    for _, mechanism in ipairs(mechanisms) do
+        local feature = mechanism.Feature
+        if mechanism.PuzzleKey and matches(feature, target) then
+            return feature.Puzzle, mechanism.PuzzleKey
+        end
+    end
+    return nil, nil
 end
 
 return MechanismService
