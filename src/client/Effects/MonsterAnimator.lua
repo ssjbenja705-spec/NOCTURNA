@@ -130,7 +130,7 @@ local function addRig(model)
     end
 
     local kind = model:GetAttribute("Kind") or model.Name
-    local rig = {
+    local rig: {[string]: any} = {
         Model = model,
         Root = root,
         Kind = kind,
