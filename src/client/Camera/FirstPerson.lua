@@ -97,6 +97,18 @@ local function updateFieldOfView(deltaTime, camera)
     camera.FieldOfView += (target - camera.FieldOfView) * math.min(1, deltaTime * 6)
 end
 
+-- La sacudida se aplica después de la cámara de Roblox y se deshace antes del
+-- cuadro siguiente: si no, Roblox parte de la vista sacudida y la mirada se corre.
+local lastShake = nil
+
+local function undoShake()
+    local camera = workspace.CurrentCamera
+    if lastShake and camera then
+        camera.CFrame *= lastShake:Inverse()
+    end
+    lastShake = nil
+end
+
 local function applyShake(camera)
     if os.clock() >= shakeUntil then
         shakeStrength = 0
@@ -105,11 +117,13 @@ local function applyShake(camera)
 
     local remaining = shakeUntil - os.clock()
     local power = shakeStrength * math.clamp(remaining, 0, 1)
-    camera.CFrame *= CFrame.Angles(
+    local rotation = CFrame.Angles(
         random:NextNumber(-1, 1) * power * 0.02,
         random:NextNumber(-1, 1) * power * 0.02,
         random:NextNumber(-1, 1) * power * 0.03
     )
+    camera.CFrame *= rotation
+    lastShake = rotation
 end
 
 -- El servidor sólo conoce el giro del cuerpo. Localmente el haz sigue a la cámara,
@@ -273,6 +287,8 @@ function FirstPerson.Start()
             FirstPerson.ResetCamera()
         end
     end)
+
+    RunService:BindToRenderStep("NocturnaCameraUndoShake", Enum.RenderPriority.Camera.Value - 1, undoShake)
 
     RunService:BindToRenderStep("NocturnaCamera", Enum.RenderPriority.Camera.Value + 1, function(deltaTime)
         local camera = workspace.CurrentCamera
