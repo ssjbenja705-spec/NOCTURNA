@@ -15,6 +15,11 @@
 --   El Coloso: sin boca. La aprieta en su puño con pulsos que crujen.
 -- Gancho: si una criatura trae una pieza Jaw o Tongue (malla futura), se abre y
 -- asoma sola. Una textura de saliva se puede poner en CaptureAnimator.SalivaTexture.
+--
+-- Criaturas con huesos (malla con piel, atributo BoneRig): la misma pose se
+-- escribe en el esqueleto con CreatureBones.Capture (mandíbula, cuello, brazos
+-- con codo y dedos que se cierran, pies que siguen en el piso). Las piezas
+-- invisibles Head y Jaw siguen a sus huesos, así los efectos van en su lugar.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23,6 +28,8 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local CaptureConfig = require(Shared.Config.CaptureConfig)
 local Remotes = require(Shared.Modules.RemoteHelper)
 local AudioController = require(script.Parent.AudioController)
+local CreatureBones = require(script.Parent.CreatureBones)
+local CreatureStyles = require(script.Parent.CreatureStyles)
 
 local VISIBLE_RANGE = 120
 local SALIVA_COLOR = Color3.fromRGB(214, 220, 200)
@@ -56,6 +63,11 @@ local function jointsOf(model)
     local root = model:FindFirstChild("HumanoidRootPart")
     if not root then
         return nil
+    end
+    -- Con huesos no hay piezas que mover (Head y Jaw son guías que siguen al esqueleto).
+    if CreatureBones.IsRig(model) then
+        baseCache[model] = {}
+        return baseCache[model]
     end
 
     local known = {}
@@ -315,6 +327,10 @@ local function poseFor(session, now)
 end
 
 local function applyPose(session, pose)
+    if session.Bones then
+        CreatureBones.Capture(session.Bones, pose, os.clock())
+        return
+    end
     local joints = session.Joints
     local pivot = session.Pivot
     local torso = CFrame.new(0, pose.Crouch + pose.Lift, 0) * CFrame.new(pivot)
@@ -435,6 +451,9 @@ local function stopSession(model)
         session.Drool:Destroy()
     end
     -- Vuelve a la pose de fábrica; MonsterAnimator retoma desde ahí.
+    if session.Bones then
+        CreatureBones.Reset(session.Bones)
+    end
     for _, entry in ipairs(session.Joints) do
         if entry.Joint.Parent then
             entry.Joint.C0 = entry.Base
@@ -471,6 +490,7 @@ local function startSession(model)
         Kind = kind,
         Profile = profile,
         Joints = joints,
+        Bones = CreatureBones.Get(model, CreatureStyles.Get(kind)),
         HeadEntry = headEntry,
         Neck = headEntry and CFrame.new(0, -headEntry.Part.Size.Y * 0.4, 0) or CFrame.identity,
         Pivot = pivot,

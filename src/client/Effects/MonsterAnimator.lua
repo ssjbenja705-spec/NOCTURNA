@@ -23,6 +23,11 @@
 -- Captura: mientras el modelo tenga el atributo AnimOverride, acá no se toca
 -- ningún motor (los anima el sistema de captura); al quitarlo se vuelve a la pose
 -- propia mezclando desde donde quedó.
+--
+-- Criaturas con huesos (atributo BoneRig, malla con piel de
+-- assets/models/rigged): la misma pose (estados, paso, ataque, mirada...) se
+-- escribe en los huesos con CreatureBones, con IK en las piernas (el pie apoyado
+-- queda clavado y la rodilla se dobla), codos, columna y mandíbula reales.
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
@@ -31,6 +36,7 @@ local MonsterConfig = require(Shared:WaitForChild("Config"):WaitForChild("Monste
 
 local CreatureMotion = require(script.Parent:WaitForChild("CreatureMotion"))
 local CreatureStyles = require(script.Parent:WaitForChild("CreatureStyles"))
+local CreatureBones = require(script.Parent:WaitForChild("CreatureBones"))
 
 local Approach = CreatureMotion.Approach
 local Spring = CreatureMotion.Spring
@@ -315,11 +321,49 @@ local function addRig(model)
         rig.AttackPose[channel] = 0
     end
 
+    -- Patas que pisan: fase de cada una (y rengueo) según el estilo.
+    local function setupFoot(entry)
+        table.insert(rig.Feet, entry)
+        local left = entry.Side < 0
+        if style.LegPhase then
+            entry.PhaseOffset = style.LegPhase[entry.Role .. (left and "Left" or "Right")] or 0
+        else
+            entry.PhaseOffset = left and 0 or 0.5 + (style.PhaseLag or 0)
+            entry.DutyBias = (style.Limp or 0) * (left and 1 or -0.5)
+        end
+        entry.IsFoot = true
+    end
+
+    -- Malla con piel y huesos: el esqueleto reemplaza a las piezas.
+    local bones = nil
+    if CreatureBones.IsRig(model) then
+        if not model:FindFirstChild("Body") then
+            model:WaitForChild("Body", 5)
+        end
+        if rigs[model] then
+            return rigs[model]
+        end
+        bones = CreatureBones.Get(model, style)
+    end
+    if bones then
+        rig.Bones = bones
+        rig.Frame = {}
+        rig.LegLength = bones.LegLength
+        rig.Pelvis = bones.Pelvis
+        rig.HeadBase = bones.HeadBase
+        rig.HeadPart = model:FindFirstChild("Head")
+        rig.Neck = CFrame.identity
+        rig.JawMax = bones.HasJaw and style.JawHinged or style.JawCut
+        for _, limb in ipairs(bones.Feet) do
+            setupFoot(limb)
+        end
+    end
+
     -- Piezas unidas a la raíz y, si el modelo las trae, partes bajas (rodillas).
     local lowers = {}
     local legs, legLength = 0, 0
     local pelvis = Vector3.zero
-    for _, joint in ipairs(model:GetDescendants()) do
+    for _, joint in ipairs(bones and {} or model:GetDescendants()) do
         if joint:IsA("Motor6D") and joint.Part1 then
             if joint.Part0 == root then
                 local part = joint.Part1
@@ -344,8 +388,10 @@ local function addRig(model)
             end
         end
     end
-    rig.LegLength = legs > 0 and legLength / legs or 3
-    rig.Pelvis = legs > 0 and pelvis / legs or Vector3.zero
+    if not bones then
+        rig.LegLength = legs > 0 and legLength / legs or 3
+        rig.Pelvis = legs > 0 and pelvis / legs or Vector3.zero
+    end
     rig.Neck = rig.Neck or CFrame.identity
     rig.JawMax = rig.JawMax or style.JawCut
 
@@ -357,15 +403,7 @@ local function addRig(model)
         end
         local isFoot = entry.Role == "Leg" or (style.Quadruped and entry.Role == "Arm")
         if isFoot then
-            table.insert(rig.Feet, entry)
-            local left = entry.Side < 0
-            if style.LegPhase then
-                entry.PhaseOffset = style.LegPhase[entry.Role .. (left and "Left" or "Right")] or 0
-            else
-                entry.PhaseOffset = left and 0 or 0.5 + (style.PhaseLag or 0)
-                entry.DutyBias = (style.Limp or 0) * (left and 1 or -0.5)
-            end
-            entry.IsFoot = true
+            setupFoot(entry)
         end
     end
 
@@ -396,6 +434,9 @@ end
 
 -- Mezcla desde la pose en que quedaron los motores (captura, congelado).
 local function beginResume(rig)
+    if rig.Bones then
+        CreatureBones.BeginResume(rig.Bones)
+    end
     for _, entry in ipairs(rig.Joints) do
         entry.From = entry.Joint.C0
         if entry.Lower then
@@ -576,6 +617,7 @@ local function updateGait(rig, deltaTime, distance, moving)
     rig.Cycle = cycle
     rig.Duty = style.WalkDuty + (style.RunDuty - style.WalkDuty) * rig.Run
     rig.Phase = (rig.Phase + drive / cycle * deltaTime) % 1
+    rig.Drive = drive
 
     -- Pasos: cada pata apoya cuando su ciclo vuelve a empezar.
     for _, entry in ipairs(rig.Feet) do
@@ -1148,6 +1190,38 @@ local function animate(rig, deltaTime, distance)
     local jaw = math.clamp(pose.Jaw + gesture.Jaw, 0, 1)
     local armSwing = style.ArmSwing * gait
     local spread = style.Splay + pose.Spread
+
+    if rig.Bones then
+        -- Malla con huesos: la misma pose, escrita en el esqueleto (con IK).
+        local frame = rig.Frame
+        frame.Style = style
+        frame.DeltaTime = deltaTime
+        frame.Offset = rig.Offset
+        frame.Visual = rig.Visual
+        frame.Shift = hips.Position
+        frame.Lean, frame.Twist, frame.Roll = lean, bodyTwist, bodyRoll
+        frame.Breath = breath * amount
+        frame.HeadPitch, frame.HeadYaw, frame.HeadRoll = rig.HeadPitch, rig.HeadYaw, rig.HeadRoll
+        frame.Jaw = jaw * rig.JawMax
+        frame.ArmsFwd, frame.ArmsOut, frame.GestureOut = pose.ArmsFwd, pose.ArmsOut, gesture.Out
+        frame.Spread, frame.ArmSwing = spread, armSwing
+        frame.LeftS, frame.RightS = leftS, rightS
+        frame.Gait, frame.Phase, frame.Duty, frame.Cycle = gait, rig.Phase, duty, rig.Cycle
+        frame.Drive = rig.Drive or 0
+        frame.Velocity = rig.VisualVelocity
+        frame.Clearance = style.Clearance * 1.6
+        frame.PlateY = rig.PlateY
+        frame.Rattle = math.noise(rig.Seed + 2, rig.Clock * 14) * math.clamp(math.abs(rig.PlateVel) * 0.04, 0, 0.06)
+        frame.TwitchTorso = twitchFor(rig, "Torso", 0)
+        frame.TwitchHead = twitchFor(rig, "Head", 0)
+        frame.TwitchArmLeft = twitchFor(rig, "Arm", -1)
+        frame.TwitchArmRight = twitchFor(rig, "Arm", 1)
+        -- Garras: se cierran al golpear y al forcejear.
+        frame.Claw = 0.2 + 0.5 * math.clamp(rig.AttackPose.ArmsFwd / 1.5, 0, 1) + 0.4 * rig.W.Capture
+        CreatureBones.Animate(rig.Bones, frame)
+        CreatureBones.StepResume(rig.Bones, deltaTime, RESUME_TIME)
+        return
+    end
 
     for _, entry in ipairs(rig.Joints) do
         local role = entry.Role

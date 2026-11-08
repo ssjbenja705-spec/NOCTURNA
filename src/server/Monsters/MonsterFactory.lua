@@ -8,10 +8,15 @@
 --      (ver assets/models/README.md).
 --   3. Una Part simple del mismo tamaño.
 -- Así el juego funciona igual con o sin los modelos importados.
+--
+-- Antes que todo eso, si existe NocturnaModels.<Criatura>Rig (malla con piel y
+-- huesos, ver assets/models/rigged/README.md), la criatura es esa malla entera y
+-- el cliente la anima moviendo los huesos (atributo BoneRig).
 local CollectionService = game:GetService("CollectionService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local CreatureMeshes = require(script.Parent.CreatureMeshes)
+local CreatureRigs = require(script.Parent.CreatureRigs)
 
 local MODELS_FOLDER = "NocturnaModels"
 
@@ -362,13 +367,212 @@ function BUILDERS.ElColoso(model, root)
     end
 end
 
+-- Esqueleto con piel ---------------------------------------------------------------
+-- Si ServerStorage.NocturnaModels tiene <Criatura>Rig (un Model con una MeshPart
+-- con piel y sus huesos, importado de assets/models/rigged/<Criatura>.fbx), la
+-- criatura es esa malla entera, soldada a la raíz, y el cliente mueve los huesos
+-- (CreatureBones). Si no está o le faltan huesos, se arma con piezas como antes.
+
+local REQUIRED_BONES = {"Root", "Hips", "Chest", "Head", "LeftThigh", "LeftShin", "LeftFoot", "RightThigh", "RightShin", "RightFoot"}
+local warnedRig = {}
+
+local function rigTemplate(kind)
+    local folder = ServerStorage:FindFirstChild(MODELS_FOLDER)
+    local template = folder and folder:FindFirstChild(kind .. "Rig")
+    if not (template and template:IsA("Model")) then
+        return nil
+    end
+    local bones = {}
+    local skinned = false
+    for _, item in ipairs(template:GetDescendants()) do
+        if item:IsA("Bone") then
+            bones[item.Name] = true
+        elseif item:IsA("MeshPart") then
+            skinned = true
+        end
+    end
+    local missing = {}
+    for _, name in ipairs(REQUIRED_BONES) do
+        if not bones[name] then
+            table.insert(missing, name)
+        end
+    end
+    if not skinned or #missing > 0 then
+        if not warnedRig[kind] then
+            warnedRig[kind] = true
+            warn("[NOCTURNA] " .. kind .. "Rig no sirve (" .. (skinned and "faltan huesos: " .. table.concat(missing, ", ") or "sin MeshPart")
+                .. "): se arma con piezas.")
+        end
+        return nil
+    end
+    return template
+end
+
+-- CFrame en el mundo de un hueso en reposo (sin Transform): su pieza y la cadena
+-- de huesos hasta él.
+local function boneWorld(bone)
+    local chain = {}
+    local current = bone
+    while current and current:IsA("Bone") do
+        table.insert(chain, 1, current)
+        current = current.Parent
+    end
+    local cframe = (current and current:IsA("BasePart")) and current.CFrame or CFrame.identity
+    for _, item in ipairs(chain) do
+        cframe = cframe * item.CFrame
+    end
+    return cframe
+end
+
+local function findBone(body, name)
+    for _, item in ipairs(body:GetDescendants()) do
+        if item:IsA("Bone") and item.Name == name then
+            return item
+        end
+    end
+    return nil
+end
+
+-- Ejes del esqueleto según sus huesos (no según cómo los ejes de cada hueso o el
+-- frente que dejó el importador): arriba es +Y (el importador siempre deja Y
+-- arriba) y el costado va de la cadera izquierda a la derecha; con eso el frente
+-- queda definido (la criatura mira hacia -Z de esa base, como la raíz).
+local function rigFrame(body)
+    local root = findBone(body, "Root")
+    local left, right = findBone(body, "LeftThigh"), findBone(body, "RightThigh")
+    local origin = boneWorld(root).Position
+    local side = boneWorld(right).Position - boneWorld(left).Position
+    side = Vector3.new(side.X, 0, side.Z)
+    if side.Magnitude < 1e-3 then
+        return nil
+    end
+    return CFrame.fromMatrix(origin, side.Unit, Vector3.yAxis)
+end
+
+-- Pieza invisible que sigue a un hueso (Head, Jaw): la cámara de la captura y los
+-- efectos (luz de la boca, baba) se apoyan en ellas. El cliente mueve su Motor6D.
+local function boneProxy(model, root, body, boneName, name, size)
+    local bone = findBone(body, boneName)
+    if not bone then
+        return nil
+    end
+    local world = boneWorld(bone)
+    local part = Instance.new("Part")
+    part.Name = name
+    part.Size = size
+    part.Transparency = 1
+    part.CanCollide = false
+    part.CanTouch = false
+    part.CanQuery = false
+    part.CastShadow = false
+    part.Massless = true
+    part.Anchored = false
+    -- Centrada sobre el hueso, con los ejes de la raíz.
+    local offset = root.CFrame:ToObjectSpace(CFrame.new(world.Position)) * CFrame.new(0, size.Y * 0.35, 0)
+    part.CFrame = root.CFrame * offset
+    part.Parent = model
+    local joint = Instance.new("Motor6D")
+    joint.Name = name .. "Joint"
+    joint.Part0 = root
+    joint.Part1 = part
+    joint.C0 = offset
+    joint.C1 = CFrame.identity
+    joint:SetAttribute("BoneProxy", boneName)
+    -- Dónde está la pieza respecto del hueso en reposo (en ejes de la raíz).
+    joint:SetAttribute("ProxyOffset", (root.CFrame:Inverse() * world):Inverse() * offset)
+    joint.Parent = part
+    return part
+end
+
+local function buildBoneRig(model, root, kind, template)
+    local body = template:Clone()
+    body.Name = "Body"
+    for _, item in ipairs(body:GetDescendants()) do
+        if item:IsA("Humanoid") or item:IsA("AnimationController") or item:IsA("Script") or item:IsA("LocalScript") then
+            item:Destroy()
+        end
+    end
+
+    -- Escala: el importador puede traerla en otras unidades (100 veces más grande
+    -- si lee centímetros). Se compara la distancia de la raíz a la cabeza con la
+    -- medida en Blender (CreatureRigs).
+    local info = CreatureRigs[kind]
+    local rootBone, headBone = findBone(body, "Root"), findBone(body, "Head")
+    if info and info.Span and rootBone and headBone then
+        local measured = (boneWorld(headBone).Position - boneWorld(rootBone).Position).Magnitude
+        local ratio = measured > 1e-3 and info.Span / measured or 1
+        if math.abs(ratio - 1) > 0.03 then
+            local ok = pcall(function()
+                body:ScaleTo(body:GetScale() * ratio)
+            end)
+            if not ok then
+                warn("[NOCTURNA] No se pudo escalar " .. kind .. "Rig (x" .. string.format("%.3f", ratio) .. ").")
+            end
+        end
+    end
+
+    -- Ubicación: el hueso Root va sobre la raíz, mirando hacia donde mira ella.
+    local frame = rigFrame(body)
+    if not frame then
+        body:Destroy()
+        return false
+    end
+    local folder = ServerStorage:FindFirstChild(MODELS_FOLDER)
+    local turn = folder and (folder:GetAttribute("RigTurnAround") == true) and CFrame.Angles(0, math.pi, 0) or CFrame.identity
+    local move = root.CFrame * turn * frame:Inverse()
+    local parts = {}
+    for _, item in ipairs(body:GetDescendants()) do
+        if item:IsA("BasePart") then
+            table.insert(parts, item)
+        end
+    end
+    for _, part in ipairs(parts) do
+        part.CFrame = move * part.CFrame
+    end
+
+    -- La SurfaceAppearance de la carpeta de la criatura (la de las piezas) viste
+    -- también la malla con piel si el importador no le puso una.
+    local _, set = modelSet(model)
+    local shared = set and set:FindFirstChildWhichIsA("SurfaceAppearance")
+    for _, part in ipairs(parts) do
+        part.Anchored = false
+        part.CanCollide = false
+        part.CanTouch = false
+        part.CanQuery = false
+        part.Massless = true
+        part.CastShadow = false
+        if part:IsA("MeshPart") and shared and not part:FindFirstChildWhichIsA("SurfaceAppearance") then
+            shared:Clone().Parent = part
+        end
+        part:SetAttribute("RigOffset", root.CFrame:Inverse() * part.CFrame)
+        local weld = Instance.new("WeldConstraint")
+        weld.Name = "RigWeld"
+        weld.Part0 = root
+        weld.Part1 = part
+        weld.Parent = part
+    end
+    body.Parent = model
+
+    -- Piezas invisibles para la cámara y los efectos de la cabeza y la boca.
+    local headSize = math.clamp(info and info.HeadSize or 1, 0.6, 2.5)
+    boneProxy(model, root, body, "Head", "Head", Vector3.new(headSize * 0.8, headSize, headSize * 0.9))
+    if findBone(body, "Jaw") then
+        boneProxy(model, root, body, "Jaw", "Jaw", Vector3.new(headSize * 0.45, headSize * 0.3, headSize * 0.4))
+    end
+    model:SetAttribute("BoneRig", true)
+    return true
+end
+
 function MonsterFactory.Build(kind, parent, height)
     local builder = BUILDERS[kind]
     assert(builder, "[NOCTURNA] Criatura sin modelo: " .. tostring(kind))
 
     local model, root = newRoot(parent, kind, height)
     model:SetAttribute("ModelSet", kind)
-    builder(model, root)
+    local template = rigTemplate(kind)
+    if not (template and buildBoneRig(model, root, kind, template)) then
+        builder(model, root)
+    end
     model:SetAttribute("Kind", kind)
     model:SetAttribute("MoveSpeed", 0)
     CollectionService:AddTag(model, "NocturnaMonster")
@@ -380,7 +584,10 @@ function MonsterFactory.BuildMannequin(parent, cframe)
     local model, root = newRoot(parent, "Mannequin", 3.6)
     model:SetAttribute("ModelSet", "ElQuieto")
     root.CFrame = cframe * CFrame.new(0, 3.6, 0)
-    buildMannequinBody(model, root)
+    local template = rigTemplate("ElQuieto")
+    if not (template and buildBoneRig(model, root, "ElQuieto", template)) then
+        buildMannequinBody(model, root)
+    end
     return model
 end
 

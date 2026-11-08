@@ -185,6 +185,8 @@ local function mockNew(className, name)
         -- Lune no lee propiedades Content (MeshId, TextureID): se simulan vacías.
         Values = className == "Sound" and {IsPlaying = false}
             or className == "MeshPart" and {MeshId = "", TextureID = ""}
+            -- Lune no da valor por defecto al Transform de un hueso.
+            or className == "Bone" and {Transform = roblox.CFrame.new()}
             or {},
         Real = real,
         Destroyed = false,
@@ -625,6 +627,20 @@ function MockMeta.__index(self, key)
             return (parent.CFrame * roblox.CFrame.new(offset)).Position
         end
         return offset
+    end
+
+    -- Hueso: su pose en el mundo es la de su padre (hueso o pieza) por su CFrame
+    -- de reposo y su Transform (lo que escribe la animación).
+    if (key == "WorldCFrame" or key == "WorldPosition") and data.ClassName == "Bone" then
+        local parent = data.Values.Parent
+        local base = roblox.CFrame.new()
+        if parent and dataOf(parent).ClassName == "Bone" then
+            base = parent.WorldCFrame
+        elseif parent and parent:IsA("BasePart") then
+            base = parent.CFrame
+        end
+        local world = base * self.CFrame * self.Transform
+        return key == "WorldCFrame" and world or world.Position
     end
 
     local child = self:FindFirstChild(key)

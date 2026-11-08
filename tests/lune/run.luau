@@ -2823,6 +2823,229 @@ T.Test("Alma: sin el servicio de avatares se arma con piezas y funciona igual", 
     T.NoEngineErrors(Engine)
 end)
 
+-- Criaturas con huesos (malla con piel) -----------------------------------------
+
+local serde = require("@lune/serde")
+
+-- Arma en ServerStorage.NocturnaModels el <Criatura>Rig como lo deja el
+-- importador de Studio, con los huesos medidos en Blender
+-- (assets/models/rigged/<Criatura>.json): lejos del origen, girado y con cada
+-- hueso con sus propios ejes (el juego no puede suponer cómo vienen).
+local function rigTemplate(kind, options)
+    options = options or {}
+    local data = serde.decode("json", fs.readFile("assets/models/rigged/" .. kind .. ".json"))
+    local storage = Engine.Services.ServerStorage
+    local folder = storage:FindFirstChild("NocturnaModels")
+    if not folder then
+        folder = Engine.New("Folder", "NocturnaModels")
+        folder.Parent = storage
+    end
+    local model = Engine.New("Model", kind .. "Rig")
+    local mesh = Engine.New("MeshPart", kind .. "Body")
+    local place = roblox.CFrame.new(12, -6.5, -13) * roblox.CFrame.Angles(0, math.pi, 0)
+    mesh.CFrame = place
+    mesh.Size = Vector3.new(3, data.Height, 2)
+    mesh.Parent = model
+    local worlds, bones = {}, {}
+    for index, info in ipairs(data.Bones) do
+        if not (options.Without and options.Without[info.Name]) then
+            local head = Vector3.new(info.Head[1], info.Head[2], info.Head[3])
+            local world = place * roblox.CFrame.new(head) * roblox.CFrame.Angles(index * 0.7, index * 1.3, index * 0.4)
+            local bone = Engine.New("Bone", info.Name)
+            local parentBone = info.Parent and bones[info.Parent]
+            bone.CFrame = (parentBone and worlds[info.Parent] or mesh.CFrame):Inverse() * world
+            bone.Parent = parentBone or mesh
+            worlds[info.Name], bones[info.Name] = world, bone
+        end
+    end
+    model.Parent = folder
+    return model, data
+end
+
+-- Mueve la raíz y lo soldado a ella (el simulador no tiene física de soldaduras).
+local function placeRig(model, cframe)
+    model.PrimaryPart.CFrame = cframe
+    local body = model:FindFirstChild("Body")
+    for _, part in ipairs(body and body:GetDescendants() or {}) do
+        if part:IsA("BasePart") then
+            part.CFrame = cframe * part:GetAttribute("RigOffset")
+        end
+    end
+end
+
+local function bodyBone(model, name)
+    for _, item in ipairs(model:FindFirstChild("Body"):GetDescendants()) do
+        if item:IsA("Bone") and item.Name == name then
+            return item
+        end
+    end
+    return nil
+end
+
+T.Test("huesos: la criatura usa su esqueleto con piel si está importado; si no, las piezas", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local plain = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    T.Equal(plain:GetAttribute("BoneRig"), nil, "sin esqueleto importado: piezas")
+    T.True(plain:FindFirstChild("Torso") ~= nil and plain:FindFirstChild("Body") == nil, "con sus piezas de siempre")
+
+    rigTemplate("ElQuieto")
+    local model = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    local root = model.PrimaryPart
+    T.Equal(model:GetAttribute("BoneRig"), true, "marca de esqueleto para el cliente")
+    T.True(model:FindFirstChild("Torso") == nil, "sin piezas cortadas")
+    local body = model:FindFirstChild("Body")
+    T.True(body ~= nil, "la malla con piel es el cuerpo")
+    T.True((bodyBone(model, "Root").WorldPosition - root.Position).Magnitude < 1e-3, "el hueso Root queda sobre la raíz")
+    local foot, toe = bodyBone(model, "LeftFoot").WorldPosition, bodyBone(model, "LeftToe").WorldPosition
+    T.True((toe - foot):Dot(root.CFrame.LookVector) > 0, "mira hacia donde mira la raíz (aunque el importador lo dejó girado)")
+    T.True((bodyBone(model, "RightThigh").WorldPosition - bodyBone(model, "LeftThigh").WorldPosition):Dot(root.CFrame.RightVector) > 0, "derecha a la derecha")
+    T.True(math.abs(bodyBone(model, "LeftToe").WorldPosition.Y - (root.Position.Y - 3.6)) < 0.4, "los pies en el piso (BodyHeight)")
+    for _, part in ipairs(body:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local weld = part:FindFirstChildOfClass("WeldConstraint")
+            T.True(weld ~= nil and weld.Part0 == root, "soldada a la raíz anclada")
+            T.False(part.Anchored or part.CanCollide or part.CanQuery or part.CanTouch, "sin colisiones ni consultas")
+        end
+    end
+    local head = model:FindFirstChild("Head")
+    T.True(head ~= nil and head.Transparency == 1, "guía invisible de la cabeza (cámara y efectos)")
+    T.True((head.Position - bodyBone(model, "Head").WorldPosition).Magnitude < 1, "sobre el hueso de la cabeza")
+
+    local mannequin = Factory.BuildMannequin(Engine.Workspace, roblox.CFrame.new(20, 0, 0))
+    T.Equal(mannequin:GetAttribute("BoneRig"), true, "los maniquíes son iguales a El Quieto")
+
+    Engine.Reset()
+    Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    rigTemplate("ElQuieto", {Without = {Hips = true}})
+    local broken = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    T.Equal(broken:GetAttribute("BoneRig"), nil, "esqueleto incompleto: vuelve a las piezas")
+    T.True(broken:FindFirstChild("Torso") ~= nil, "con piezas")
+    local warned = false
+    for _, message in ipairs(Engine.Warnings()) do
+        warned = warned or string.find(message, "ElQuietoRig", 1, true) ~= nil
+    end
+    T.True(warned, "avisa qué le falta")
+    T.NoEngineErrors(Engine)
+end)
+
+for _, case in ipairs({{"ElQuieto", 3.6, 7, 2}, {"ElTrepador", 3.5, 9, 4}, {"ElColoso", 5.5, 6, 2}}) do
+    local kind, height, speed, feet = case[1], case[2], case[3], case[4]
+    T.Test("huesos: " .. kind .. " camina con los pies clavados en el piso y dobla las rodillas", function()
+        Engine.Reset()
+        rigTemplate(kind)
+        local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+        local Animator = clientModule("Effects", "MonsterAnimator")
+        local Bones = clientModule("Effects", "CreatureBones")
+        local model = Factory.Build(kind, Engine.Workspace, height)
+        placeRig(model, roblox.CFrame.new(0, height, 0))
+        local rig = Animator.Track(model)
+        T.True(rig ~= nil and rig.Bones ~= nil, "anima los huesos")
+        T.Equal(#rig.Feet, feet, "patas que pisan")
+        model:SetAttribute("State", "Patrol")
+
+        local slip, checked, carried = 0, 0, 0
+        local bends = {}
+        local engineGap = 0
+        for frame = 1, 300 do
+            local z = -frame * speed / 60
+            placeRig(model, roblox.CFrame.new(0, height, z))
+            Animator.Update(1 / 60, roblox.CFrame.new(0, height + 5, z + 20))
+            if frame > 90 then
+                for _, limb in ipairs(rig.Feet) do
+                    local foot = Bones.WorldOf(rig.Bones, limb.End.Name).Position
+                    if limb.Stance and rig.Gait > 0.98 then
+                        if limb.Held then
+                            slip = math.max(slip, (foot - limb.Held).Magnitude)
+                            carried = math.max(carried, limb.HeldZ - z)
+                            checked += 1
+                        else
+                            limb.Held, limb.HeldZ = foot, z
+                        end
+                    else
+                        limb.Held = nil
+                    end
+                end
+                local chain = rig.Feet[#rig.Feet].Chain
+                table.insert(bends, Bones.BendOf(rig.Bones, chain[1].Name, chain[2].Name, chain[3].Name))
+                local node = rig.Bones.ByName.LeftFoot
+                engineGap = math.max(engineGap, (node.Bone.WorldPosition - Bones.WorldOf(rig.Bones, "LeftFoot").Position).Magnitude)
+            end
+        end
+        T.False(rig.Broken, "sin errores al animar")
+        T.True(checked > 40, "hubo apoyos: " .. checked)
+        T.True(carried > 0.8, "el cuerpo avanzó durante un apoyo: " .. carried)
+        T.True(slip < 0.06, "el pie apoyado no patina: " .. slip)
+        local low, high = math.huge, -math.huge
+        for _, bend in ipairs(bends) do
+            low, high = math.min(low, bend), math.max(high, bend)
+        end
+        T.True(high - low > 0.25 and high > 0.3, string.format("la rodilla se dobla y se estira: %.2f..%.2f", low, high))
+        T.True(engineGap < 1e-3, "Bone.Transform da la misma pose que calcula el animador: " .. engineGap)
+        T.NoEngineErrors(Engine)
+    end)
+end
+
+T.Test("huesos: AnimOverride frena la escritura y la pose de captura mueve boca, cabeza y brazos", function()
+    Engine.Reset()
+    rigTemplate("ElImitador")
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local Bones = clientModule("Effects", "CreatureBones")
+    local model = Factory.Build("ElImitador", Engine.Workspace, 3.2)
+    placeRig(model, roblox.CFrame.new(0, 3.2, 0))
+    local rig = Animator.Track(model)
+    local camera = roblox.CFrame.new(0, 8, 20)
+    T.True(rig.Bones ~= nil and rig.Bones.HasJaw, "con mandíbula")
+    T.True(model:FindFirstChild("Jaw") ~= nil, "guía de la boca")
+    for _ = 1, 30 do
+        Animator.Update(1 / 60, camera)
+    end
+    T.True(rig.Bones.Writes > 0, "escribe los huesos")
+
+    model:SetAttribute("AnimOverride", "Capture")
+    local held = {}
+    for _, node in ipairs(rig.Bones.Nodes) do
+        held[node] = node.Bone.Transform
+    end
+    local writes = rig.Bones.Writes
+    for _ = 1, 30 do
+        Animator.Update(1 / 60, camera)
+    end
+    T.Equal(rig.Bones.Writes, writes, "con AnimOverride no escribe")
+    for _, node in ipairs(rig.Bones.Nodes) do
+        T.Equal(node.Bone.Transform, held[node], "el hueso queda como lo dejó la captura")
+    end
+
+    local jawJoint = model:FindFirstChild("Jaw"):FindFirstChildOfClass("Motor6D")
+    local jawBefore = jawJoint.C0
+    local jawRest = Bones.WorldOf(rig.Bones, "Jaw")
+    Bones.Capture(rig.Bones, {
+        Lean = -0.35, Twist = 0, Roll = 0, Crouch = -0.2, Lift = 0,
+        HeadPitch = 0.3, HeadYaw = 0.2, HeadRoll = 0.1, HeadPush = 0.3,
+        Arms = 1.4, Out = -0.3, ArmShake = 0, Legs = 0, Splay = 0, Gape = 1.1,
+    }, 0)
+    local head = Bones.WorldOf(rig.Bones, "Head")
+    local jaw = Bones.WorldOf(rig.Bones, "Jaw")
+    local nodes = rig.Bones.ByName
+    local relative = (nodes.Head.Rest:Inverse() * nodes.Jaw.Rest):Inverse() * (head:Inverse() * jaw)
+    local _, opened = relative:ToAxisAngle()
+    T.True(math.abs(opened) > 0.3, "la mandíbula se abre respecto de la cabeza: " .. opened)
+    T.True((jaw.Position - jawRest.Position).Magnitude > 0.05, "la boca acompaña a la cabeza")
+    T.True(jawJoint.C0 ~= jawBefore, "la guía de la boca sigue al hueso")
+    T.True(Bones.BendOf(rig.Bones, "LeftUpperArm", "LeftForearm", "LeftHand") > 0.4, "el codo se dobla al agarrar")
+    local toe = Bones.WorldOf(rig.Bones, "LeftToe").Position
+    T.True(math.abs(toe.Y) < 0.5, "los pies siguen en el piso aunque se agache: " .. toe.Y)
+
+    model:SetAttribute("AnimOverride", nil)
+    for _ = 1, 30 do
+        Animator.Update(1 / 60, camera)
+    end
+    T.True(rig.Bones.Writes > writes, "al terminar la captura vuelve a animar")
+    T.True(rig.Bones.Resume >= 1, "mezcla desde la pose de la captura")
+    T.NoEngineErrors(Engine)
+end)
+
 T.Suite("Lobby y servidores")
 
 local function lobbyBuilder()

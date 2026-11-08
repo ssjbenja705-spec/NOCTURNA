@@ -57,8 +57,11 @@ end
 
 local function creatureParts(model)
     local parts = {}
+    -- La malla con piel (criaturas con huesos) mide lo que el cuerpo entero en
+    -- reposo: su caja no sirve para esquivarla. Ahí cuentan las guías Head y Jaw.
+    local body = model:GetAttribute("BoneRig") == true and model:FindFirstChild("Body") or nil
     for _, child in ipairs(model:GetDescendants()) do
-        if child:IsA("BasePart") and child.Name ~= "HumanoidRootPart" then
+        if child:IsA("BasePart") and child.Name ~= "HumanoidRootPart" and not (body and child:IsDescendantOf(body)) then
             table.insert(parts, child)
         end
     end
