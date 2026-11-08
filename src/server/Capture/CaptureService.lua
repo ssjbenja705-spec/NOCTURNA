@@ -28,7 +28,6 @@ local HidingService = require(script.Parent.Parent.World.HidingService)
 local StruggleSession = require(script.Parent.StruggleSession)
 
 local INPUT_RATE = 20
-local STANDING_HEIGHT = 3
 
 local CaptureService = {}
 local captures = {} -- [player] = captura en curso

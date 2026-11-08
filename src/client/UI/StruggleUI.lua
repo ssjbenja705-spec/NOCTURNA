@@ -41,8 +41,8 @@ end
 local StruggleUI = {}
 local current = nil
 local mode = Theme.IsTouch and "Touch" or "Keyboard"
-local ui = {}
-local banner = {}
+local ui: {[string]: any} = {}
+local banner: {[string]: any} = {}
 
 local function creatureName(kind)
     local settings = MonsterConfig[kind]
@@ -403,8 +403,9 @@ local function onTeammateUpdate(data)
         banner.Text.Text = "¡" .. name .. " está atrapado por " .. creatureName(data.Kind) .. "!"
         banner.Text.TextColor3 = Colors.Danger
         banner.Frame.Visible = true
-        if event == "Begin" and typeof(data.Monster) == "Instance" and data.Monster.PrimaryPart then
-            AudioController.PlayAt("CaptureGrab", data.Monster.PrimaryPart.Position)
+        local monster = data.Monster
+        if event == "Begin" and typeof(monster) == "Instance" and monster:IsA("Model") and monster.PrimaryPart then
+            AudioController.PlayAt("CaptureGrab", monster.PrimaryPart.Position)
         end
         return
     end
