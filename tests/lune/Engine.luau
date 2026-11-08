@@ -612,6 +612,15 @@ function MockMeta.__index(self, key)
     if key == "Position" and self:IsA("BasePart") then
         return self.CFrame.Position
     end
+    -- Posición en el mundo de un Attachment: la de su pieza más su desplazamiento.
+    if key == "WorldPosition" and data.ClassName == "Attachment" then
+        local parent = data.Values.Parent
+        local offset = data.Values.Position or roblox.Vector3.zero
+        if parent and parent:IsA("BasePart") then
+            return (parent.CFrame * roblox.CFrame.new(offset)).Position
+        end
+        return offset
+    end
 
     local child = self:FindFirstChild(key)
     if child then

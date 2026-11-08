@@ -7,7 +7,9 @@
 --    y la vista nocturna propias no se tocan;
 --  * se apagan las lucecitas de utilería (tanques, pantallas);
 --  * sin sombras globales ni sombras de las linternas;
---  * menos resplandor.
+--  * menos resplandor;
+--  * las lámparas del mapa no calculan sombras y no hay haces de luz, polvo,
+--    goteras ni charcos que tiemblan (AmbientMotion).
 -- Siempre: las linternas de los demás no calculan sombras en esta pantalla (sólo
 -- la propia, en calidad normal) y en pantallas táctiles no hay profundidad de campo.
 local CollectionService = game:GetService("CollectionService")
@@ -16,6 +18,8 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local SettingsUI = require(script.Parent.Parent.UI.SettingsUI)
+-- No está en la lista de Main.client: se espera a que Roblox lo copie.
+local AmbientMotion = require(script.Parent:WaitForChild("AmbientMotion"))
 
 local player = Players.LocalPlayer
 
@@ -32,6 +36,9 @@ local bloomNormal = {}
 local lights = {}
 -- Las que apagó este cliente para ahorrar: sólo éstas se vuelven a prender.
 local culled = {}
+-- Lámparas del mapa con sombra (las salas con haz de luz) a las que este cliente se
+-- la sacó en bajo consumo: sólo éstas la recuperan.
+local unshadowed = {}
 
 local function track(instance)
     if instance:IsA("Light") then
@@ -42,6 +49,7 @@ end
 local function untrack(instance)
     lights[instance] = nil
     culled[instance] = nil
+    unshadowed[instance] = nil
 end
 
 local function isDark(fixture)
@@ -135,6 +143,26 @@ end
 
 -- Al volver a calidad normal se prenden las que apagó este cliente, salvo las que
 -- el servidor quiere apagadas.
+-- Sombras de las lámparas del mapa: son las más caras en un celular.
+local function setMapShadows(low)
+    if low then
+        for light in pairs(lights) do
+            if light.Shadows and not FLASHLIGHT_NAMES[light.Name] and light.Parent
+                and not (player.Character and light:IsDescendantOf(player.Character)) then
+                light.Shadows = false
+                unshadowed[light] = true
+            end
+        end
+    else
+        for light in pairs(unshadowed) do
+            if light.Parent then
+                light.Shadows = true
+            end
+        end
+        table.clear(unshadowed)
+    end
+end
+
 local function restoreLights()
     for light in pairs(culled) do
         if light.Parent and serverAllows(light) then
@@ -210,6 +238,7 @@ function QualityController.Start()
         Lighting.GlobalShadows = not low
         if lowQuality and not low then
             restoreLights()
+            setMapShadows(false)
         end
         lowQuality = low
         applyPostEffects(low)
@@ -224,9 +253,14 @@ function QualityController.Start()
             setFlashlightShadows(lowQuality)
             if lowQuality then
                 cullLights()
+                setMapShadows(true)
             end
         end
     end)
+
+    -- Haces de luz, polvo, goteras, charcos, lámparas que titilan y el pelo de
+    -- Alma: siguen esta calidad (en bajo consumo, nada de eso se calcula).
+    AmbientMotion.Start(QualityController.IsLow)
 end
 
 return QualityController

@@ -9,6 +9,7 @@
 -- Mientras espera respira y mira alrededor; cuando el grupo la encuentra salta,
 -- saluda y festeja con las animaciones de Roblox, se enciende una luz cálida con
 -- chispas y después sigue al jugador más cercano.
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
@@ -197,38 +198,104 @@ local function layout(rig, rootCFrame)
     end
 end
 
--- Pelo castaño con dos colitas, soldado a la cabeza.
-local function addHair(rig)
+-- Pelo ------------------------------------------------------------------------------
+-- Pelo castaño, suave y redondeado: flequillo de tres mechones, dos colitas
+-- esponjosas atadas con colitas de tela y moños coral, y una hebilla amarilla.
+-- Todo se arma con piezas y medidas relativas a la cabeza, así queda igual en el
+-- avatar de Roblox y en el cuerpo de piezas. Lo fijo va soldado (WeldConstraint);
+-- cada colita cuelga de un Weld propio que el cliente balancea (AmbientMotion), sin
+-- física ni red: las animaciones de alegría no se enteran.
+AlmaBuilder.HAIR_SWAY_TAG = "NocturnaHairSway"
+local BOW = Color3.fromRGB(255, 132, 140)
+local CLIP = Color3.fromRGB(255, 214, 92)
+
+local function hairPiece(rig, name, size, cframe, color, material)
+    local piece = Instance.new("Part")
+    piece.Name = name
+    piece.Size = size
+    piece.Color = color
+    piece.Material = material or Enum.Material.Fabric
+    piece.CanCollide = false
+    piece.CanQuery = false
+    piece.CanTouch = false
+    piece.Massless = true
+    piece.CastShadow = false
+    piece.CFrame = cframe
+    local shape = Instance.new("SpecialMesh")
+    shape.MeshType = Enum.MeshType.Sphere
+    shape.Parent = piece
+    piece.Parent = rig
+    return piece
+end
+
+local function stick(part0, part1)
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0 = part0
+    weld.Part1 = part1
+    weld.Parent = part1
+    return weld
+end
+
+function AlmaBuilder.AddHair(rig)
     local head = rig:FindFirstChild("Head")
     if not head or not head:IsA("BasePart") then
-        return
+        return nil
     end
-    local size = head.Size
-    local function lock(name, partSize, offset)
-        local piece = Instance.new("Part")
-        piece.Name = name
-        piece.Size = partSize
-        piece.Color = HAIR
-        piece.Material = Enum.Material.SmoothPlastic
-        piece.CanCollide = false
-        piece.CanQuery = false
-        piece.CanTouch = false
-        piece.Massless = true
-        piece.CastShadow = false
-        piece.CFrame = head.CFrame * offset
-        local shape = Instance.new("SpecialMesh")
-        shape.MeshType = Enum.MeshType.Sphere
-        shape.Parent = piece
-        local weld = Instance.new("WeldConstraint")
-        weld.Part0 = head
-        weld.Part1 = piece
-        weld.Parent = piece
-        piece.Parent = rig
+    local s = head.Size
+    local w = s.X
+    local origin = head.CFrame
+    local function fixed(name, size, offset, color, material)
+        local piece = hairPiece(rig, name, size, origin * offset, color, material)
+        stick(head, piece)
+        return piece
     end
-    lock("Hair", Vector3.new(size.X * 1.12, size.Y * 0.75, size.Z * 1.12), CFrame.new(0, size.Y * 0.22, size.Z * 0.06))
-    for _, x in ipairs({-1, 1}) do
-        lock("Pigtail", Vector3.new(0.45, 0.6, 0.45), CFrame.new(x * size.X * 0.6, size.Y * 0.05, size.Z * 0.2))
+
+    -- Casquete y la parte de atrás: cubren la coronilla sin tapar la cara.
+    fixed("Hair", Vector3.new(s.X * 1.12, s.Y * 0.78, s.Z * 1.14), CFrame.new(0, s.Y * 0.2, s.Z * 0.05), HAIR)
+    fixed("HairBack", Vector3.new(s.X * 1.04, s.Y * 0.72, s.Z * 0.52), CFrame.new(0, -s.Y * 0.02, s.Z * 0.36), HAIR)
+    -- Flequillo redondeado: tres mechones apenas inclinados.
+    for index, x in ipairs({-0.3, 0, 0.3}) do
+        fixed("Bang", Vector3.new(s.X * 0.42, s.Y * 0.3, s.Z * 0.3),
+            CFrame.new(x * s.X, s.Y * (index == 2 and 0.31 or 0.28), -s.Z * 0.4) * CFrame.Angles(0, 0, math.rad(-x * 30)),
+            Color3.new(HAIR.R * 1.06, HAIR.G * 1.06, HAIR.B * 1.06))
     end
+    -- Hebilla amarilla sobre el flequillo.
+    fixed("Hairclip", Vector3.new(w * 0.26, w * 0.1, w * 0.12), CFrame.new(-s.X * 0.33, s.Y * 0.36, -s.Z * 0.38) * CFrame.Angles(0, 0, math.rad(-28)), CLIP, Enum.Material.SmoothPlastic)
+
+    local joints = {}
+    for _, side in ipairs({-1, 1}) do
+        -- La colita cuelga del atado, abierta un poco hacia afuera.
+        local tie = CFrame.new(side * s.X * 0.6, s.Y * 0.12, s.Z * 0.12)
+        local splay = math.rad(22)
+        local down = Vector3.new(side * math.sin(splay), -math.cos(splay), 0)
+        local first = CFrame.new(down * (w * 0.3))
+        local root = hairPiece(rig, "Pigtail", Vector3.new(w * 0.42, w * 0.5, w * 0.42), origin * tie * first, HAIR)
+        local joint = Instance.new("Weld")
+        joint.Name = "PigtailWeld"
+        joint.Part0 = head
+        joint.Part1 = root
+        joint.C0 = tie
+        joint.C1 = first:Inverse()
+        joint.Parent = root
+        CollectionService:AddTag(joint, AlmaBuilder.HAIR_SWAY_TAG)
+        joint:SetAttribute("Side", side)
+        table.insert(joints, joint)
+
+        local tieFrame = origin * tie
+        local function hanging(name, size, offset, color, material)
+            local piece = hairPiece(rig, name, size, tieFrame * offset, color, material)
+            stick(root, piece)
+            return piece
+        end
+        hanging("PigtailPuff", Vector3.new(w * 0.32, w * 0.4, w * 0.32), CFrame.new(down * (w * 0.6)), HAIR)
+        hanging("Scrunchie", Vector3.new(w * 0.3, w * 0.22, w * 0.3), CFrame.identity, BOW)
+        -- Moño: dos lazos achatados a los costados del atado.
+        for _, z in ipairs({-1, 1}) do
+            hanging("Bow", Vector3.new(w * 0.12, w * 0.24, w * 0.32),
+                CFrame.new(side * w * 0.08, w * 0.06, z * w * 0.16) * CFrame.Angles(math.rad(z * 20), 0, 0), BOW)
+        end
+    end
+    return joints
 end
 
 local function prepare(rig)
@@ -543,8 +610,13 @@ local function attach(holder, host, rig, cframe)
     local humanoid, root, glow, sparkles = prepare(rig)
     local height = humanoid.HipHeight + root.Size.Y / 2
     layout(rig, cframe * CFrame.new(0, height, 0))
-    -- El pelo se suelda con la cabeza ya en su lugar.
-    addHair(rig)
+    -- El pelo se suelda con la cabeza ya en su lugar. Un modelo propio que ya trae
+    -- pelo (accesorio o pieza "Hair") lo conserva.
+    local ownHair = rig:GetAttribute("Source") == "Hook"
+        and (rig:FindFirstChildOfClass("Accessory") ~= nil or rig:FindFirstChild("Hair") ~= nil)
+    if not ownHair then
+        AlmaBuilder.AddHair(rig)
+    end
     rig.Parent = holder
 
     -- El cartel para tomarle la mano va con ella.
