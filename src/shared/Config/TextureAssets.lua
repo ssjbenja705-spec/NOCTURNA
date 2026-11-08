@@ -28,104 +28,104 @@ TextureAssets.Variants = {
     -- Superficies de las salas (ThemeConfig.<Tema>.Surfaces.Wall/Floor/Ceiling) ------
     NocturnaTunnelBrick = {
         BaseMaterial = "Brick", StudsPerTile = 8, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(77, 50, 40),
+        Mean = Color3.fromRGB(79, 56, 46),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaWetConcrete = {
         BaseMaterial = "Concrete", StudsPerTile = 12, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(80, 78, 72),
+        Mean = Color3.fromRGB(89, 87, 81),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaStainedConcrete = {
         BaseMaterial = "Concrete", StudsPerTile = 12, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(96, 90, 80),
+        Mean = Color3.fromRGB(104, 100, 92),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaPeelingPlaster = {
         BaseMaterial = "Plaster", StudsPerTile = 10, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(110, 128, 110),
+        Mean = Color3.fromRGB(128, 140, 121),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaDirtyTiles = {
         BaseMaterial = "CeramicTiles", StudsPerTile = 6, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(140, 136, 124),
+        Mean = Color3.fromRGB(146, 143, 130),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaStainedPlaster = {
         BaseMaterial = "Plaster", StudsPerTile = 10, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(160, 152, 134),
+        Mean = Color3.fromRGB(171, 163, 145),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaFleshWall = {
         BaseMaterial = "Pebble", StudsPerTile = 6, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(100, 60, 56),
+        Mean = Color3.fromRGB(101, 62, 53),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaStainedSlate = {
         BaseMaterial = "Slate", StudsPerTile = 8, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(52, 54, 52),
+        Mean = Color3.fromRGB(51, 53, 46),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaFleshCeiling = {
         BaseMaterial = "Slate", StudsPerTile = 8, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(80, 40, 42),
+        Mean = Color3.fromRGB(85, 34, 38),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaScratchedSteel = {
         BaseMaterial = "Metal", StudsPerTile = 8, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(76, 80, 84),
+        Mean = Color3.fromRGB(71, 76, 82),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaWornPlate = {
         BaseMaterial = "DiamondPlate", StudsPerTile = 6, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(96, 96, 96),
+        Mean = Color3.fromRGB(79, 80, 81),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaTornWallpaper = {
         BaseMaterial = "Fabric", StudsPerTile = 6, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(130, 112, 92),
+        Mean = Color3.fromRGB(147, 128, 107),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaScuffedOak = {
         BaseMaterial = "WoodPlanks", StudsPerTile = 8, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(104, 76, 50),
+        Mean = Color3.fromRGB(111, 81, 51),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
 
     -- Utilería y puertas (casi neutras: las tiñe el color de cada pieza) -------------
     NocturnaRottenWood = {
         BaseMaterial = "Wood", StudsPerTile = 4, Pattern = "Regular",
-        Mean = Color3.fromRGB(180, 168, 152),
+        Mean = Color3.fromRGB(191, 180, 160),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaRustedSheet = {
         BaseMaterial = "CorrodedMetal", StudsPerTile = 6, Pattern = "Regular",
-        Mean = Color3.fromRGB(170, 150, 130),
+        Mean = Color3.fromRGB(179, 177, 171),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaGrimyMetal = {
         BaseMaterial = "Metal", StudsPerTile = 4, Pattern = "Organic",
-        Mean = Color3.fromRGB(190, 190, 186),
+        Mean = Color3.fromRGB(193, 194, 193),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaWornFabric = {
         BaseMaterial = "Fabric", StudsPerTile = 4, Pattern = "Organic",
-        Mean = Color3.fromRGB(190, 182, 168),
+        Mean = Color3.fromRGB(177, 169, 157),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaBookCloth = {
         BaseMaterial = "Leather", StudsPerTile = 2, Pattern = "Organic",
-        Mean = Color3.fromRGB(176, 164, 148),
+        Mean = Color3.fromRGB(172, 160, 144),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaDirtyGlass = {
         BaseMaterial = "Glass", StudsPerTile = 4, Pattern = "Organic",
-        Mean = Color3.fromRGB(220, 218, 212),
+        Mean = Color3.fromRGB(233, 233, 229),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
     NocturnaAgedPaper = {
         BaseMaterial = "Cardboard", StudsPerTile = 2, Pattern = "Organic",
-        Mean = Color3.fromRGB(200, 186, 160),
+        Mean = Color3.fromRGB(208, 199, 175),
         Color = 0, Normal = 0, Roughness = 0, Metalness = 0,
     },
 }

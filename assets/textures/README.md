@@ -65,7 +65,8 @@ tangente **OpenGL (Y+, verde hacia arriba)**, el formato de Roblox; `_Roughness`
 | `NocturnaAgedPaper`      | Papeles, cajas, carpetas           | todos    | Cardboard     | 2            | Papel viejo con manchas de óxido, marcas de humedad y dobleces |
 
 `stats.json` guarda, por textura, el color medio, la rugosidad y metalicidad
-medias y el salto en el borde del mosaico (≈1 o menos = sin costura).
+medias y el salto en el borde del mosaico comparado con el salto entre píxeles
+vecinos (≈0,4-2,5: del orden de un píxel, sin costura visible).
 
 ## Volver a hornear
 
