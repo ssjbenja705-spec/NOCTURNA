@@ -274,6 +274,8 @@ function WorldService.LoadChapter(chapterIndex, seed)
     -- Al final, lo que sobra del presupuesto va al desgaste: zarpazos, grietas,
     -- humedad y charcos repartidos en todas las salas.
     RoomGenerator.Weather(plan, theme, map)
+    -- Texturas propias en muebles, utilería, puertas y escondites (si ya se subieron).
+    PropKit.SurfaceProps(map, theme)
     map:SetAttribute("PartCount", countParts(map))
     WorldService.SetPower(theme.StartsPowered)
     MapService.Begin(plan)
