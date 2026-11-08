@@ -109,7 +109,7 @@ end}
 FURNITURE.ElectricalPanel = {Width = 3, Depth = 1.2, Build = function(p, b, pal)
     solid(p, b, "Cabinet", Vector3.new(2.6, 3.6, 0.8), at(0, 3.6, 0.2), pal.Paint, M("Metal"))
     piece(p, b, "CabinetDoor", Vector3.new(2.5, 3.5, 0.05), at(0, 3.6, -0.22), Shade(pal.Paint, 0.9), M("Metal"))
-    piece(p, b, "Hazard", Vector3.new(0.6, 0.5, 0.02), at(0, 4.6, -0.26), Color3.fromRGB(200, 165, 40), M("SmoothPlastic"))
+    piece(p, b, "Hazard", Vector3.new(0.6, 0.5, 0.02), at(0, 4.6, -0.26), Color3.fromRGB(200, 165, 40), M("Metal"))
     for _, x in ipairs({-0.7, 0.7}) do
         column(p, b, "Conduit", 7.6, 0.25, at(x, 9.2, 0.3), pal.Metal, M("Metal"))
     end
@@ -149,13 +149,27 @@ FURNITURE.Bookcase = {Width = 6, Depth = 1.8, Build = function(p, b, pal, rng)
     for _, side in ipairs({-1, 1}) do
         solid(p, b, "Side", Vector3.new(0.18, 8, 1.8), at(side * 2.91, 4, 0), pal.Wood, M("Wood"))
     end
-    local binders = {pal.Accent, Color3.fromRGB(120, 40, 40), Color3.fromRGB(40, 60, 90), Color3.fromRGB(150, 140, 110)}
+    -- Lomos de cuero y tela gastados (apagados por el tiempo) y, a veces, una pila
+    -- acostada que deja ver el canto amarillento de las hojas.
+    local covers = {Shade(pal.Accent, 0.75), Color3.fromRGB(96, 36, 34), Color3.fromRGB(38, 52, 74), Color3.fromRGB(122, 112, 86), Color3.fromRGB(58, 70, 48)}
     for _, y in ipairs({0.15, 2.1, 4.1, 6.1}) do
         piece(p, b, "Board", Vector3.new(5.7, 0.14, 1.7), at(0, y, 0), pal.Wood, M("Wood"))
         if rng:Chance(0.85) then
-            local width = 3 + rng:Float() * 2.4
-            local x = (5.6 - width) / 2 * (rng:Float() * 2 - 1)
-            piece(p, b, "Binders", Vector3.new(width, 1.5, 1.2), at(x, y + 0.82, 0.1), rng:Pick(binders), M("Cardboard"))
+            local width = 2 + rng:Float() * 1.4
+            local x = -2.7 + width / 2 + rng:Float() * 0.4
+            local height = 1.3 + rng:Float() * 0.35
+            piece(p, b, "Books", Vector3.new(width, height, 1.2), at(x, y + 0.07 + height / 2, 0.1), PropKit.Vary(rng:Pick(covers), rng, 0.12), M(rng:Chance(0.5) and "Leather" or "Fabric"))
+            if rng:Chance(0.6) then
+                -- Un tomo inclinado contra el resto.
+                piece(p, b, "Book", Vector3.new(0.35, 1.5, 1.15), at(x + width / 2 + 0.45, y + 0.8, 0.1) * CFrame.Angles(0, 0, -0.35), PropKit.Vary(rng:Pick(covers), rng, 0.1), M("Leather"))
+            end
+            if rng:Chance(0.55) then
+                local stackX = 1.6 + rng:Float() * 0.6
+                local stack = at(stackX, y + 0.32, 0.1) * turn(rng, 0.2)
+                piece(p, b, "BookCover", Vector3.new(1.5, 0.5, 1.15), stack, PropKit.Vary(rng:Pick(covers), rng, 0.1), M("Leather"))
+                -- Las hojas asoman apenas por delante de las tapas.
+                piece(p, b, "Pages", Vector3.new(1.42, 0.42, 1.15), stack * at(0, 0, -0.03), PropKit.Vary(Color3.fromRGB(206, 194, 160), rng, 0.06), M("Plaster"))
+            end
         end
     end
 end}
@@ -180,7 +194,7 @@ FURNITURE.Desk = {Width = 5.6, Depth = 4.6, Build = function(p, b, pal, rng)
         solid(p, b, "DeskLeg", Vector3.new(0.2, 2.7, 2.4), at(side * 2.45, 1.35, 1), Shade(pal.Wood, 0.85), M("Wood"))
     end
     piece(p, b, "Monitor", Vector3.new(1.6, 1.3, 1.3), at(-1.2, 3.55, 1.4), Color3.fromRGB(190, 184, 166), M("Plastic"))
-    piece(p, b, "Papers", Vector3.new(1.1, 0.04, 1.4), at(1, 2.92, 0.8) * turn(rng, 0.5), PAPER, M("SmoothPlastic"))
+    piece(p, b, "Papers", Vector3.new(1.1, 0.04, 1.4), at(1, 2.92, 0.8) * turn(rng, 0.5), PAPER, M("Plaster"))
     column(p, b, "LampBase", 0.15, 0.6, at(2.1, 2.98, 1.7), BLACK, M("Metal"))
     piece(p, b, "LampArm", Vector3.new(0.12, 1.3, 0.12), at(2.1, 3.6, 1.6) * CFrame.Angles(-0.4, 0, 0), BLACK, M("Metal"))
     chair(p, b * at(0.3, 0, -1.2), pal, rng)
@@ -216,7 +230,7 @@ FURNITURE.HospitalBed = {Width = 3.6, Depth = 7.4, Build = function(p, b, pal, r
     local bag = piece(p, b, "IVBag", Vector3.new(0.6, 0.9, 0.15), at(2.4, 5.9, 2.6), Color3.fromRGB(220, 214, 170), M("Glass"))
     bag.Transparency = 0.3
     if rng:Chance(0.5) then
-        piece(p, b, "Stain", Vector3.new(1.6, 0.03, 1.2), at(rng:Float() - 0.5, 2.35, rng:Float() * 2 - 1), Color3.fromRGB(96, 26, 26), M("SmoothPlastic"))
+        piece(p, b, "Stain", Vector3.new(1.6, 0.03, 1.2), at(rng:Float() - 0.5, 2.35, rng:Float() * 2 - 1), Color3.fromRGB(96, 26, 26), M("Fabric"))
     end
 end}
 
@@ -296,7 +310,7 @@ FURNITURE.SpecimenTank = {Width = 3.4, Depth = 3.4, Build = function(p, b, pal)
     glass.Transparency = 0.65
     local fluid = column(p, b, "TankFluid", 5.6, 2.8, at(0, 3.7, 0), Color3.fromRGB(86, 110, 70), M("SmoothPlastic"))
     fluid.Transparency = 0.55
-    ball(p, b, "Specimen", Vector3.new(1.7, 1.7, 1.7), at(0, 3.6, 0), Color3.fromRGB(150, 96, 92), M("SmoothPlastic"))
+    ball(p, b, "Specimen", Vector3.new(1.7, 1.7, 1.7), at(0, 3.6, 0), Color3.fromRGB(150, 96, 92), M("Slate"))
     column(p, b, "TankCap", 0.6, 3.3, at(0, 7.5, 0), pal.Metal, M("Metal"), true)
     column(p, b, "TankPipe", 5.2, 0.5, at(0.8, 10.4, 0.6), pal.Pipe, M("Metal"))
     decorLight(fluid, Color3.fromRGB(120, 170, 110), 0.5, 9)
@@ -318,7 +332,7 @@ FURNITURE.GrowthMass = {Width = 5, Depth = 4, Build = function(p, b, pal, rng)
     ball(p, b, "Growth", Vector3.new(2.6, 2.6, 2.6), at(1.6, 2.9, 0.9), Color3.fromRGB(140, 50, 62), M("Slate"))
     local vein = piece(p, b, "Vein", Vector3.new(0.5, 9, 0.5), at(0.6, 6, 1.2) * CFrame.Angles(0.15, 0, 0.2), Color3.fromRGB(120, 30, 45), M("Neon"))
     vein.Transparency = 0.45
-    piece(p, b, "Vein", Vector3.new(0.35, 7, 0.35), at(-1.2, 5, 1.4) * CFrame.Angles(-0.1, 0, -0.25), Color3.fromRGB(90, 24, 36), M("SmoothPlastic"))
+    piece(p, b, "Vein", Vector3.new(0.35, 7, 0.35), at(-1.2, 5, 1.4) * CFrame.Angles(-0.1, 0, -0.25), Color3.fromRGB(90, 24, 36), M("Slate"))
 end}
 
 FURNITURE.Boiler = {Width = 4.4, Depth = 4, Build = function(p, b, pal)
@@ -334,16 +348,16 @@ end}
 FURNITURE.Extinguisher = {Width = 1, Depth = 0.8, Small = true, Build = function(p, b)
     column(p, b, "Extinguisher", 1.6, 0.6, at(0, 1.6, 0.05), Color3.fromRGB(170, 30, 30), M("Metal"))
     piece(p, b, "Hose", Vector3.new(0.1, 0.8, 0.1), at(0.3, 1.8, -0.2), BLACK, M("Rubber"))
-    piece(p, b, "Sign", Vector3.new(0.8, 0.8, 0.05), at(0, 3.2, 0.38), Color3.fromRGB(170, 34, 34), M("SmoothPlastic"))
+    piece(p, b, "Sign", Vector3.new(0.8, 0.8, 0.05), at(0, 3.2, 0.38), Color3.fromRGB(170, 34, 34), M("Metal"))
 end}
 
 FURNITURE.TrashBin = {Width = 1.4, Depth = 1.4, Small = true, Build = function(p, b, pal, rng)
     if rng:Chance(0.35) then
         PropKit.Cylinder(p, "Bin", 1.6, 1.2, b * at(0, 0.6, -0.2) * turn(rng, 1), pal.Metal, M("Metal"))
-        ball(p, b, "Paper", Vector3.new(0.5, 0.5, 0.5), at(0.3, 0.25, -1.3), PAPER, M("SmoothPlastic"))
+        ball(p, b, "Paper", Vector3.new(0.5, 0.5, 0.5), at(0.3, 0.25, -1.3), PAPER, M("Plaster"))
     else
         column(p, b, "Bin", 1.6, 1.2, at(0, 0.8, 0), pal.Metal, M("Metal"))
-        ball(p, b, "Paper", Vector3.new(0.5, 0.5, 0.5), at(0.2, 1.7, 0), PAPER, M("SmoothPlastic"))
+        ball(p, b, "Paper", Vector3.new(0.5, 0.5, 0.5), at(0.2, 1.7, 0), PAPER, M("Plaster"))
     end
 end}
 
