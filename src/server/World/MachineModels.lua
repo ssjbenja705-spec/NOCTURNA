@@ -6,6 +6,8 @@
 --
 -- Cada máquina devuelve (modelo, prompt, indicador). El prompt vive en la pieza
 -- principal (PrimaryPart) con el mismo nombre de siempre: Body, Desk, Pipe, Base, Frame.
+local TweenService = game:GetService("TweenService")
+
 local PropKit = require(script.Parent.PropKit)
 
 local MachineModels = {}
@@ -291,15 +293,22 @@ function MachineModels.Exit(parent, feature, base)
 
     local panel = piece(holder, base, "Panel", Vector3.new(0.4, 0.4, 0.08), at(4.9, 4.1, -0.58), Color3.fromRGB(200, 170, 60), M("Neon"))
 
-    -- Al usarse la salida, las luces pasan a verde y las hojas se corren.
+    -- Al usarse la salida, las luces pasan a verde y las hojas se corren despacio,
+    -- una sola vez (antes cada cambio de color las volvía a correr de golpe).
+    local slid = false
     onIndicatorChanged(panel, function(color)
         warningLight.Color = color
         for _, warning in ipairs(warnings) do
             warning.Color = color
         end
+        if slid then
+            return
+        end
+        slid = true
+        local info = TweenInfo.new(1.8, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
         for _, leaf in ipairs(leaves) do
             for _, item in ipairs(leaf.Parts) do
-                item.CFrame = item.CFrame * at(leaf.Side * 1.6, 0, 0)
+                TweenService:Create(item, info, {CFrame = item.CFrame * at(leaf.Side * 1.6, 0, 0)}):Play()
             end
         end
     end)
