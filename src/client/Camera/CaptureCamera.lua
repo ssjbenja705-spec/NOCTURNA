@@ -51,8 +51,8 @@ local function spring(state, goal, frequency, deltaTime)
     local decay = math.exp(-omega * deltaTime)
     local offset = state.Value - goal
     local velocity = state.Velocity
-    state.Value = goal + (offset + (velocity + omega * offset) * deltaTime) * decay
-    state.Velocity = (velocity - omega * (velocity + omega * offset) * deltaTime) * decay
+    state.Value = goal + (offset + (velocity + offset * omega) * deltaTime) * decay
+    state.Velocity = (velocity - (velocity + offset * omega) * (omega * deltaTime)) * decay
 end
 
 local function creatureParts(model)

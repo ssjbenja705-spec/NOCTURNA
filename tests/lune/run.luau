@@ -4824,5 +4824,540 @@ T.Test("criaturas: la mirada se publica con pasos más largos y no más de cinco
     T.NoEngineErrors(Engine)
 end)
 
+T.Suite("Captura y forcejeo")
+
+local CaptureConfig = Engine.RequireShared("Config.CaptureConfig")
+
+-- Partida con las criaturas del capítulo ya retiradas: cada prueba trae la suya.
+local function captureMatch(playerCount, options)
+    options = options or {}
+    local players = bootServer(playerCount or 1, options)
+    if options.Client then
+        Engine.StartClient(players[1])
+        Engine.Run(1)
+    end
+    startMatch(players, nil, options.Difficulty)
+    T.True(waitForPhase("Playing", 60), "partida")
+    Engine.Run(GameConfig.Match.FirstMonsterDelay + 0.5)
+    local MonsterService = Engine.RequireServer("Monsters.MonsterService")
+    MonsterService.Clear()
+    return players, MonsterService, Engine.RequireServer("Capture.CaptureService")
+end
+
+local function rootOf(player)
+    return player.Character:FindFirstChild("HumanoidRootPart")
+end
+
+local function healthOf(player)
+    return player.Character:FindFirstChildOfClass("Humanoid").Health
+end
+
+-- La criatura queda a unos pasos del jugador, mirándolo.
+local function placeNear(entry, player, distance)
+    local position = rootOf(player).Position + Vector3.new(0, 0, -(distance or 3))
+    local controller = entry.Controller
+    controller.Position = Vector3.new(position.X, controller.Height, position.Z)
+    controller:FaceTowards(rootOf(player).Position)
+    entry.Root.CFrame = controller:GetCFrame()
+end
+
+local function snapshotOf(entry, player)
+    local world = entry.Controller.World
+    world.Cache = nil
+    for _, snap in ipairs(world:Players()) do
+        if snap.Player == player then
+            return snap
+        end
+    end
+    return nil
+end
+
+-- El zarpazo que conecta, tal como lo manda MonsterController:Strike.
+local function strike(entry, player)
+    placeNear(entry, player)
+    local controller = entry.Controller
+    local snap = snapshotOf(entry, player)
+    controller.World:Damage(controller, snap or {Player = player}, controller.Settings.Damage * controller.DamageScale)
+end
+
+local function toStruggle(CaptureService, player)
+    T.True(Engine.RunUntil(function()
+        local capture = CaptureService.CaptureOf(player)
+        return capture ~= nil and capture.Phase == "Struggle"
+    end, 5, 0.05), "empieza el forcejeo")
+    return CaptureService.CaptureOf(player)
+end
+
+local function solve(player, capture)
+    local session = capture.Session
+    for step = session.Index + 1, #session.Sequence do
+        fire("CaptureInput", player, capture.Id, step, session.Sequence[step])
+        Engine.Run(0.1)
+    end
+end
+
+local function wrongKey(key)
+    for _, other in ipairs(CaptureConfig.Keys) do
+        if other ~= key then
+            return other
+        end
+    end
+    return nil
+end
+
+T.Test("captura: el zarpazo agarra en vez de dañar, ancla a la víctima y retiene a la criatura", function()
+    local players, MonsterService, CaptureService = captureMatch(1)
+    local player = players[1]
+    local entry = MonsterService.Spawn("ElImitador")
+    placeNear(entry, player, 3)
+    local controller = entry.Controller
+    controller.LastAttack = -100
+    T.True(controller:TryAttack(snapshotOf(entry, player)), "empieza el ataque")
+    T.True(Engine.RunUntil(function()
+        return CaptureService.IsCaptured(player)
+    end, 3, 0.05), "el golpe se vuelve captura")
+
+    T.Equal(healthOf(player), 100, "agarrar no daña")
+    T.True(rootOf(player).Anchored, "víctima anclada por el servidor")
+    T.Equal(player:GetAttribute("Captured"), true, "atributo de captura")
+    local model = entry.Model
+    T.Equal(model:GetAttribute("AnimOverride"), "Capture", "el animador de captura toma las articulaciones")
+    T.Equal(model:GetAttribute("State"), "Capture", "estado público")
+    T.Equal(model:GetAttribute("CaptureVictim"), player.UserId, "víctima publicada")
+    local begin = Engine.LastSent("CaptureUpdate")[1]
+    T.Equal(begin.Event, "Begin", "aviso a todos")
+    T.Equal(begin.Monster, model, "con la criatura")
+
+    local capture = CaptureService.CaptureOf(player)
+    local hold = capture.Hold
+    local offset = hold.Position - entry.Root.Position
+    T.True(math.abs(Vector3.new(offset.X, 0, offset.Z).Magnitude - CaptureConfig.Creatures.ElImitador.Hold.Forward) < 0.05, "a la distancia de agarre")
+    T.True(offset:Dot(controller.Facing) > 0, "delante de la criatura")
+
+    -- Retenida: no piensa ni se mueve; la víctima no se puede correr.
+    local clock, position = controller.Clock, controller.Position
+    rootOf(player).CFrame = roblox.CFrame.new(rootOf(player).Position + Vector3.new(30, 0, 0))
+    Engine.Run(0.5)
+    T.Equal(controller.Clock, clock, "la criatura no se actualiza")
+    T.Equal(controller.Position, position, "ni se mueve")
+    T.True((rootOf(player).Position - hold.Position).Magnitude < 0.1, "la víctima vuelve al agarre")
+
+    -- La interacción con el mundo queda bloqueada mientras está agarrado.
+    local InteractionService = Engine.RequireServer("World.InteractionService")
+    local host = Engine.New("Part")
+    host.CFrame = rootOf(player).CFrame
+    host.Parent = Engine.Workspace
+    local prompt = Engine.New("ProximityPrompt")
+    prompt.Parent = host
+    T.False(InteractionService.CanInteract(player, prompt), "no usa prompts agarrado")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: el servidor valida el forcejeo (orden, tiempo, spam y progreso inventado)", function()
+    local players, MonsterService, CaptureService = captureMatch(1)
+    local player = players[1]
+    local entry = MonsterService.Spawn("ElImitador")
+    strike(entry, player)
+    T.True(CaptureService.IsCaptured(player), "agarrado")
+
+    -- Antes del forcejeo (todavía en el agarre) no se acepta nada.
+    local early = CaptureService.CaptureOf(player)
+    fire("CaptureInput", player, early.Id, 1, "Q")
+    T.Equal(early.Session, nil, "sin sesión durante el agarre")
+
+    local capture = toStruggle(CaptureService, player)
+    local session = capture.Session
+    local sequence = session.Sequence
+    T.Equal(#sequence, CaptureConfig.Difficulty.Normal.Length + CaptureConfig.Creatures.ElImitador.ExtraLength, "largo de la secuencia")
+
+    fire("CaptureInput", player, capture.Id + 99, 1, sequence[1])
+    T.Equal(session.Index, 0, "otra captura: ignorado")
+    fire("CaptureInput", player, capture.Id, 3, sequence[3])
+    T.Equal(session.Index, 0, "saltear pasos: rechazado")
+    fire("CaptureInput", player, capture.Id, 1, "Z")
+    T.Equal(session.Index, 0, "tecla inexistente: rechazada")
+    fire("CaptureInput", player, capture.Id, 1.5, sequence[1])
+    T.Equal(session.Index, 0, "paso no entero: rechazado")
+    fire("CaptureInput", player, "progreso", 1, sequence[1], {Progress = 1, Escaped = true})
+    T.Equal(session.Index, 0, "datos inventados: rechazados")
+    T.True(CaptureService.IsCaptured(player), "sigue agarrado")
+
+    -- Spam: diez veces la misma tecla en el mismo instante cuenta una sola.
+    for _ = 1, 10 do
+        fire("CaptureInput", player, capture.Id, 1, sequence[1])
+    end
+    T.Equal(session.Index, 1, "el spam no suma")
+    for _ = 1, 10 do
+        fire("CaptureInput", player, capture.Id, 2, sequence[2])
+    end
+    T.Equal(session.Index, 1, "ni siquiera con el paso siguiente pegado")
+
+    -- Error: retrocede un paso y descuenta tiempo.
+    Engine.Run(0.1)
+    local deadline = session.Deadline
+    fire("CaptureInput", player, capture.Id, 2, wrongKey(sequence[2]))
+    T.Equal(session.Index, 0, "el error retrocede")
+    T.True(math.abs(deadline - session.Deadline - CaptureConfig.Difficulty.Normal.MistakeTime) < 1e-6, "y cuesta tiempo")
+
+    -- Tarde: pasado el plazo nada cuenta y el forcejeo se pierde.
+    Engine.Run(session.Deadline - Engine.Clock() + 0.05, 0.05)
+    local late = CaptureService.CaptureOf(player)
+    T.True(late == nil or late.Phase == "Fail", "se acabó el tiempo")
+    local index = session.Index
+    fire("CaptureInput", player, capture.Id, index + 1, sequence[index + 1])
+    T.Equal(session.Index, index, "tarde: rechazada")
+    T.Equal(session.Accepted, 2, "sólo cuentan las teclas válidas")
+    T.True(session.Rejected >= 13, "lo demás quedó anotado como rechazado: " .. session.Rejected)
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: zafar suelta, contragolpe, aturde 5 s exactos y después vuelve a cazar", function()
+    local players, MonsterService, CaptureService = captureMatch(1)
+    local player = players[1]
+    local entry = MonsterService.Spawn("ElColoso")
+    local controller = entry.Controller
+    local model = entry.Model
+    strike(entry, player)
+    local capture = toStruggle(CaptureService, player)
+    local session = capture.Session
+
+    for step = 1, #session.Sequence - 1 do
+        fire("CaptureInput", player, capture.Id, step, session.Sequence[step])
+        Engine.Run(0.1)
+    end
+    T.True(CaptureService.IsCaptured(player), "falta una")
+    local escapedAt = Engine.Clock()
+    fire("CaptureInput", player, capture.Id, #session.Sequence, session.Sequence[#session.Sequence])
+    local record = CaptureService.StunOf(entry)
+
+    T.False(CaptureService.IsCaptured(player), "zafó")
+    T.False(rootOf(player).Anchored, "recupera el control")
+    T.Equal(player:GetAttribute("Captured"), nil, "sin atributo")
+    T.True(CaptureService.IsImmune(player), "ventana de escape")
+    T.Equal(model:GetAttribute("State"), "Stunned", "aturdida")
+    T.Equal(model:GetAttribute("CapturePhase"), "Release", "la suelta con su animación")
+    local escaped = Engine.LastSent("CaptureUpdate")[1]
+    T.Equal(escaped.Event, "Escaped", "aviso de contragolpe")
+    T.Equal(escaped.StunTime, 5, "5 segundos")
+    local away = (rootOf(player).Position - entry.Root.Position) * Vector3.new(1, 0, 1)
+    T.True(away.Magnitude > CaptureConfig.Creatures.ElColoso.Hold.Forward, "el empujón lo aleja")
+    T.Equal(healthOf(player), 100, "sin daño")
+    -- Aprovecha el aturdimiento para alejarse.
+    Bot.MoveTo(Engine, player, rootOf(player).Position + Vector3.new(200, 0, 200))
+
+    -- Durante el aturdimiento: ni persigue, ni ataca, ni agarra a nadie.
+    local clock = controller.Clock
+    Engine.Run(CaptureConfig.ReleaseTime + 0.1, 0.05)
+    T.Equal(model:GetAttribute("AnimOverride"), nil, "terminó de soltar")
+    T.Equal(CaptureService.TryCapture(entry, player, 10), "Busy", "no agarra aturdida")
+
+    local recoverAt = nil
+    while Engine.Clock() < escapedAt + 6 do
+        Engine.Step(0.05)
+        if not recoverAt and model:GetAttribute("State") == "Recover" then
+            recoverAt = Engine.Clock()
+        end
+        if not recoverAt then
+            T.Equal(model:GetAttribute("State"), "Stunned", "sigue aturdida")
+        end
+    end
+    T.True(recoverAt ~= nil, "se recupera")
+    local stunned = recoverAt - escapedAt
+    T.True(stunned >= 5 - 1e-6 and stunned <= 5.05 + 1e-6, "aturdida " .. stunned .. " s")
+    T.Equal(record.StunEnded - record.Started, 5, "el temporizador del servidor marca 5 s")
+    T.Equal(controller.Clock, clock, "no pensó durante el aturdimiento")
+    T.Equal(controller.Attack, nil, "sin ataque pendiente")
+
+    Engine.Run(CaptureConfig.RecoverTime + 0.2)
+    T.Equal(entry.CaptureHold, nil, "suelta")
+    local state = model:GetAttribute("State")
+    T.True(state ~= "Recover" and state ~= "Stunned" and state ~= "Capture", "estado normal: " .. tostring(state))
+    Engine.Run(1)
+    T.True(controller.Clock > clock, "vuelve a la IA normal")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: perder el forcejeo aplica el daño de la dificultad y el camino de muerte", function()
+    for _, difficulty in ipairs({"Normal", "Pesadilla"}) do
+        local players, MonsterService, CaptureService = captureMatch(1, {Difficulty = difficulty})
+        local player = players[1]
+        local entry = MonsterService.Spawn("ElImitador")
+        strike(entry, player)
+        local capture = toStruggle(CaptureService, player)
+        T.Equal(#capture.Session.Sequence, CaptureConfig.Difficulty[difficulty].Length + 1, "largo en " .. difficulty)
+        T.True(Engine.RunUntil(function()
+            return not CaptureService.IsCaptured(player)
+        end, 15, 0.05), "termina")
+        local expected = math.floor(MonsterConfig.ElImitador.Damage * GameConfig.Difficulties[difficulty].MonsterDamage + 0.5)
+        T.Equal(healthOf(player), 100 - expected, "daño en " .. difficulty)
+        T.False(rootOf(player).Anchored, "suelto")
+        T.Equal(Engine.LastSent("MonsterEffect", player)[1], "Jumpscare", "golpe")
+        T.Equal(entry.Model:GetAttribute("State"), "Recover", "se recupera sin aturdirse")
+        T.True(CaptureService.IsImmune(player), "no lo agarra enseguida")
+    end
+
+    -- Con poca vida, el remate mata y sigue el camino normal de MatchService.
+    local players, MonsterService, CaptureService = captureMatch(1)
+    local player = players[1]
+    local state = gameState()
+    local lives = state.Lives
+    player.Character:FindFirstChildOfClass("Humanoid").Health = 10
+    local entry = MonsterService.Spawn("ElQuieto")
+    strike(entry, player)
+    T.True(Engine.RunUntil(function()
+        return not CaptureService.IsCaptured(player)
+    end, 15, 0.05), "termina")
+    Engine.Run(0.3)
+    T.Equal(state.Lives, lives - 1, "consume un reintento")
+    T.Equal(Engine.LastSent("DownState", player)[1].Down, true, "cae")
+    Engine.Run(GameConfig.Match.RespawnDelay + 1)
+    T.True(healthOf(player) > 0, "reaparece")
+    T.False(rootOf(player).Anchored, "sin anclar")
+    T.Equal(player:GetAttribute("Captured"), nil, "sin captura")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: si la víctima se va o muere en medio, todo se suelta sin trabarse", function()
+    local players, MonsterService, CaptureService = captureMatch(2)
+    local entry = MonsterService.Spawn("ElOyente")
+    strike(entry, players[1])
+    toStruggle(CaptureService, players[1])
+    Engine.RemovePlayer(players[1])
+    Engine.Run(0.1)
+    T.False(CaptureService.IsCaptured(players[1]), "quien se fue queda suelto")
+    T.Equal(entry.CaptureHold, "Recover", "la criatura se recupera")
+    Engine.Run(CaptureConfig.RecoverTime + 0.2)
+    T.Equal(entry.CaptureHold, nil, "y sigue")
+    T.Equal(entry.Model:GetAttribute("AnimOverride"), nil, "sin animación de captura")
+
+    -- Muere en medio (por otra causa): se suelta y la criatura no queda trabada.
+    local victim = players[2]
+    Engine.Run(1)
+    strike(entry, victim)
+    T.True(CaptureService.IsCaptured(victim), "agarra al otro")
+    victim.Character:FindFirstChildOfClass("Humanoid").Health = 0
+    Engine.Run(0.2)
+    T.False(CaptureService.IsCaptured(victim), "muerto: suelto")
+    T.False(rootOf(victim).Anchored, "sin anclar")
+    Engine.Run(CaptureConfig.RecoverTime + 0.2)
+    T.False(CaptureService.IsBusy(entry), "la criatura queda libre")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: una criatura agarra a uno solo y nadie agarra al que ya está agarrado", function()
+    local players, MonsterService, CaptureService = captureMatch(2)
+    local first = MonsterService.Spawn("ElTrepador")
+    local second = MonsterService.Spawn("ElColoso")
+    strike(first, players[1])
+    T.True(CaptureService.IsCaptured(players[1]), "agarra al primero")
+    T.Equal(CaptureService.TryCapture(first, players[2], 30), "Busy", "no agarra a un segundo")
+    T.Equal(CaptureService.TryCapture(second, players[1], 30), "Busy", "otra no le saca la presa")
+    T.Equal(snapshotOf(second, players[1]), nil, "las demás no ven al agarrado")
+    T.True(snapshotOf(second, players[2]) ~= nil, "sí al compañero")
+    T.Equal(healthOf(players[1]), 100, "nadie más lo lastima")
+
+    -- La otra criatura sí puede agarrar al compañero: dos capturas a la vez.
+    strike(second, players[2])
+    T.True(CaptureService.IsCaptured(players[2]), "la otra agarra al compañero")
+    T.Equal(CaptureService.CaptureOf(players[1]).Entry, first, "cada una con el suyo")
+    T.Equal(CaptureService.CaptureOf(players[2]).Entry, second, "cada una con el suyo")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: fracaso, cambio de capítulo o vuelta al lobby sueltan a todos", function()
+    local players, MonsterService, CaptureService = captureMatch(1)
+    local player = players[1]
+    local entry = MonsterService.Spawn("ElImitador")
+    strike(entry, player)
+    toStruggle(CaptureService, player)
+    Engine.RequireServer("Multiplayer.MatchService").FailChapter("prueba")
+    Engine.Run(0.1)
+    T.False(CaptureService.IsCaptured(player), "suelto al fallar")
+    T.False(rootOf(player).Anchored, "sin anclar")
+    T.Equal(player:GetAttribute("Captured"), nil, "sin atributo")
+    T.Equal(Engine.LastSent("CaptureUpdate")[1].Event, "Ended", "aviso de fin")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: inmunidad al zafar y escudo de las escenas", function()
+    local players, MonsterService, CaptureService = captureMatch(1)
+    local player = players[1]
+    local first = MonsterService.Spawn("ElOyente")
+    strike(first, player)
+    solve(player, toStruggle(CaptureService, player))
+    T.False(CaptureService.IsCaptured(player), "zafó")
+
+    local second = MonsterService.Spawn("ElImitador")
+    strike(second, player)
+    T.False(CaptureService.IsCaptured(player), "no lo vuelven a agarrar enseguida")
+    T.Equal(healthOf(player), 100, "ni lo lastiman")
+
+    Engine.Run(CaptureConfig.EscapeImmunity + 0.2)
+    local field = Engine.New("ForceField")
+    field.Parent = player.Character
+    T.Equal(CaptureService.TryCapture(second, player, 30), "Immune", "la escena lo protege")
+    field:Destroy()
+    strike(second, player)
+    T.True(CaptureService.IsCaptured(player), "pasada la ventana, sí")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: las cinco criaturas agarran y se las puede vencer en todas las dificultades", function()
+    for _, difficulty in ipairs({"Normal", "Pesadilla"}) do
+        local players, MonsterService, CaptureService = captureMatch(1, {Difficulty = difficulty})
+        local player = players[1]
+        for _, kind in ipairs({"ElOyente", "ElImitador", "ElQuieto", "ElTrepador", "ElColoso"}) do
+            MonsterService.Clear()
+            Engine.Run(CaptureConfig.EscapeImmunity + 0.2)
+            local entry = MonsterService.Spawn(kind)
+            strike(entry, player)
+            T.True(CaptureService.IsCaptured(player), kind .. " agarra")
+            local capture = toStruggle(CaptureService, player)
+            local profile = CaptureConfig.Creatures[kind]
+            T.Equal(#capture.Session.Sequence, CaptureConfig.Difficulty[difficulty].Length + profile.ExtraLength, kind .. " largo")
+            local lift = capture.Hold.Position.Y - capture.StandY
+            T.True(math.abs(lift - profile.Hold.Lift) < 0.05, kind .. " levanta " .. lift)
+            solve(player, capture)
+            T.False(CaptureService.IsCaptured(player), kind .. " vencida en " .. difficulty)
+            T.Equal(entry.Model:GetAttribute("State"), "Stunned", kind .. " aturdida")
+        end
+    end
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: el bot de la campaña forcejea y zafa como un jugador", function()
+    local players, MonsterService, CaptureService = captureMatch(1)
+    local player = players[1]
+    local entry = MonsterService.Spawn("ElColoso")
+    strike(entry, player)
+    T.True(Engine.RunUntil(function()
+        Bot.Act(Engine, player)
+        return not CaptureService.IsCaptured(player)
+    end, 15, 0.4), "zafa")
+    T.Equal(healthOf(player), 100, "sin daño")
+    T.NoEngineErrors(Engine)
+end)
+
+local function insideModel(model, point)
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            local localPoint = part.CFrame:PointToObjectSpace(point)
+            local half = part.Size / 2
+            if math.abs(localPoint.X) < half.X and math.abs(localPoint.Y) < half.Y and math.abs(localPoint.Z) < half.Z then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local KEY_CODES = {
+    Q = roblox.Enum.KeyCode.Q, E = roblox.Enum.KeyCode.E, R = roblox.Enum.KeyCode.R,
+    F = roblox.Enum.KeyCode.F, Space = roblox.Enum.KeyCode.Space,
+}
+local PAD_CODES = {
+    Q = roblox.Enum.KeyCode.ButtonX, E = roblox.Enum.KeyCode.ButtonY, R = roblox.Enum.KeyCode.ButtonB,
+    F = roblox.Enum.KeyCode.ButtonR1, Space = roblox.Enum.KeyCode.ButtonA,
+}
+
+T.Test("cliente: forcejeo con teclado y mando, cámara protegida y animación de la criatura", function()
+    local players, MonsterService, CaptureService = captureMatch(1, {Client = true})
+    local player = players[1]
+    local gui = player:FindFirstChild("PlayerGui")
+    local panel = gui:FindFirstChild("NocturnaStruggle"):FindFirstChild("Root"):FindFirstChild("StrugglePanel")
+    local camera = Engine.Workspace.CurrentCamera
+    local flashlight = player:GetAttribute("FlashlightEnabled")
+
+    local entry = MonsterService.Spawn("ElImitador")
+    local model = entry.Model
+    local jawPart = model:FindFirstChild("Jaw")
+    local jaw = jawPart:FindFirstChildOfClass("Motor6D")
+    local jawBase = jaw.C0
+    strike(entry, player)
+    Engine.Run(0.2)
+    T.True(panel.Visible, "panel del forcejeo")
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Scriptable, "la captura toma la cámara")
+
+    local capture = toStruggle(CaptureService, player)
+    Engine.Run(0.3)
+    T.False(insideModel(model, camera.CFrame.Position), "la cámara no atraviesa a la criatura")
+    T.True((camera.CFrame.Position - rootOf(player).Position).Magnitude > 1.5, "plano a distancia")
+    local head = model:FindFirstChild("Head")
+    -- Se compara contra lookAt del mismo motor (el de Lune invierte el frente).
+    local toward = roblox.CFrame.lookAt(camera.CFrame.Position, head.Position).LookVector
+    T.True(camera.CFrame.LookVector:Dot(toward) > 0.5, "mira a la criatura")
+    T.True(jaw.C0 ~= jawBase, "la boca se abre")
+    T.True(jawPart:FindFirstChild("CaptureDrip", true) ~= nil, "baba")
+    T.True(head:FindFirstChild("CaptureRim") ~= nil, "luz de recorte")
+
+    local sequence = capture.Session.Sequence
+    for step, key in ipairs(sequence) do
+        local codes = step % 2 == 0 and PAD_CODES or KEY_CODES
+        Engine.Input("InputBegan", {KeyCode = codes[key], UserInputType = roblox.Enum.UserInputType.Keyboard})
+        Engine.Run(0.1)
+    end
+    T.False(CaptureService.IsCaptured(player), "zafó con teclado y mando")
+    T.Equal(player:GetAttribute("FlashlightEnabled"), flashlight, "la F del forcejeo no toca la linterna")
+    T.Equal(model:GetAttribute("State"), "Stunned", "aturdida")
+
+    Engine.Run(1.5)
+    T.False(panel.Visible, "el panel se va")
+    T.Equal(camera.CameraType, roblox.Enum.CameraType.Custom, "devuelve la cámara")
+    T.True(jawPart:FindFirstChild("CaptureDrip", true) == nil, "limpia los efectos")
+    local animator = Engine.Require(Engine.ClientFolder:FindFirstChild("Effects"):FindFirstChild("CaptureAnimator"), "Client")
+    T.Equal(animator.Sessions()[model], nil, "la animación de captura devuelve las articulaciones")
+    for _, message in ipairs(Engine.Warnings()) do
+        T.False(string.find(message, "aptura") or string.find(message, "StruggleUI") or string.find(message, "Capture"), "aviso: " .. message)
+    end
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente táctil: botones grandes numerados para forcejear", function()
+    local players, MonsterService, CaptureService = captureMatch(1, {Client = true, Touch = true, Viewport = roblox.Vector2.new(812, 375)})
+    local player = players[1]
+    local holder = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaStruggle"):FindFirstChild("Root"):FindFirstChild("StruggleButtons")
+    local entry = MonsterService.Spawn("ElQuieto")
+    strike(entry, player)
+    local capture = toStruggle(CaptureService, player)
+    Engine.Run(0.2)
+    T.True(holder.Visible, "botones a la vista")
+    local count = 0
+    for _, child in ipairs(holder:GetChildren()) do
+        if child:IsA("TextButton") then
+            count += 1
+            T.True(child.Size.X.Offset >= 80 and child.Size.Y.Offset >= 80, "botón grande")
+        end
+    end
+    T.Equal(count, #CaptureConfig.Keys, "uno por tecla")
+
+    for _, key in ipairs(capture.Session.Sequence) do
+        Engine.GuiInput(holder:FindFirstChild("Key" .. key), "Activated")
+        Engine.Run(0.1)
+    end
+    T.False(CaptureService.IsCaptured(player), "zafó tocando")
+    Engine.Run(1.5)
+    T.False(holder.Visible, "los botones se van")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente: el compañero ve el aviso y la escena de quien está atrapado", function()
+    local players, MonsterService, CaptureService = captureMatch(2, {Client = true})
+    local banner = players[1]:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaStruggle"):FindFirstChild("Root"):FindFirstChild("CaptureBanner")
+    local entry = MonsterService.Spawn("ElOyente")
+    strike(entry, players[2])
+    Engine.Run(0.3)
+    T.True(banner.Visible, "aviso al compañero")
+    T.True(string.find(banner:FindFirstChild("Text").Text, players[2].DisplayName, 1, true) ~= nil, "con el nombre")
+    local animator = Engine.Require(Engine.ClientFolder:FindFirstChild("Effects"):FindFirstChild("CaptureAnimator"), "Client")
+    T.True(animator.Sessions()[entry.Model] ~= nil, "la criatura se anima también en su pantalla")
+    T.True(Engine.Workspace.CurrentCamera.CameraType ~= roblox.Enum.CameraType.Scriptable, "su cámara sigue siendo suya")
+    T.True(Engine.RunUntil(function()
+        return not CaptureService.IsCaptured(players[2])
+    end, 15), "termina")
+    Engine.Run(2.5)
+    T.False(banner.Visible, "el aviso se va")
+    T.NoEngineErrors(Engine)
+end)
+
 local failed = T.Summary()
 process.exit(failed > 0 and 1 or 0)

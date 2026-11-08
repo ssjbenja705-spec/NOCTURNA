@@ -28,15 +28,14 @@ local TOUCH_SIZE = 92
 local RESYNC_AFTER = 0.25
 local LOW_TIME = 0.35
 
-local KEY_CODES = {
-    [Enum.KeyCode.Q] = "Q", [Enum.KeyCode.E] = "E", [Enum.KeyCode.R] = "R",
-    [Enum.KeyCode.F] = "F", [Enum.KeyCode.Space] = "Space",
-    [Enum.KeyCode.ButtonX] = "Q", [Enum.KeyCode.ButtonY] = "E", [Enum.KeyCode.ButtonB] = "R",
-    [Enum.KeyCode.ButtonR1] = "F", [Enum.KeyCode.ButtonA] = "Space",
+-- Por nombre de tecla: así la búsqueda no depende de la identidad del EnumItem.
+local KEY_NAMES = {
+    Q = "Q", E = "E", R = "R", F = "F", Space = "Space",
+    ButtonX = "Q", ButtonY = "E", ButtonB = "R", ButtonR1 = "F", ButtonA = "Space",
 }
 local BOUND_KEYS = {}
-for keyCode in pairs(KEY_CODES) do
-    table.insert(BOUND_KEYS, keyCode)
+for name in pairs(KEY_NAMES) do
+    table.insert(BOUND_KEYS, (Enum.KeyCode :: any)[name])
 end
 
 local StruggleUI = {}
@@ -284,7 +283,7 @@ local function bindKeys(enabled)
         -- Por encima de todo: mientras forcejea, F no prende la linterna ni ESPACIO salta.
         ContextActionService:BindActionAtPriority(ACTION, function(_, state, input)
             if state == Enum.UserInputState.Begin then
-                local key = KEY_CODES[input.KeyCode]
+                local key = input.KeyCode and KEY_NAMES[input.KeyCode.Name]
                 if key then
                     StruggleUI.Press(key)
                 end

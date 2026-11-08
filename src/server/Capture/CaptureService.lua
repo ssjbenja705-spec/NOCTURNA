@@ -170,9 +170,10 @@ end
 -- lo levante esa criatura, mirándola. Nunca adentro de una pared.
 local function holdCFrame(entry, standY, profile)
     local rootCFrame = entry.Root.CFrame
-    local look = flat(rootCFrame.LookVector)
+    -- El frente lo dice la IA (Facing), no la orientación de la pieza raíz.
+    local look = flat(entry.Controller.Facing or rootCFrame.LookVector)
     if look.Magnitude < 0.05 then
-        look = flat(entry.Controller.Facing)
+        look = flat(rootCFrame.LookVector)
     end
     look = look.Magnitude > 0.05 and look.Unit or Vector3.new(0, 0, -1)
     local right = look:Cross(Vector3.new(0, 1, 0))

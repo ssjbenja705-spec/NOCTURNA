@@ -492,7 +492,26 @@ function Bot.SolvePuzzle(Engine, player, update)
 end
 
 -- Un paso de juego para el bot. Devuelve el identificador del objetivo actual.
+-- Agarrado por una criatura: forcejea como un jugador, una tecla por turno,
+-- leyendo la secuencia que le mostró el servidor.
+function Bot.Struggle(Engine, player)
+    local capture = Engine.RequireServer("Capture.CaptureService").CaptureOf(player)
+    if not capture then
+        return false
+    end
+    local session = capture.Session
+    if capture.Phase == "Struggle" and session then
+        local step = session.Index + 1
+        Bot.Fire(Engine, player, "CaptureInput", capture.Id, step, session.Sequence[step])
+    end
+    return true
+end
+
 function Bot.Act(Engine, player)
+    if Bot.Struggle(Engine, player) then
+        return nil
+    end
+
     local args = Engine.LastSent("ObjectiveUpdate", player)
     local update = args and args[1]
     if not update or update.Finished or not update.Waypoints then
