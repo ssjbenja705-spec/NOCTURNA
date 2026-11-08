@@ -4828,7 +4828,7 @@ end)
 require("./EntornoTests")({
     Engine = Engine, T = T, fire = fire, gameState = gameState, waitForPhase = waitForPhase,
     bootServer = bootServer, startMatch = startMatch, ChapterConfig = ChapterConfig, ThemeConfig = ThemeConfig,
-    clientWithMatch = clientWithMatch, puzzleMatch = puzzleMatch, countBaseParts = countBaseParts, fs = fs,
+    clientWithMatch = clientWithMatch, puzzleMatch = puzzleMatch, countBaseParts = countBaseParts, fs = fs, Bot = Bot,
 })
 
 local failed = T.Summary()

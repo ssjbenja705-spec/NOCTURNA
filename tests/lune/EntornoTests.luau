@@ -177,6 +177,291 @@ return function(ctx)
         T.NoEngineErrors(Engine)
     end)
 
+    T.Suite("Entorno: materiales, luz, puertas y Alma")
+
+    local function loadChapter(index, seed)
+        local WorldService = Engine.RequireServer("World.WorldService")
+        local plan = WorldService.LoadChapter(index, seed or 101)
+        return plan, Engine.Workspace:FindFirstChild("NOCTURNA_MAP"), WorldService
+    end
+
+    local function themeOf(index)
+        return ThemeConfig[ChapterConfig[index].Theme]
+    end
+
+    T.Test("Entorno: paredes dañadas y charcos en cada capítulo, livianos y dentro del presupuesto", function()
+        bootServer(1)
+        Engine.Run(0.5)
+        for index = 1, 5 do
+            local _, map, WorldService = loadChapter(index, 101 + index)
+            local total = ctx.countBaseParts(map)
+            T.True(total <= WorldService.PartBudget, string.format("capítulo %d dentro del presupuesto: %d", index, total))
+
+            local damage, gouges, wedges, puddles = 0, 0, 0, 0
+            for _, part in ipairs(map:FindFirstChild("Decor"):GetDescendants()) do
+                if part:IsA("BasePart") and part:FindFirstAncestor("Weathering") then
+                    damage += 1
+                    T.False(part.CanCollide or part.CanQuery or part.CanTouch, "el desgaste no choca ni tapa la vista: " .. part.Name)
+                    T.True(part.Anchored, "anclado: " .. part.Name)
+                    if part.Name == "ClawGouge" then
+                        gouges += 1
+                        if part:IsA("WedgePart") then
+                            wedges += 1
+                        end
+                    elseif part.Name == "PuddleWater" then
+                        puddles += 1
+                        T.True(part.Reflectance >= 0.2 and part.Transparency < 0.5, "agua que refleja la luz")
+                        T.True(Engine.CollectionService:HasTag(part, "NocturnaPuddle"), "el cliente la encuentra para hacerla temblar")
+                    end
+                end
+            end
+            T.True(damage >= 40, string.format("capítulo %d con paredes gastadas (%d piezas)", index, damage))
+            T.True(gouges > 0 and wedges == gouges, string.format("capítulo %d: zarpazos tallados en cuña (%d)", index, gouges))
+            if (themeOf(index).Wear.Puddles or 0) >= 0.3 then
+                T.True(puddles > 0, "capítulo " .. index .. " con charcos")
+            end
+        end
+        T.NoEngineErrors(Engine)
+    end)
+
+    T.Test("Entorno: cada sala tiene su luz; la de inicio siempre prendida y las rotas no cuentan como luz", function()
+        bootServer(1)
+        Engine.Run(0.5)
+        local states = {}
+        for index = 1, 5 do
+            local plan, map, WorldService = loadChapter(index, 300 + index)
+            WorldService.SetPower(true)
+            local kinds = {}
+            for _, part in ipairs(map:GetDescendants()) do
+                local state = part:GetAttribute("LightState")
+                if state then
+                    kinds[state] = true
+                    states[state] = (states[state] or 0) + 1
+                    local tagged = Engine.CollectionService:HasTag(part, "NocturnaLight")
+                    local light = part:FindFirstChildOfClass("PointLight")
+                    if state == "Broken" then
+                        T.False(tagged, "lámpara rota sin etiqueta de luz")
+                        T.True(light == nil, "lámpara rota sin luz")
+                    else
+                        T.True(tagged and light ~= nil, "lámpara con luz")
+                        T.Equal(light.Brightness, part:GetAttribute("BaseBrightness"), "brillo propio de la sala")
+                    end
+                    if part:GetAttribute("Cell") == plan.Layout.Start then
+                        T.Equal(state, "Normal", "la sala de inicio tiene luz")
+                    end
+                end
+            end
+            local count = 0
+            for _ in pairs(kinds) do
+                count += 1
+            end
+            T.True(count >= 3, "capítulo " .. index .. " sin salas iluminadas iguales")
+
+            -- Sin energía todas bajan, pero una tenue sigue más oscura que una normal.
+            WorldService.SetPower(false)
+            for _, fixture in ipairs(Engine.CollectionService:GetTagged("NocturnaLight")) do
+                local light = fixture:FindFirstChildOfClass("PointLight")
+                T.True(light.Brightness < fixture:GetAttribute("BaseBrightness"), "luz de emergencia más débil")
+                T.Equal(light.Color, themeOf(index).EmergencyLight, "color de emergencia")
+            end
+            WorldService.SetPower(true)
+        end
+        T.True((states.Dim or 0) > 0 and (states.Broken or 0) > 0 and (states.Flicker or 0) > 0, "hay salas tenues, rotas y titilantes")
+        T.NoEngineErrors(Engine)
+    end)
+
+    T.Test("Entorno: la identidad de cada capítulo (luz, desgaste, puertas y texturas) es propia", function()
+        local seen = {}
+        for index = 1, 5 do
+            local theme = themeOf(index)
+            T.True(type(theme.Mood) == "table" and type(theme.Wear) == "table", "Mood y Wear en el capítulo " .. index)
+            T.True(type(theme.Surfaces) == "table" and type(theme.Surfaces.Wall) == "string", "gancho de textura de pared")
+            T.True(not seen[theme.DoorStyle], "puerta propia en el capítulo " .. index)
+            seen[theme.DoorStyle] = true
+            T.True(not seen["peel" .. theme.Wear.Peel], "desgaste propio en el capítulo " .. index)
+            seen["peel" .. theme.Wear.Peel] = true
+        end
+        local readme = ctx.fs.readFile("assets/textures/README.md")
+        for index = 1, 5 do
+            for _, name in pairs(themeOf(index).Surfaces) do
+                T.True(string.find(readme, name, 1, true) ~= nil, "el README lista " .. name)
+            end
+        end
+    end)
+
+    T.Test("Entorno: con un MaterialVariant en MaterialService las paredes lo usan solas", function()
+        bootServer(1)
+        Engine.Run(0.5)
+        local variant = Engine.New("MaterialVariant", "NocturnaTunnelBrick")
+        variant.BaseMaterial = roblox.Enum.Material.Brick
+        variant.Parent = Engine.Services.MaterialService
+        local _, map = loadChapter(1, 77)
+        local walls, using = 0, 0
+        for _, part in ipairs(map:FindFirstChild("Sectors"):GetDescendants()) do
+            if part.Name == "Wall" then
+                walls += 1
+                if part.MaterialVariant == "NocturnaTunnelBrick" then
+                    using += 1
+                end
+            end
+        end
+        T.True(walls > 0 and using == walls, string.format("paredes con la textura PBR (%d de %d)", using, walls))
+        local floor = map:FindFirstChild("Floor", true)
+        T.Equal(floor.MaterialVariant, "", "lo que no tiene textura sigue con el material de Roblox")
+        T.NoEngineErrors(Engine)
+    end)
+
+    T.Test("Entorno: las puertas de cada capítulo tienen su estilo, se abren, y nunca encierran a nadie al cerrar", function()
+        local players = bootServer(1)
+        Engine.Run(0.5)
+        local Doors = Engine.RequireServer("World.DoorService")
+        local root = players[1].Character and players[1].Character:FindFirstChild("HumanoidRootPart")
+        T.True(root ~= nil, "jugador con personaje")
+        for index = 1, 5 do
+            local _, map = loadChapter(index, 500 + index)
+            local style = themeOf(index).DoorStyle
+            local folder = map:FindFirstChild("Doors")
+            local common = nil
+            for _, part in ipairs(Engine.CollectionService:GetTagged("NocturnaDoor")) do
+                if part:IsDescendantOf(folder) then
+                    T.Equal(part:GetAttribute("DoorStyle"), style, "puerta del estilo del capítulo " .. index)
+                    T.Equal(part.Transparency, 1, "lo que choca es invisible: se ven las hojas")
+                    local leaves = folder:FindFirstChild(part.Name .. "_Leaves")
+                    T.True(leaves ~= nil and #leaves:GetChildren() >= 3, "con hojas y detalles")
+                    if part.Name == "Door" and not common then
+                        common = part
+                    end
+                end
+            end
+            T.True(common ~= nil, "hay una puerta común en el capítulo " .. index)
+
+            -- Se abre: el paso queda libre enseguida.
+            Doors.OpenNear(common.Position)
+            T.Equal(common:GetAttribute("Opened"), true, "abierta")
+            T.False(common.CanCollide, "abierta no choca")
+
+            -- Se cierra de golpe con alguien parado en el vano: no se vuelve sólida.
+            root.CFrame = roblox.CFrame.new(common.Position)
+            T.True(Doors.SlamNear(common.Position, 5), "portazo")
+            Engine.Run(2)
+            T.False(common.CanCollide, "no encierra a quien está en el vano")
+            -- Cuando sale, el vano vuelve a ser pared.
+            root.CFrame = roblox.CFrame.new(common.Position + Vector3.new(0, 0, 0) + common.CFrame.LookVector * 8)
+            Engine.Run(1)
+            T.True(common.CanCollide, "cerrada vuelve a tapar el paso")
+        end
+        T.NoEngineErrors(Engine)
+    end)
+
+    T.Test("Entorno: una puerta trabada se ve trabada y suelta el candado al abrirse", function()
+        local players = bootServer(1)
+        startMatch(players, 2)
+        T.True(waitForPhase("Playing", 90), "partida")
+        local Admin = Engine.RequireServer("Multiplayer.MatchService")
+        Admin.SetChapter(2)
+        T.True(Engine.RunUntil(function()
+            return gameState().Chapter == 2 and gameState().Phase == "Playing"
+        end, 40), "capítulo 2")
+        local map = Engine.Workspace:FindFirstChild("NOCTURNA_MAP")
+        local leaves = map:FindFirstChild("Doors"):FindFirstChild("RESEARCH_DOOR_Leaves")
+        T.True(leaves ~= nil, "la puerta de investigación tiene hojas")
+        T.True(leaves:FindFirstChild("Padlock") ~= nil and leaves:FindFirstChild("LockBar") ~= nil, "candado y barra")
+        local lamp = leaves:FindFirstChild("StatusLamp")
+        T.True(lamp ~= nil and lamp.Color.R > lamp.Color.G, "luz roja de trabada")
+
+        Engine.RequireServer("Inventory.InventoryService").AddItem(players[1], "Keycard", 1)
+        local position = Engine.RequireServer("World.DoorService").PositionOf("RESEARCH_DOOR")
+        ctx.Bot.Use(Engine, players[1], position)
+        Engine.Run(0.5)
+        T.True(leaves:FindFirstChild("Padlock") == nil, "el candado se cae")
+        T.True(lamp.Color.G > lamp.Color.R, "luz verde al abrirse")
+        T.NoEngineErrors(Engine)
+    end)
+
+    local function hairCheck(rig, label)
+        local head = rig:FindFirstChild("Head")
+        local counts = {}
+        local pigtailRoots = {}
+        for _, part in ipairs(rig:GetChildren()) do
+            if part:IsA("BasePart") and part ~= head then
+                counts[part.Name] = (counts[part.Name] or 0) + 1
+            end
+        end
+        for _, name in ipairs({"Hair", "HairBack", "Hairclip"}) do
+            T.True((counts[name] or 0) >= 1, label .. ": " .. name)
+        end
+        T.Equal(counts.Bang, 3, label .. ": flequillo de tres mechones")
+        T.Equal(counts.Pigtail, 2, label .. ": dos colitas")
+        T.Equal(counts.Scrunchie, 2, label .. ": atadas con colitas de tela")
+        T.Equal(counts.Bow, 4, label .. ": dos moños")
+
+        -- Todo cuelga de la cabeza: soldado a ella o a una colita que cuelga de ella.
+        for _, part in ipairs(rig:GetChildren()) do
+            if part:IsA("BasePart") and part.Name == "Pigtail" then
+                local joint = part:FindFirstChild("PigtailWeld")
+                T.True(joint ~= nil and joint.Part0 == head and joint.Part1 == part, label .. ": colita colgada de la cabeza")
+                T.True(Engine.CollectionService:HasTag(joint, "NocturnaHairSway"), label .. ": la colita se balancea")
+                pigtailRoots[part] = true
+            end
+        end
+        local names = {Hair = true, HairBack = true, Bang = true, Hairclip = true, PigtailPuff = true, Scrunchie = true, Bow = true}
+        for _, part in ipairs(rig:GetChildren()) do
+            if part:IsA("BasePart") and names[part.Name] then
+                local weld = part:FindFirstChildOfClass("WeldConstraint")
+                T.True(weld ~= nil and (weld.Part0 == head or pigtailRoots[weld.Part0]), label .. ": " .. part.Name .. " soldado")
+                T.True(part.Massless and not part.CanCollide and not part.CanQuery, label .. ": " .. part.Name .. " no pesa ni choca")
+                -- Nada baja hasta los hombros ni se aleja de la cabeza.
+                local offset = head.CFrame:PointToObjectSpace(part.Position)
+                T.True(offset.Y > -head.Size.Y * 0.95 and offset.Magnitude < head.Size.X * 1.4, label .. ": " .. part.Name .. " cerca de la cabeza")
+            end
+        end
+    end
+
+    T.Test("Entorno: Alma tiene un pelo tierno pegado a la cabeza, con avatar y con piezas", function()
+        for _, options in ipairs({{}, {AvatarOffline = true}}) do
+            Engine.Reset(options)
+            local player = Engine.AddPlayer("Hermano", 3001)
+            local character = Engine.CreateCharacter(player)
+            character:FindFirstChild("HumanoidRootPart").CFrame = roblox.CFrame.new(0, 3, 60)
+            local AlmaBuilder = Engine.RequireServer("World.AlmaBuilder")
+            local holder = AlmaBuilder.Build(Engine.Workspace, {Id = "ALMA"}, roblox.CFrame.new(0, 0, 0))
+            local rig = holder:FindFirstChild("Alma")
+            hairCheck(rig, rig:GetAttribute("Source"))
+
+            -- La alegría sigue igual con el pelo puesto.
+            character:FindFirstChild("HumanoidRootPart").CFrame = roblox.CFrame.new(0, 3, 8)
+            Engine.Run(0.5)
+            T.True(holder:GetAttribute("Found"), "lo encuentra")
+            Engine.Run(3)
+            T.True(table.find(Engine.AnimationLog, AlmaBuilder.Animations.Cheer) ~= nil, "festeja")
+            T.NoEngineErrors(Engine)
+        end
+    end)
+
+    T.Test("Entorno: en bajo consumo no hay haces, polvo ni goteras; en calidad normal vuelven cerca", function()
+        local player = ctx.clientWithMatch({})
+        local fx = Engine.CollectionService:GetTagged("NocturnaAtmosFx")
+        T.True(#fx > 0, "hay efectos de atmósfera")
+        local toggle = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaSettings"):FindFirstChild("LowQuality", true)
+        Engine.GuiInput(toggle, "Activated")
+        Engine.Run(1)
+        for _, effect in ipairs(fx) do
+            T.False(effect.Enabled, "apagado en bajo consumo: " .. effect.Name)
+        end
+        Engine.GuiInput(toggle, "Activated")
+        -- La cámara va al lado de un efecto para que quede cerca.
+        local target = fx[1]
+        local parent = target.Parent
+        local position = parent:IsA("Attachment") and parent.WorldPosition or parent.Position
+        Engine.Workspace.CurrentCamera.CFrame = roblox.CFrame.new(position + Vector3.new(0, -2, 3))
+        Engine.Run(1)
+        local lit = not target:IsA("Beam") or (target.Parent:FindFirstChildOfClass("PointLight") and target.Parent:FindFirstChildOfClass("PointLight").Enabled)
+        if lit then
+            T.True(target.Enabled, "vuelve cerca en calidad normal: " .. target.Name)
+        end
+        T.NoEngineErrors(Engine)
+    end)
+
     return {
         Notices = notices,
         Noticed = noticed,
