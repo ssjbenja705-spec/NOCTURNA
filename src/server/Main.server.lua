@@ -29,6 +29,8 @@ local SERVICES = {
     script.Parent.Story.EndingService,
     script.Parent.Puzzles.PuzzleService,
     script.Parent.Puzzles.CinematicService,
+    script.Parent.Final.FinalChaseService,
+    script.Parent.Scares.ScareDirector,
     script.Parent.Multiplayer.LobbyService,
     script.Parent.Multiplayer.MatchService,
     script.Parent.Lobby.MatchTeleport,

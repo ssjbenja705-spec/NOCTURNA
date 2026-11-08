@@ -262,6 +262,8 @@ function WorldService.LoadChapter(chapterIndex, seed)
     map:SetAttribute("PartCount", countParts(map))
     WorldService.SetPower(theme.StartsPowered)
     MapService.Begin(plan)
+    -- Sustos al azar y persecución final se enteran del mapa nuevo.
+    EventBus.Emit("WorldLoaded", plan, map)
 
     return plan
 end
@@ -282,6 +284,7 @@ function WorldService.Unload()
     currentTheme = nil
     table.clear(lightByCell)
     applyAtmosphere(ThemeConfig.Lobby)
+    EventBus.Emit("WorldUnloaded")
 end
 
 function WorldService.Start()

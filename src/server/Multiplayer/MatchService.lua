@@ -25,6 +25,7 @@ local LobbyBuilder = require(script.Parent.Parent.World.LobbyBuilder)
 local RoomGenerator = require(script.Parent.Parent.World.RoomGenerator)
 local WorldService = require(script.Parent.Parent.World.WorldService)
 local LobbyService = require(script.Parent.LobbyService)
+local FinalChaseService = require(script.Parent.Parent.Final.FinalChaseService)
 
 local CONFIG = GameConfig.Match
 local TITLE_CARD_TIME = 4
@@ -296,6 +297,24 @@ local function onChapterCompleted(chapterIndex)
     end
 end
 
+-- Reintento: si el grupo cayó en la persecución final se repite sólo la
+-- persecución, desde su largada; si no, el capítulo entero.
+local function retryChapter()
+    if FinalChaseService.PrepareRetry() then
+        runToken += 1
+        failureToken += 1
+        table.clear(down)
+        setLives(GameState.MaxLives)
+        GameState.SetPhase("Playing")
+        for index, player in ipairs(Players:GetPlayers()) do
+            task.spawn(respawn, player, index)
+        end
+        FinalChaseService.Restart()
+        return
+    end
+    runChapter(GameState.Chapter, false)
+end
+
 local function failChapter(reason)
     if not GameState.IsPlaying() then
         return
@@ -312,7 +331,7 @@ local function failChapter(reason)
 
     task.delay(CONFIG.FailureAutoRetry, function()
         if token == failureToken and GameState.Phase == "Failed" then
-            task.spawn(runChapter, GameState.Chapter, false)
+            task.spawn(retryChapter)
         end
     end)
 end
@@ -443,7 +462,7 @@ function MatchService.Start()
 
     EventBus.On("FailureDecision", function(action)
         if action == "Retry" then
-            task.spawn(runChapter, GameState.Chapter, false)
+            task.spawn(retryChapter)
         else
             returnToLobby()
         end

@@ -663,7 +663,17 @@ function MockMeta.__newindex(self, key, value)
         else
             data.Values.CFrame = roblox.CFrame.new(value)
         end
-    elseif key == "Health" and data.ClassName == "Humanoid" then
+    end
+    -- Piezas soldadas (la cabeza del personaje): siguen a su pieza como en Roblox.
+    if (key == "CFrame" or key == "Position") and data.Welded then
+        local base = data.Values.CFrame
+        for _, weld in ipairs(data.Welded) do
+            if weld.Part.Parent == self.Parent then
+                weld.Part.CFrame = base * weld.Offset
+            end
+        end
+    end
+    if key == "Health" and data.ClassName == "Humanoid" then
         signalFor(data, "HealthChanged"):Fire(value)
         if value <= 0 and not data.DiedFired then
             data.DiedFired = true
@@ -1450,8 +1460,12 @@ function Engine.CreateCharacter(player)
     root.Parent = character
     dataOf(root).Values.AssemblyLinearVelocity = roblox.Vector3.zero
 
+    -- La cabeza va soldada a la raíz (como el cuello en Roblox): se mueve con ella.
     local head = mockNew("Part", "Head")
+    head.Size = roblox.Vector3.new(2, 1, 1)
     head.Parent = character
+    dataOf(root).Welded = {{Part = head, Offset = roblox.CFrame.new(0, 1.5, 0)}}
+    head.CFrame = root.CFrame * roblox.CFrame.new(0, 1.5, 0)
 
     local regeneration = mockNew("Script", "Health")
     regeneration.Parent = character

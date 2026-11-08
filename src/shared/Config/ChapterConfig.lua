@@ -468,6 +468,19 @@ Chapters[5] = {
                 },
             },
         },
+        -- Persecución final (Final/FinalChaseService): la casa se deshace y el grupo
+        -- corre por la galería del Núcleo con El Organismo detrás.
+        {
+            Id = "C5_ESCAPE", Type = "Activate", Target = "FINAL_CHASE",
+            Name = "Escapá del Organismo por la galería del Núcleo",
+            Hint = "Saltá, agachate y embestí: Espacio y C, o el botón de acción en el celular.",
+            OnComplete = {
+                Dialogue = {
+                    {Speaker = "Vos", Text = "La compuerta aguantó. Del otro lado se oye una nena que cuenta bajito."},
+                    {Speaker = "Radio", Text = "...cuatro..."},
+                },
+            },
+        },
         {
             Id = "C5_FIND", Type = "Reach", Target = "ALMA_ROOM",
             Name = "Encontrá a tu hermana",
@@ -481,6 +494,23 @@ Chapters[5] = {
             Id = "C5_END", Type = "Activate", Target = "ALMA",
             Name = "Descubrí la verdad",
         },
+    },
+    -- Arranca al completarse StartAfter: la casa se pliega, el grupo aparece en la
+    -- galería del Núcleo y El Organismo irrumpe detrás. Al cruzar la compuerta del
+    -- fondo, el grupo cae en el cuarto de Alma y se completa Id (C5_ESCAPE).
+    FinalChase = {
+        Id = "FINAL_CHASE",
+        StartAfter = "C5_DOOR",
+        Transition = {
+            "El cuarto de Alma no está detrás de la puerta.",
+            "La casa se dobla como una foto mojada y debajo aparece el hormigón de Leteo.",
+            "Algo enorme respira al fondo de la galería del Núcleo.",
+        },
+        Start = {
+            {Speaker = "Vos", Text = "¡Es el Organismo! ¡Corran hacia la compuerta del Núcleo y no paren!"},
+            {Speaker = "Radio", Text = "...uno... dos... tres..."},
+        },
+        Arrive = "La compuerta se cierra detrás de ustedes. Silencio. Una lámpara de nena, prendida.",
     },
     Layout = {
         Width = 5, Depth = 5, LoopChance = 0.22, NarrowChance = 0.25,

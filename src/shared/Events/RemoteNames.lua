@@ -15,6 +15,7 @@ return {
         "PuzzleAction",
         "CaptureInput",
         "CameraLook",
+        "ChaseAction",
     },
     ServerToClient = {
         "GameState",
@@ -43,5 +44,7 @@ return {
         "PuzzleUpdate",
         "Cinematic",
         "CaptureUpdate",
+        "ChaseState",
+        "ScareEvent",
     },
 }
