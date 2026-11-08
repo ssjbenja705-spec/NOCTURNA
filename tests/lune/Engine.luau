@@ -929,6 +929,7 @@ function Engine.Reset(options)
     service("StarterPlayer")
     service("Lighting")
     service("SoundService")
+    service("MaterialService")
     local starterGui = service("StarterGui")
 
     -- Interfaz: la barra de Roblox ocupa 58 px arriba; la precarga avanza de a poco

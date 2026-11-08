@@ -189,6 +189,9 @@ local function placeMannequins(plan, map)
 end
 
 local UNPOWERED_BULB = 0.45
+-- Sin energía queda la luz de emergencia: más débil y más corta.
+local UNPOWERED_LIGHT = 0.45
+local UNPOWERED_RANGE = 0.65
 
 function WorldService.SetPower(enabled)
     GameState.Powered = enabled
@@ -198,14 +201,23 @@ function WorldService.SetPower(enabled)
     end
 
     for _, fixture in ipairs(CollectionService:GetTagged("NocturnaLight")) do
+        -- Cada sala tiene su intensidad (normal, tenue o titilante): se respeta.
+        local brightness = fixture:GetAttribute("BaseBrightness") or 1
+        local range = fixture:GetAttribute("BaseRange") or 28
+        local color = fixture:GetAttribute("BaseColor") or theme.Light
+        local current = enabled and color or theme.EmergencyLight
         local light = fixture:FindFirstChildOfClass("PointLight")
         if light then
-            light.Color = enabled and theme.Light or theme.EmergencyLight
-            light.Brightness = enabled and 1 or 0.45
-            light.Range = enabled and 28 or 18
+            light.Color = current
+            light.Brightness = enabled and brightness or brightness * UNPOWERED_LIGHT
+            light.Range = enabled and range or range * UNPOWERED_RANGE
+        end
+        local shaft = fixture:FindFirstChild("LightShaft")
+        if shaft and shaft:IsA("Beam") then
+            shaft.Color = ColorSequence.new(current)
         end
         -- La lámpara misma también cambia: blanca con energía, roja de emergencia sin.
-        fixture.Color = enabled and theme.Light or PropKit.Shade(theme.EmergencyLight, UNPOWERED_BULB)
+        fixture.Color = enabled and color or PropKit.Shade(theme.EmergencyLight, UNPOWERED_BULB)
     end
 end
 
@@ -259,6 +271,9 @@ function WorldService.LoadChapter(chapterIndex, seed)
     -- Lo obligatorio ya está; muebles y utilería usan lo que sobra del presupuesto.
     RoomGenerator.Furnish(plan, theme, map, PART_BUDGET - countParts(map))
     decorate(plan, theme, map)
+    -- Al final, lo que sobra del presupuesto va al desgaste: zarpazos, grietas,
+    -- humedad y charcos repartidos en todas las salas.
+    RoomGenerator.Weather(plan, theme, map)
     map:SetAttribute("PartCount", countParts(map))
     WorldService.SetPower(theme.StartsPowered)
     MapService.Begin(plan)

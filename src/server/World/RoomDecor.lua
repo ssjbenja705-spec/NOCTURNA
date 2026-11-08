@@ -603,28 +603,32 @@ function RoomDecor.Grime(parent, center, theme, palette, rng, wallFaces)
         return center + Vector3.new(rng:Int(-15, 15), 0, rng:Int(-15, 15))
     end
 
+    -- Manchas del mismo material que el piso, más oscuras: la textura sigue debajo
+    -- y no parecen calcomanías de plástico. Los charcos los pone Weathering.
+    local floorMaterial = M(theme.FloorMaterial or "Concrete")
     for _ = 1, 2 do
-        local stain = PropKit.Column(parent, "Stain", 0.04, 3 + rng:Float() * 4, CFrame.new(spot() + Vector3.new(0, 0.02, 0)), palette.Grime, M("SmoothPlastic"))
+        local stain = PropKit.Column(parent, "Stain", 0.04, 3 + rng:Float() * 4, CFrame.new(spot() + Vector3.new(0, 0.02, 0)), palette.Grime, floorMaterial)
         stain.Transparency = 0.35 + rng:Float() * 0.25
     end
-    if theme.Puddles then
-        local puddle = PropKit.Column(parent, "Puddle", 0.04, 4 + rng:Float() * 5, CFrame.new(spot() + Vector3.new(0, 0.03, 0)), Color3.fromRGB(20, 24, 26), M("Glass"))
-        puddle.Reflectance = 0.3
-        puddle.Transparency = 0.15
-    end
     if theme.Papers then
+        -- Papel mate y amarillento, cada hoja de un tono distinto.
         for _ = 1, 2 do
-            Part(parent, "Paper", Vector3.new(0.9, 0.02, 1.2), CFrame.new(spot() + Vector3.new(0, 0.02, 0)) * CFrame.Angles(0, rng:Float() * 3, 0), PAPER, M("SmoothPlastic"))
+            Part(parent, "Paper", Vector3.new(0.9, 0.02, 1.2), CFrame.new(spot() + Vector3.new(0, 0.02, 0)) * CFrame.Angles(0, rng:Float() * 3, 0), PropKit.Vary(PAPER, rng, 0.1), M("Plaster"))
         end
     end
     if theme.Blood then
-        local smear = Part(parent, "Blood", Vector3.new(2.6, 0.03, 0.9), CFrame.new(spot() + Vector3.new(0, 0.03, 0)) * CFrame.Angles(0, rng:Float() * 3, 0), Color3.fromRGB(90, 16, 22), M("SmoothPlastic"))
-        smear.Transparency = 0.2
+        -- Sangre seca (mate) con el centro todavía húmedo (con un poco de brillo).
+        local angle = CFrame.Angles(0, rng:Float() * 3, 0)
+        local position = spot()
+        local smear = Part(parent, "Blood", Vector3.new(2.6, 0.03, 0.9), CFrame.new(position + Vector3.new(0, 0.03, 0)) * angle, Color3.fromRGB(74, 14, 18), M("Slate"))
+        smear.Transparency = 0.15
+        local wet = Part(parent, "BloodWet", Vector3.new(1.2, 0.03, 0.5), CFrame.new(position + Vector3.new(0, 0.034, 0)) * angle, Color3.fromRGB(96, 14, 22), M("SmoothPlastic"))
+        wet.Reflectance = 0.12
     end
     -- Chorreadura de humedad que baja del techo por una pared cerrada.
     if #wallFaces > 0 then
         local face = rng:Pick(wallFaces)
-        local streak = Part(parent, "Streak", Vector3.new(2.2, 5, 0.05), face * at(rng:Int(-6, 6), 10.3, -0.04), palette.Grime, M("SmoothPlastic"))
+        local streak = Part(parent, "Streak", Vector3.new(2.2, 5, 0.05), face * at(rng:Int(-6, 6), 10.3, -0.04), palette.Grime, M(theme.WallMaterial or "Concrete"))
         streak.Transparency = 0.45
     end
 end
