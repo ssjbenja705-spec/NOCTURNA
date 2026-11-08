@@ -149,7 +149,7 @@ local VIRTUAL_CLASSES = {
     CollectionService = true, TweenService = true, RunService = true, Debris = true,
     TextService = true, UserInputService = true, GlobalDataStore = true, Tween = true,
     TeleportService = true, MarketplaceService = true,
-    GuiService = true,
+    GuiService = true, ContextActionService = true,
 }
 
 local function classChain(className)
@@ -923,6 +923,19 @@ function Engine.Reset(options)
     local teleportService = service("TeleportService")
     local marketplace = service("MarketplaceService")
     Engine.UserInput = service("UserInputService")
+    -- ContextActionService: acciones con prioridad; la de mayor prioridad que
+    -- tome la tecla la marca como procesada para UserInputService.
+    local contextActions = service("ContextActionService")
+    Engine.Actions = {}
+    rawset(contextActions, "BindActionAtPriority", function(_, name, callback, _, priority, ...)
+        Engine.Actions[name] = {Name = name, Callback = callback, Priority = priority or 0, Keys = {...}}
+    end)
+    rawset(contextActions, "BindAction", function(_, name, callback, _, ...)
+        Engine.Actions[name] = {Name = name, Callback = callback, Priority = 0, Keys = {...}}
+    end)
+    rawset(contextActions, "UnbindAction", function(_, name)
+        Engine.Actions[name] = nil
+    end)
     service("ReplicatedStorage")
     service("ServerScriptService")
     service("ServerStorage")
@@ -1510,7 +1523,21 @@ end
 
 -- Simula una tecla o un toque tal como los entrega UserInputService.
 function Engine.Input(signalName, input)
-    signalFor(dataOf(Engine.UserInput), signalName):Fire(input, false)
+    local processed = false
+    if input.KeyCode and (signalName == "InputBegan" or signalName == "InputEnded") then
+        local best = nil
+        for _, action in pairs(Engine.Actions or {}) do
+            if table.find(action.Keys, input.KeyCode) and (not best or action.Priority > best.Priority) then
+                best = action
+            end
+        end
+        if best then
+            local state = signalName == "InputBegan" and roblox.Enum.UserInputState.Begin or roblox.Enum.UserInputState.End
+            local result = best.Callback(best.Name, state, input)
+            processed = result ~= roblox.Enum.ContextActionResult.Pass
+        end
+    end
+    signalFor(dataOf(Engine.UserInput), signalName):Fire(input, processed)
 end
 
 function Engine.GuiInput(button, signalName, input)

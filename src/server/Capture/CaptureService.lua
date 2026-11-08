@@ -107,9 +107,10 @@ local function publishState(entry, state)
     end
 end
 
+-- AnimOverride va último: cuando el cliente lo ve, el resto ya llegó.
 local function setModelCapture(entry, values)
     local model = entry.Model
-    for _, name in ipairs({"AnimOverride", "CaptureId", "CaptureVictim", "CapturePhase", "CaptureProgress", "StunnedUntil"}) do
+    for _, name in ipairs({"CaptureId", "CaptureVictim", "CapturePhase", "CaptureProgress", "StunnedUntil", "AnimOverride"}) do
         if values[name] ~= nil or values.Clear then
             model:SetAttribute(name, values[name])
         end
