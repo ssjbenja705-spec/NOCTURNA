@@ -300,10 +300,18 @@ function LobbyUI.Start()
             cardUi.Primary.Text, cardUi.Secondary.Text = "VOLVER", "DESCARTAR"
         elseif data.Kind == "Waiting" then
             local remaining = math.max(0, math.ceil(waitingRemaining - (os.clock() - waitingReceived)))
-            cardUi.Text.Text = string.format(
-                "Esperando al grupo... %d/%d\nEmpieza en %d s aunque falte alguien.",
-                data.Arrived or 0, data.Expected or 1, remaining
-            )
+            if data.Preparing or remaining <= 0 then
+                -- Venció la espera: falta sólo que termine de cargar quien llegó.
+                cardUi.Text.Text = string.format(
+                    "Llegaron %d de %d.\nPreparando la partida...",
+                    data.Arrived or 0, data.Expected or 1
+                )
+            else
+                cardUi.Text.Text = string.format(
+                    "Esperando al grupo... %d/%d\nEmpieza en %d s aunque falte alguien.",
+                    data.Arrived or 0, data.Expected or 1, remaining
+                )
+            end
             cardActions.Secondary = "ReturnToLobby"
             cardUi.Secondary.Text = "SALIR"
         elseif data.Kind == "Returning" then

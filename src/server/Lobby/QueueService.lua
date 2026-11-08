@@ -182,6 +182,17 @@ local function update(queue)
     end
 end
 
+-- Las puertas del ascensor se mueven solas (LobbyBuilder) y suenan acá: el
+-- chirrido mecánico al abrir y el golpe seco al cerrar.
+local function setDoors(queue, open)
+    local elevator = queue.Elevator
+    if elevator.DoorsOpen == open then
+        return
+    end
+    LobbyBuilder.SetDoors(elevator, open)
+    Remotes.FireAll("PlaySound", open and "DoorOpen" or "DoorSlam", elevator.Center)
+end
+
 local function moveOut(player, queue)
     local character = player.Character
     if character then
@@ -200,7 +211,14 @@ local function reopen(queue, restartTimer)
     if restartTimer or not queue.OpenSince then
         queue.OpenSince = os.clock()
     end
-    LobbyBuilder.SetDoors(queue.Elevator, true)
+    if restartTimer then
+        -- El viaje no se completó: quien sigue acá deja de figurar como viajando,
+        -- así puede volver a salir (antes quedaba trabado sin poder sumarse).
+        for _, member in ipairs(membersOf(queue)) do
+            MatchTeleport.Cancel(member)
+        end
+    end
+    setDoors(queue, true)
     update(queue)
 end
 
@@ -218,7 +236,7 @@ local function resetQueue(queue)
     queue.EndsAt = nil
     queue.LaunchDeadline = nil
     queue.OpenSince = nil
-    LobbyBuilder.SetDoors(queue.Elevator, not disabled)
+    setDoors(queue, not disabled)
     refreshSign(queue)
 end
 
@@ -230,7 +248,7 @@ local function beginCountdown(queue)
     party.State = "Countdown"
     queue.EndsAt = os.clock() + LobbyConfig.Countdown
     queue.LastSecond = secondsLeft(queue)
-    LobbyBuilder.SetDoors(queue.Elevator, false)
+    setDoors(queue, false)
 
     -- Quien quedó adentro sin lugar en el grupo baja antes de que cierren las puertas.
     for _, player in ipairs(Players:GetPlayers()) do

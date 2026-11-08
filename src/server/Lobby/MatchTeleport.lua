@@ -16,8 +16,18 @@ local CONFIG = LobbyConfig.Teleport
 local ACTIVE_STORE = "NOCTURNA_ACTIVE_MATCH_V1"
 
 local MatchTeleport = {}
--- [player] = {Options, PlaceId, Attempts, Kind}: viajes en curso, para reintentar.
+-- [player] = {Options, PlaceId, Attempts, Kind, Since}: viajes en curso, para reintentar.
 local pending = {}
+-- Un viaje que no terminó ni falló en este tiempo se da por perdido: el jugador
+-- vuelve a poder usar los ascensores en vez de quedar marcado como "viajando".
+local PENDING_TTL = LobbyConfig.LaunchTimeout + 15
+
+-- Fallas que no se arreglan reintentando: se avisa enseguida con el motivo.
+local FATAL_RESULTS = {
+    Unauthorized = "Roblox no autorizó el viaje",
+    GameNotFound = "No se encontró el servidor",
+    GameFull = "El servidor de la partida está lleno",
+}
 local store = nil
 
 local function getStore()
@@ -71,7 +81,7 @@ end
 local function teleport(players, options, kind)
     local placeId = game.PlaceId
     for _, player in ipairs(players) do
-        pending[player] = {Options = options, PlaceId = placeId, Attempts = 1, Kind = kind}
+        pending[player] = {Options = options, PlaceId = placeId, Attempts = 1, Kind = kind, Since = os.clock()}
     end
 
     local success, result = retry(function()
@@ -87,25 +97,38 @@ end
 
 -- Si el viaje de alguien falla después de empezar, se vuelve a intentar con los
 -- mismos datos (el mismo servidor reservado) antes de darse por vencido.
+local function giveUp(player, entry, reason)
+    pending[player] = nil
+    local detail = reason and (reason .. ". ") or ""
+    if entry.Kind == "Lobby" then
+        notify(player, detail .. "No pudimos llevarte a la recepción. Tocá VOLVER AL LOBBY para intentar de nuevo.")
+    else
+        notify(player, detail .. "No pudimos llevarte a la partida. Probá de nuevo desde un ascensor.")
+    end
+end
+
 local function onTeleportFailed(player, result, message)
     local entry = pending[player]
-    warn("[NOCTURNA] Viaje fallido de", player.Name, tostring(result), tostring(message))
+    local resultName = typeof(result) == "EnumItem" and result.Name or tostring(result)
+    warn("[NOCTURNA] Viaje fallido de", player.Name, resultName, tostring(message))
     if not entry then
         return
     end
 
-    if entry.Attempts >= CONFIG.Attempts then
-        pending[player] = nil
-        if entry.Kind == "Lobby" then
-            notify(player, "No pudimos llevarte a la recepción. Tocá VOLVER AL LOBBY para intentar de nuevo.")
-        else
-            notify(player, "No pudimos llevarte a la partida. Probá de nuevo desde un ascensor.")
-        end
+    -- Ya hay un viaje en marcha para este jugador: reintentar sólo lo trabaría más.
+    if resultName == "IsTeleporting" then
+        return
+    end
+
+    local fatal = FATAL_RESULTS[resultName]
+    if fatal or entry.Attempts >= CONFIG.Attempts then
+        giveUp(player, entry, fatal)
         return
     end
 
     entry.Attempts += 1
-    notify(player, "El viaje falló. Reintentando...")
+    entry.Since = os.clock()
+    notify(player, string.format("El viaje falló. Reintentando (%d/%d)...", entry.Attempts, CONFIG.Attempts))
     task.delay(CONFIG.RetryDelay * entry.Attempts, function()
         if player.Parent ~= Players or pending[player] ~= entry then
             return
@@ -155,15 +178,26 @@ function MatchTeleport.LaunchParty(players, data)
         return false, "No se pudo reservar un servidor"
     end
 
-    local options = Instance.new("TeleportOptions")
-    options.ReservedServerAccessCode = accessCode
-    options:SetTeleportData(data)
-
-    -- Mientras se reservaba alguien pudo irse.
+    -- Mientras se reservaba alguien pudo irse. La lista del grupo es la de quienes
+    -- de verdad viajan: si no, el servidor de la partida esperaría el límite
+    -- completo a alguien que nunca va a llegar.
     travellers = present(travellers)
     if #travellers == 0 then
         return false, "Sin jugadores"
     end
+    data = table.clone(data)
+    data.Party = {}
+    for _, player in ipairs(travellers) do
+        table.insert(data.Party, player.UserId)
+    end
+    if not table.find(data.Party, data.Host) then
+        data.Host = data.Party[1]
+    end
+    data.MaxPlayers = math.max(tonumber(data.MaxPlayers) or #data.Party, #data.Party)
+
+    local options = Instance.new("TeleportOptions")
+    options.ReservedServerAccessCode = accessCode
+    options:SetTeleportData(data)
 
     local success, err = teleport(travellers, options, "Match")
     if not success then
@@ -250,7 +284,18 @@ function MatchTeleport.Rejoin(player)
 end
 
 function MatchTeleport.IsTravelling(player)
-    return pending[player] ~= nil
+    local entry = pending[player]
+    if entry and os.clock() - entry.Since > PENDING_TTL then
+        pending[player] = nil
+        return false
+    end
+    return entry ~= nil
+end
+
+-- El ascensor se volvió a abrir porque el viaje no se completó: quien sigue acá
+-- deja de figurar como viajando y puede volver a intentarlo.
+function MatchTeleport.Cancel(player)
+    pending[player] = nil
 end
 
 function MatchTeleport.Start()

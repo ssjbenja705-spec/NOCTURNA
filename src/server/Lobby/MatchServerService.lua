@@ -26,6 +26,9 @@ local MatchServerService = {}
 local stage = "Waiting"
 local settings = nil
 local deadline = nil
+local announcedExpiry = false
+-- La partida se quedó sin nadie y espera a que alguien vuelva.
+local resumed = false
 
 local function readSettings(player)
     local success, joinData = pcall(function()
@@ -80,11 +83,14 @@ end
 
 function MatchServerService.View(_player)
     if stage == "Waiting" then
+        local remaining = deadline and math.max(0, math.ceil(deadline - os.clock())) or LobbyConfig.Teleport.PartyWait
         return {
             Kind = "Waiting",
             Arrived = arrivedCount(),
             Expected = expectedCount(),
-            Remaining = deadline and math.max(0, math.ceil(deadline - os.clock())) or LobbyConfig.Teleport.PartyWait,
+            Remaining = remaining,
+            -- Venció la espera: sólo falta que carguen los datos de quien llegó.
+            Preparing = deadline ~= nil and remaining <= 0,
         }
     elseif stage == "Returning" then
         return {Kind = "Returning"}
@@ -98,6 +104,12 @@ local function broadcast()
     end
 end
 
+local function notifyAll(text)
+    for _, player in ipairs(Players:GetPlayers()) do
+        Remotes.FireClient("StoryNotice", player, text)
+    end
+end
+
 local function begin()
     stage = "Playing"
     local chapter = settings and settings.Chapter or 1
@@ -105,8 +117,23 @@ local function begin()
     -- Los datos de viaje pasan por el cliente: el capítulo nunca supera lo que
     -- desbloqueó alguien del grupo que está presente.
     chapter = math.clamp(chapter, 1, highestUnlocked())
+
+    -- Nadie queda adivinando por qué empezó sin alguien.
+    if not settings then
+        notifyAll("No llegaron los datos del grupo: la partida empieza en el capítulo " .. chapter .. ".")
+    elseif not settings.Rejoin and not resumed and arrivedCount() < expectedCount() then
+        notifyAll(string.format(
+            "No llegaron todos (%d de %d). La partida empieza igual: los que falten pueden volver desde el lobby.",
+            arrivedCount(), expectedCount()
+        ))
+    end
+
     broadcast()
-    LobbyService.RequestMatch(chapter, difficulty)
+    if not LobbyService.RequestMatch(chapter, difficulty) then
+        -- Ya había una partida en marcha en este servidor (no debería pasar):
+        -- nadie queda esperando para siempre.
+        warn("[NOCTURNA] El servidor de partida no pudo arrancar el capítulo: ya había una partida.")
+    end
 end
 
 local function waitForParty()
@@ -119,6 +146,9 @@ local function waitForParty()
             local expired = os.clock() >= deadline
             if loaded and (complete or expired) or os.clock() >= deadline + DATA_GRACE then
                 begin()
+            elseif expired and not announcedExpiry then
+                announcedExpiry = true
+                broadcast()
             end
         end
     end
@@ -131,10 +161,14 @@ local function onPlayerAdded(player)
         if parsed.Rejoin then
             deadline = os.clock() + REJOIN_WAIT
         end
+    elseif resumed and stage == "Waiting" and not deadline then
+        -- Vuelve alguien a una partida que se había quedado sin nadie.
+        deadline = os.clock() + REJOIN_WAIT
     end
 
     if stage == "Returning" then
-        -- Llegó cuando la partida ya había terminado.
+        -- Llegó cuando la partida ya había terminado: vuelve a la recepción con aviso.
+        Remotes.FireClient("StoryNotice", player, "Esa partida ya terminó. Volviendo a la recepción...")
         task.spawn(MatchTeleport.ReturnToLobby, {player})
     end
     broadcast()
@@ -144,10 +178,23 @@ local function returnEveryone()
     if stage ~= "Playing" then
         return
     end
+
+    local players = Players:GetPlayers()
+    if #players == 0 then
+        -- Se cayeron todos (cierre del juego, corte de internet): la partida no
+        -- terminó. Se guarda su registro y el servidor vuelve a esperar: quien
+        -- vuelva desde el lobby retoma el capítulo en vez de rebotar a la recepción.
+        stage = "Waiting"
+        deadline = nil
+        announcedExpiry = false
+        resumed = true
+        task.spawn(waitForParty)
+        return
+    end
+
     stage = "Returning"
     broadcast()
 
-    local players = Players:GetPlayers()
     local forget = {}
     for _, player in ipairs(players) do
         forget[player.UserId] = true
