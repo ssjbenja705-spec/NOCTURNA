@@ -1,5 +1,7 @@
 -- El Oyente: ciego. Sólo reacciona al ruido y a lo que se mueve pegado a él.
 -- Se detiene a escuchar con la cabeza ladeada y chasquea para ubicarse.
+-- Gestos para el cliente: "Snap" (gira la cabeza de golpe hacia un ruido nuevo) y
+-- "Found" (lo ubicó: se cuadra hacia el jugador antes de salir corriendo).
 local Behavior = {}
 
 function Behavior.Init(monster)
@@ -35,6 +37,7 @@ local function closeTarget(monster)
 end
 
 local function investigate(monster, noise)
+    monster:Gesture("Snap")
     monster.NoisePosition = noise.Position
     monster.LastKnown = noise.Position
     monster:SetState("Investigate")
@@ -47,6 +50,9 @@ function Behavior.Update(monster, deltaTime)
 
     local close = closeTarget(monster)
     if close then
+        if monster.State ~= "Chase" then
+            monster:Gesture("Found")
+        end
         monster:Engage(close)
         monster:Remember(close, false)
         monster:SetState("Chase")

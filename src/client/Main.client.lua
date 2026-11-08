@@ -60,6 +60,7 @@ local MODULES = {
     {"Effects", "MonsterAnimator"},
     {"Effects", "CaptureAnimator"},
     {"UI", "StruggleUI"},
+    {"Effects", "ViewReporter"},
     {"Effects", "QualityController"},
     {"Lobby", "LobbyAmbience"},
     {"Effects", "Cinematics"},

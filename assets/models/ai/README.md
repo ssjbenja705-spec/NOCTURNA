@@ -75,6 +75,19 @@ El juego la copia a todas las piezas de esa criatura.
 **Si una criatura aparece mirando hacia atrás**, poné `TurnAround = true` en la
 carpeta `NocturnaModels`.
 
+## Piezas opcionales para la animación
+
+Las criaturas se animan por código (no hay animaciones subidas). Con los cortes
+actuales cada extremidad es una sola pieza rígida y la boca de El Imitador es un
+parche cortado de la cabeza (`Jaw1`), que apenas se entreabre. Si alguna vez se
+agregan estas mallas en `NocturnaModels/<Criatura>`, el juego las usa solo:
+
+| Malla | Qué hace |
+|---|---|
+| `ElImitador/Jaw` | Mandíbula propia: gira desde arriba y atrás y se abre del todo al gritar y atacar (reemplaza a `Jaw1`). |
+| `ElImitador/Tongue` | Lengua: queda dentro de la boca y sale cuando la boca está bien abierta. |
+| `<Criatura>/<Pieza><n>Lower` (por ejemplo `ElTrepador/Leg1Lower`) | Parte baja de una pierna o brazo: se cuelga del extremo de la pieza de arriba y se dobla en la rodilla o el codo (dos huesos). Para eso la pieza de arriba tiene que cortarse sólo hasta la rodilla. |
+
 ## Rehacer una criatura
 
 Generala de nuevo en Meshy desde `concept/para_meshy/<Criatura>.png` (Image to

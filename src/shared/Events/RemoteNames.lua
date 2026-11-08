@@ -14,6 +14,7 @@ return {
         "MapRequest",
         "PuzzleAction",
         "CaptureInput",
+        "CameraLook",
     },
     ServerToClient = {
         "GameState",

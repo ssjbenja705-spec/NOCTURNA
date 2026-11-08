@@ -101,6 +101,58 @@ end
 -- cuadro siguiente: si no, Roblox parte de la vista sacudida y la mirada se corre.
 local lastShake = nil
 
+-- Impactos suaves (pisadas de El Coloso): cada uno baja la mirada de golpe y
+-- vuelve con un rebote amortiguado en ~1 s. No es un temblor permanente: si no
+-- hay pisadas nuevas, la cámara queda quieta.
+local IMPULSE_LENGTH = 1.1
+local IMPULSE_SLOTS = 4
+local impulses = {}
+for index = 1, IMPULSE_SLOTS do
+    impulses[index] = {Start = -math.huge, Power = 0, Side = 0}
+end
+
+-- Forma del impacto en el tiempo (0 al empezar y al terminar, máximo ~0,07 s).
+function FirstPerson.ImpulseCurve(t)
+    if t <= 0 or t >= IMPULSE_LENGTH then
+        return 0
+    end
+    local attack = 1 - math.exp(-t * 35)
+    local decay = math.exp(-t * 4.2)
+    local fade = 1 - math.clamp((t - 0.8) / (IMPULSE_LENGTH - 0.8), 0, 1)
+    return attack * decay * math.cos(t * 9) * fade * fade
+end
+
+-- power 0..1 (según la distancia); side -1/1: hacia qué lado se inclina la vista.
+function FirstPerson.Impulse(power, side)
+    power = math.clamp(tonumber(power) or 0, 0, 1.5)
+    if power <= 0 then
+        return
+    end
+    local oldest = impulses[1]
+    for _, slot in ipairs(impulses) do
+        if slot.Start < oldest.Start then
+            oldest = slot
+        end
+    end
+    oldest.Start = os.clock()
+    oldest.Power = power
+    oldest.Side = (tonumber(side) or 0) < 0 and -1 or 1
+end
+
+-- Suma de los impactos vivos: (inclinación, ladeo, bajada).
+function FirstPerson.ImpulseOffset(now)
+    local pitch, roll, drop = 0, 0, 0
+    for _, slot in ipairs(impulses) do
+        local value = FirstPerson.ImpulseCurve(now - slot.Start) * slot.Power
+        if value ~= 0 then
+            pitch += value
+            roll += value * slot.Side
+            drop += math.max(value, 0)
+        end
+    end
+    return pitch, roll, drop
+end
+
 local function undoShake()
     local camera = workspace.CurrentCamera
     if lastShake and camera then
@@ -110,20 +162,30 @@ local function undoShake()
 end
 
 local function applyShake(camera)
-    if os.clock() >= shakeUntil then
+    local now = os.clock()
+    local rotation = nil
+    if now < shakeUntil then
+        local remaining = shakeUntil - now
+        local power = shakeStrength * math.clamp(remaining, 0, 1)
+        rotation = CFrame.Angles(
+            random:NextNumber(-1, 1) * power * 0.02,
+            random:NextNumber(-1, 1) * power * 0.02,
+            random:NextNumber(-1, 1) * power * 0.03
+        )
+    else
         shakeStrength = 0
-        return
     end
 
-    local remaining = shakeUntil - os.clock()
-    local power = shakeStrength * math.clamp(remaining, 0, 1)
-    local rotation = CFrame.Angles(
-        random:NextNumber(-1, 1) * power * 0.02,
-        random:NextNumber(-1, 1) * power * 0.02,
-        random:NextNumber(-1, 1) * power * 0.03
-    )
-    camera.CFrame *= rotation
-    lastShake = rotation
+    local pitch, roll, drop = FirstPerson.ImpulseOffset(now)
+    if pitch ~= 0 or roll ~= 0 then
+        local impact = CFrame.new(0, -drop * 0.12, 0) * CFrame.Angles(-pitch * 0.035, 0, roll * 0.012)
+        rotation = rotation and rotation * impact or impact
+    end
+
+    if rotation then
+        camera.CFrame *= rotation
+        lastShake = rotation
+    end
 end
 
 -- El servidor sólo conoce el giro del cuerpo. Localmente el haz sigue a la cámara,

@@ -236,8 +236,12 @@ local function resumeEntry(entry)
     entry.CaptureHold = nil
     local controller = entry.Controller
     controllerCall(controller, "Release", "Capture")
-    if type(controller.Stunned) == "number" then
-        controller.Stunned = 0
+    -- El tiempo de aturdimiento lo cuenta este servicio: el del controlador quedó
+    -- congelado mientras estaba retenida y no debe arrancar de nuevo al soltarla.
+    for _, field in ipairs({"Stunned", "StunLeft", "RecoverLeft"}) do
+        if type(controller[field]) == "number" then
+            controller[field] = 0
+        end
     end
     if entry.Model.Parent then
         setModelCapture(entry, {Clear = true})
