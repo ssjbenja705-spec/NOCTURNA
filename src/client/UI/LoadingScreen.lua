@@ -248,9 +248,29 @@ function LoadingScreen.Show()
     end
     shown = true
     startedAt = os.clock()
-    build()
+    local built, err = pcall(build)
+    if not built then
+        -- Sin pantalla de carga se juega igual: nunca tapa la pantalla a medio armar.
+        warn("[NOCTURNA] La pantalla de carga no se pudo armar: " .. tostring(err))
+        finished = true
+        if gui then
+            gui:Destroy()
+        end
+        return
+    end
     Theme.SetModal("Loading", true)
-    connection = RunService.Heartbeat:Connect(update)
+    -- Un error en un cuadro no la deja colgada: se cierra en vez de repetirlo.
+    connection = RunService.Heartbeat:Connect(function(deltaTime)
+        local success, problem = pcall(update, deltaTime)
+        if not success then
+            warn("[NOCTURNA] La pantalla de carga falló y se cierra: " .. tostring(problem))
+            LoadingScreen.Finish(true)
+        end
+    end)
+    -- Red de seguridad independiente del cuadro a cuadro: siempre termina.
+    task.delay(MAX_TIME + 2, function()
+        LoadingScreen.Finish(false)
+    end)
     task.spawn(preload)
 end
 
@@ -280,15 +300,22 @@ function LoadingScreen.Finish(fast)
         connection:Disconnect()
         connection = nil
     end
-    Theme.SetModal("Loading", false)
-    skip.Visible = false
-
-    local fade = fast and FAST_FADE_TIME or FADE_TIME
-    for _, entry in ipairs(fading) do
-        Theme.Tween(entry[1], fade, {[entry[2]] = 1})
+    pcall(Theme.SetModal, "Loading", false)
+    if skip then
+        skip.Visible = false
     end
+
+    -- El fundido es decorativo: si falla, la pantalla se borra igual.
+    local fade = fast and FAST_FADE_TIME or FADE_TIME
+    pcall(function()
+        for _, entry in ipairs(fading) do
+            Theme.Tween(entry[1], fade, {[entry[2]] = 1})
+        end
+    end)
     task.delay(fade + 0.05, function()
-        gui:Destroy()
+        if gui then
+            gui:Destroy()
+        end
     end)
 end
 

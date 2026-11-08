@@ -13,10 +13,16 @@ local Rng = require(Shared.Logic.Rng)
 
 local PropKit = require(script.Parent.PropKit)
 local RoomDecor = require(script.Parent.RoomDecor)
+local Weathering = require(script.Parent.Weathering)
 
 local MAP = GameConfig.Map
+-- Piezas apartadas por sala para el desgaste y el tope por sala.
+local WEATHER_RESERVE = 7
+local WEATHER_MAX = 16
 
 local RoomGenerator = {}
+-- Paredes y salas del último amueblado, para la pasada de desgaste.
+local furnished = nil
 
 local function createPart(parent, name, size, position, color, material)
     local part = Instance.new("Part")
@@ -97,7 +103,7 @@ local function buildWall(parent, center, width, status, horizontal, theme, color
         local wallSize = horizontal
             and Vector3.new(width, height, thickness)
             or Vector3.new(thickness, height, width)
-        createPart(parent, "Wall", wallSize, Vector3.new(center.X, wallY, center.Z), color, material)
+        PropKit.Surface(createPart(parent, "Wall", wallSize, Vector3.new(center.X, wallY, center.Z), color, material), theme, "Wall")
         return
     end
 
@@ -111,14 +117,14 @@ local function buildWall(parent, center, width, status, horizontal, theme, color
         local segmentPosition = horizontal
             and Vector3.new(center.X + offset, wallY, center.Z)
             or Vector3.new(center.X, wallY, center.Z + offset)
-        createPart(parent, "Wall", segmentSize, segmentPosition, color, material)
+        PropKit.Surface(createPart(parent, "Wall", segmentSize, segmentPosition, color, material), theme, "Wall")
     end
 
     local headerHeight = height - openingHeight
     local headerSize = horizontal
         and Vector3.new(openingWidth, headerHeight, thickness)
         or Vector3.new(thickness, headerHeight, openingWidth)
-    createPart(
+    local header = createPart(
         parent,
         "OpeningHeader",
         headerSize,
@@ -126,6 +132,7 @@ local function buildWall(parent, center, width, status, horizontal, theme, color
         color,
         material
     )
+    PropKit.Surface(header, theme, "Wall")
 end
 
 -- Las celdas "Corridor" se vuelven pasillos en cruz con cuatro bloques macizos.
@@ -136,7 +143,7 @@ local function buildCorridorBlocks(parent, center, theme, color)
 
     for _, sideX in ipairs({-1, 1}) do
         for _, sideZ in ipairs({-1, 1}) do
-            createPart(
+            local blockPart = createPart(
                 parent,
                 "CorridorBlock",
                 Vector3.new(block, MAP.WallHeight, block),
@@ -144,22 +151,156 @@ local function buildCorridorBlocks(parent, center, theme, color)
                 color,
                 material
             )
+            PropKit.Surface(blockPart, theme, "Wall")
         end
     end
 end
 
-local function addLight(parent, center, cellIndex, theme, palette)
+-- Luz de cada sala ------------------------------------------------------------------
+-- Ninguna sala se ilumina igual: según Mood del tema la lámpara puede estar tenue,
+-- titilar (lo hace el cliente, AmbientMotion), o estar rota y dejar la sala en
+-- penumbra (sólo la luz ambiente y la linterna). La sala de inicio siempre tiene luz.
+local LIGHT_LEVELS = {
+    Normal = {Brightness = 1, Range = 28},
+    Dim = {Brightness = 0.5, Range = 20},
+    Flicker = {Brightness = 0.9, Range = 26},
+}
+RoomGenerator.LightLevels = LIGHT_LEVELS
+
+local DEAD_BULB = Color3.fromRGB(46, 44, 40)
+
+local function pickLightState(mood, rng, isStart)
+    if isStart then
+        return "Normal"
+    end
+    local roll = rng:Float()
+    local broken = mood.Broken or 0
+    local dim = broken + (mood.Dim or 0)
+    local flicker = dim + (mood.Flicker or 0)
+    if roll < broken then
+        return "Broken"
+    elseif roll < dim then
+        return "Dim"
+    elseif roll < flicker then
+        return "Flicker"
+    end
+    return "Normal"
+end
+
+-- Haz de luz falso: un Beam del foco al piso que se abre y se desvanece. No es una
+-- pieza (no gasta presupuesto); el cliente lo apaga si la lámpara se apaga.
+local function addShaft(fixture, floor, color)
+    local top = Instance.new("Attachment")
+    top.Name = "ShaftTop"
+    top.Parent = fixture
+    local bottom = Instance.new("Attachment")
+    bottom.Name = "ShaftBottom"
+    bottom.Position = Vector3.new(0, MAP.FloorThickness / 2, 0)
+    bottom.Parent = floor
+
+    local beam = Instance.new("Beam")
+    beam.Name = "LightShaft"
+    beam.Attachment0 = top
+    beam.Attachment1 = bottom
+    beam.Color = ColorSequence.new(color)
+    beam.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.8),
+        NumberSequenceKeypoint.new(0.55, 0.92),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    beam.Width0 = 1.6
+    beam.Width1 = 13
+    beam.FaceCamera = true
+    beam.LightEmission = 0.6
+    beam.LightInfluence = 0
+    beam.Segments = 1
+    beam.Parent = fixture
+    CollectionService:AddTag(beam, Weathering.FX_TAG)
+    return beam
+end
+
+-- Polvo que cae despacio del techo. Sólo se ve donde hay luz (LightInfluence 1):
+-- marca los bolsillos iluminados y deja negros los rincones.
+local function addDust(ceiling, color)
+    local dust = Instance.new("ParticleEmitter")
+    dust.Name = "Dust"
+    dust.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    dust.Color = ColorSequence.new(color)
+    dust.LightEmission = 0
+    dust.LightInfluence = 1
+    dust.Size = NumberSequence.new(0.08)
+    dust.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 1),
+        NumberSequenceKeypoint.new(0.2, 0.35),
+        NumberSequenceKeypoint.new(1, 1),
+    })
+    dust.Lifetime = NumberRange.new(9, 14)
+    dust.Speed = NumberRange.new(0.3, 0.7)
+    dust.SpreadAngle = Vector2.new(35, 35)
+    dust.Drag = 0.4
+    dust.Rate = 5
+    dust.Shape = Enum.ParticleEmitterShape.Box
+    dust.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+    dust.EmissionDirection = Enum.NormalId.Bottom
+    dust.Parent = ceiling
+    CollectionService:AddTag(dust, Weathering.FX_TAG)
+    return dust
+end
+
+-- Baliza de emergencia en una pared cerrada: caja, lente y una luz chica de color
+-- que siempre queda prendida (va con batería). Se apaga en bajo consumo.
+local function addEmergencyLamp(parent, frame, theme, palette)
+    local color = theme.EmergencyLight or Color3.fromRGB(170, 40, 34)
+    local base = frame * CFrame.new(0, 10.6, 0)
+    PropKit.Part(parent, "BeaconBox", Vector3.new(1.4, 0.7, 0.5), base * CFrame.new(0, 0, -0.25), PropKit.Shade(palette.Metal, 0.7), PropKit.Material("Metal"))
+    local lens = PropKit.Part(parent, "BeaconLens", Vector3.new(1, 0.4, 0.2), base * CFrame.new(0, -0.05, -0.55), color, PropKit.Material("Neon"))
+    local light = PropKit.Light(lens, "PointLight", color, 0.7, 15, false)
+    light.Name = "BeaconLight"
+    CollectionService:AddTag(lens, "NocturnaDecorLight")
+    return lens
+end
+
+local function addLight(parent, center, cell, theme, palette, rng, parts)
+    local mood = theme.Mood or {}
+    local isStart = parts.IsStart
+    local state = pickLightState(mood, rng, isStart)
     local fixture = RoomDecor.Fixture(parent, theme.Fixture, center + Vector3.new(0, MAP.WallHeight, 0), palette)
     fixture.CanCollide = false
     fixture.CastShadow = false
-    fixture:SetAttribute("Cell", cellIndex)
+    fixture:SetAttribute("Cell", cell.Index)
+    fixture:SetAttribute("LightState", state)
+
+    if state == "Broken" then
+        -- Lámpara quemada: sin luz y sin etiqueta, así la IA sabe que acá está oscuro.
+        fixture.Color = DEAD_BULB
+        fixture.Material = Enum.Material.Glass
+        return fixture
+    end
+
+    local level = LIGHT_LEVELS[state]
+    local color = PropKit.Vary(theme.Light, rng, 0.05)
+    fixture:SetAttribute("BaseBrightness", level.Brightness)
+    fixture:SetAttribute("BaseRange", level.Range)
+    fixture:SetAttribute("BaseColor", color)
+    if state == "Flicker" then
+        fixture:SetAttribute("Flicker", true)
+    end
 
     local light = Instance.new("PointLight")
-    light.Color = theme.Light
-    light.Brightness = 1
-    light.Range = 28
+    light.Color = color
+    light.Brightness = level.Brightness
+    light.Range = level.Range
+    -- Sombras sólo en las salas con haz de luz: pocas, y las que más se lucen.
     light.Shadows = false
     light.Parent = fixture
+
+    if not isStart and cell.Role ~= "Corridor" and rng:Chance(mood.Shafts or 0) then
+        addShaft(fixture, parts.Floor, color)
+        light.Shadows = true
+    end
+    if rng:Chance(mood.Dust or 0) then
+        addDust(parts.Ceiling, mood.DustColor or color)
+    end
 
     CollectionService:AddTag(fixture, "NocturnaLight")
     return fixture
@@ -226,6 +367,8 @@ function RoomGenerator.Build(plan, theme)
     local ceilingMaterial = PropKit.Material(theme.CeilingMaterial or "Concrete")
     local palette = RoomDecor.Palette(theme)
     local rng = Rng.new((layout.Seed or 0) * 3 + 11)
+    local lightRng = Rng.new((layout.Seed or 0) * 17 + 3)
+    PropKit.RefreshSurfaces()
 
     for _, cell in ipairs(layout.Cells) do
         local center = cellCenter(cell)
@@ -239,7 +382,7 @@ function RoomGenerator.Build(plan, theme)
 
         -- Cada celda varía apenas de tono: dos salas vecinas nunca son idénticas.
         local wallColor = PropKit.Vary(theme.Wall, rng, 0.07)
-        createPart(
+        local floor = createPart(
             sector,
             "Floor",
             Vector3.new(size, MAP.FloorThickness, size),
@@ -247,7 +390,8 @@ function RoomGenerator.Build(plan, theme)
             PropKit.Vary(theme.Floor, rng, 0.08),
             floorMaterial
         )
-        createPart(
+        PropKit.Surface(floor, theme, "Floor")
+        local ceiling = createPart(
             sector,
             "Ceiling",
             Vector3.new(size, 2, size),
@@ -255,6 +399,7 @@ function RoomGenerator.Build(plan, theme)
             PropKit.Vary(theme.Ceiling, rng, 0.06),
             ceilingMaterial
         )
+        PropKit.Surface(ceiling, theme, "Ceiling")
 
         buildWall(sector, Vector3.new(centerX, 0, centerZ - size / 2), size, sideStatus(plan, layout, cell, "N"), true, theme, wallColor)
         buildWall(sector, Vector3.new(centerX - size / 2, 0, centerZ), size, sideStatus(plan, layout, cell, "W"), false, theme, wallColor)
@@ -270,7 +415,20 @@ function RoomGenerator.Build(plan, theme)
             buildCorridorBlocks(sector, center, theme, wallColor)
         end
 
-        addLight(sector, center, cell.Index, theme, palette)
+        addLight(sector, center, cell, theme, palette, lightRng, {
+            Floor = floor,
+            Ceiling = ceiling,
+            IsStart = cell.Index == layout.Start,
+        })
+        -- Baliza de emergencia en una pared cerrada (contraste de color en la penumbra).
+        if lightRng:Chance((theme.Mood or {}).Emergency or 0) then
+            for _, side in ipairs(SIDE_ORDER) do
+                if not sideStatus(plan, layout, cell, side) then
+                    addEmergencyLamp(sector, sideFrame(center, side), theme, palette)
+                    break
+                end
+            end
+        end
         sector.Parent = sectors
     end
 
@@ -351,7 +509,8 @@ local function placePiece(parent, name, frame, lateral, palette, rng)
 end
 
 -- Elige y ubica muebles en un hueco [from, to] de una pared. Devuelve cuántos puso.
-local function fillZone(parent, frame, zone, names, smallOnly, palette, rng, limit)
+-- `occupied` (opcional) recibe los tramos de pared que quedaron tapados.
+local function fillZone(parent, frame, zone, names, smallOnly, palette, rng, limit, occupied)
     local from, to = zone[1], zone[2]
     local placed = 0
     local cursor = from
@@ -372,6 +531,9 @@ local function fillZone(parent, frame, zone, names, smallOnly, palette, rng, lim
                 local slack = math.min(room - spec.Width, placed == 0 and 2.5 or 0.6)
                 local start = left + rng:Float() * slack
                 placePiece(parent, name, frame, start + spec.Width / 2, palette, rng)
+                if occupied then
+                    table.insert(occupied, {start - 0.4, start + spec.Width + 0.4})
+                end
                 cursor = start + spec.Width + 0.8
                 placed += 1
             end
@@ -380,16 +542,25 @@ local function fillZone(parent, frame, zone, names, smallOnly, palette, rng, lim
     return placed
 end
 
-local function furnishRoom(plan, layout, cell, theme, palette, rng, parent, roomType)
+-- Paredes cerradas de una celda, con lo que quedó tapado por muebles en cada una.
+local function closedWalls(plan, layout, cell)
     local center = cellCenter(cell)
-    local closedFaces = {}
+    local walls = {}
+    for _, side in ipairs(SIDE_ORDER) do
+        if not sideStatus(plan, layout, cell, side) then
+            walls[side] = {Frame = sideFrame(center, side), Occupied = {}}
+        end
+    end
+    return walls
+end
+
+local function furnishRoom(plan, layout, cell, palette, rng, parent, roomType, walls)
+    local center = cellCenter(cell)
 
     for _, side in ipairs(SIDE_ORDER) do
         local status = sideStatus(plan, layout, cell, side)
         local frame = sideFrame(center, side)
-        if not status then
-            table.insert(closedFaces, frame)
-        end
+        local occupied = walls[side] and walls[side].Occupied or nil
 
         local zones, smallOnly = zonesFor(status)
         for _, zone in ipairs(zones) do
@@ -400,12 +571,36 @@ local function furnishRoom(plan, layout, cell, theme, palette, rng, parent, room
             elseif status == "Passage" then
                 fillZone(parent, frame, zone, roomType.Large, false, palette, rng, 1)
             elseif rng:Chance(0.85) then
-                fillZone(parent, frame, zone, roomType.Large, false, palette, rng, 2)
+                fillZone(parent, frame, zone, roomType.Large, false, palette, rng, 2, occupied)
             end
         end
     end
+end
 
-    return closedFaces
+-- Tramos libres de una pared para dañarla: lejos de los rincones (escondites,
+-- máquinas y objetos van ahí) y de los muebles que se apoyan en ella.
+local DAMAGE_EDGE = 11
+local CORRIDOR_EDGE = MAP.CorridorWidth / 2 - 1.2
+
+local function freeSpans(occupied, edge)
+    local spans = {{-edge, edge}}
+    for _, block in ipairs(occupied) do
+        local nextSpans = {}
+        for _, span in ipairs(spans) do
+            if block[2] <= span[1] or block[1] >= span[2] then
+                table.insert(nextSpans, span)
+            else
+                if block[1] - span[1] > 1.5 then
+                    table.insert(nextSpans, {span[1], block[1]})
+                end
+                if span[2] - block[2] > 1.5 then
+                    table.insert(nextSpans, {block[2], span[2]})
+                end
+            end
+        end
+        spans = nextSpans
+    end
+    return spans
 end
 
 -- Agrega terminaciones y muebles hasta `limit` piezas en total en el mapa. Va por
@@ -432,8 +627,12 @@ function RoomGenerator.Furnish(plan, theme, map, limit)
         end
         holder:SetAttribute("RoomType", typeName or "Corridor")
         holder.Parent = decor
-        rooms[cell.Index] = {Cell = cell, Holder = holder, Type = typeName, Faces = {}}
+        rooms[cell.Index] = {Cell = cell, Holder = holder, Type = typeName, Walls = closedWalls(plan, layout, cell)}
     end
+    furnished = {Rooms = rooms, Map = map}
+    -- Lo mínimo para el desgaste de las paredes queda apartado: los muebles y la
+    -- utilería de los rincones no se lo pueden comer (ver RoomGenerator.Weather).
+    PropKit.SetReserve(#layout.Cells * WEATHER_RESERVE)
 
     -- 1. Zócalos y marcos de puertas.
     for _, room in ipairs(rooms) do
@@ -454,18 +653,68 @@ function RoomGenerator.Furnish(plan, theme, map, limit)
     for _, room in ipairs(rooms) do
         local roomType = room.Type and RoomDecor.RoomTypes[room.Type]
         if roomType then
-            room.Faces = furnishRoom(plan, layout, room.Cell, theme, palette, rng, room.Holder, roomType)
+            furnishRoom(plan, layout, room.Cell, palette, rng, room.Holder, roomType, room.Walls)
         end
     end
 
     -- 4. Mugre, manchas y papeles.
     for _, room in ipairs(rooms) do
         if PropKit.Fits(8) then
-            RoomDecor.Grime(room.Holder, cellCenter(room.Cell), theme, palette, rng, room.Faces)
+            local faces = {}
+            for _, side in ipairs(SIDE_ORDER) do
+                local wall = room.Walls[side]
+                if wall then
+                    table.insert(faces, wall.Frame)
+                end
+            end
+            RoomDecor.Grime(room.Holder, cellCenter(room.Cell), theme, palette, rng, faces)
         end
     end
 
     return decor
+end
+
+-- Desgaste: zarpazos, grietas, descascarado, humedad, charcos y pisos gastados.
+-- Va al final (después de la utilería de los rincones) y reparte lo que queda del
+-- presupuesto en partes iguales, así ninguna sala queda impecable.
+function RoomGenerator.Weather(plan, theme, map)
+    local state = furnished
+    furnished = nil
+    PropKit.SetReserve(0)
+    if not state or state.Map ~= map then
+        return 0
+    end
+
+    local palette = RoomDecor.Palette(theme)
+    local rng = Rng.new((plan.Layout.Seed or 0) * 13 + 5)
+    local rooms = state.Rooms
+    local total = 0
+    for index, room in ipairs(rooms) do
+        local corridor = room.Cell.Role == "Corridor"
+        local walls = {}
+        for _, side in ipairs(SIDE_ORDER) do
+            local wall = room.Walls[side]
+            if wall then
+                local spans = freeSpans(wall.Occupied, corridor and CORRIDOR_EDGE or DAMAGE_EDGE)
+                if #spans > 0 then
+                    table.insert(walls, {Frame = wall.Frame, Free = spans})
+                end
+            end
+        end
+        local share = math.floor(PropKit.Remaining() / (#rooms - index + 1))
+        local allowance = math.min(share, WEATHER_MAX)
+        if allowance > 0 then
+            local holder = room.Holder:FindFirstChild("Weathering") or Instance.new("Folder")
+            holder.Name = "Weathering"
+            holder.Parent = room.Holder
+            total += Weathering.Room(holder, cellCenter(room.Cell), walls, theme, palette, rng, allowance, {
+                Corridor = corridor,
+                -- La sala de inicio queda seca: el primer vistazo no es un charco.
+                NoPuddle = room.Cell.Index == plan.Layout.Start,
+            })
+        end
+    end
+    return total
 end
 
 function RoomGenerator.StartCFrame(layout, index)

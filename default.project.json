@@ -43,6 +43,13 @@
         "OutdoorAmbient": [0.13, 0.13, 0.15]
       }
     },
+    "MaterialService": {
+      "$className": "MaterialService",
+      "$ignoreUnknownInstances": true,
+      "$properties": {
+        "Use2022Materials": true
+      }
+    },
     "Workspace": {
       "$className": "Workspace",
       "$properties": {

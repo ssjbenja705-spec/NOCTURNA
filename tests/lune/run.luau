@@ -6451,5 +6451,12 @@ T.Test("cliente: cada susto se dibuja, suena y se borra solo", function()
     T.NoEngineErrors(Engine)
 end)
 
+-- Área de entorno (materiales, luz, puertas, entrada a servidores y Alma).
+require("./EntornoTests")({
+    Engine = Engine, T = T, fire = fire, gameState = gameState, waitForPhase = waitForPhase,
+    bootServer = bootServer, startMatch = startMatch, ChapterConfig = ChapterConfig, ThemeConfig = ThemeConfig,
+    clientWithMatch = clientWithMatch, puzzleMatch = puzzleMatch, countBaseParts = countBaseParts, fs = fs, Bot = Bot,
+})
+
 local failed = T.Summary()
 process.exit(failed > 0 and 1 or 0)

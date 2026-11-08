@@ -72,11 +72,18 @@ PropKit.Boxes = {
 
 -- Presupuesto ------------------------------------------------------------------
 
-local budget = {Count = 0, Limit = math.huge}
+local budget = {Count = 0, Limit = math.huge, Reserve = 0}
 
 function PropKit.ResetBudget(limit)
     budget.Count = 0
     budget.Limit = limit or math.huge
+    budget.Reserve = 0
+end
+
+-- Piezas apartadas para una pasada posterior (por ejemplo, el desgaste de las
+-- paredes): mientras dure la reserva, Fits las cuenta como usadas.
+function PropKit.SetReserve(count)
+    budget.Reserve = math.max(0, count or 0)
 end
 
 function PropKit.Used()
@@ -89,7 +96,7 @@ end
 
 -- ¿Entran `count` piezas más sin pasarse?
 function PropKit.Fits(count)
-    return budget.Count + count <= budget.Limit
+    return budget.Count + count + budget.Reserve <= budget.Limit
 end
 
 -- Piezas ------------------------------------------------------------------------
@@ -109,6 +116,54 @@ function PropKit.Material(name)
     return cached
 end
 
+-- Gancho de texturas PBR -----------------------------------------------------------
+-- No hay texturas propias subidas a Roblox: todo usa los materiales que trae el
+-- motor. Si alguien sube los mapas (ver assets/textures/README.md) y crea en
+-- MaterialService un MaterialVariant con el nombre que pide ThemeConfig.Surfaces,
+-- las paredes, pisos y techos lo usan solos, sin tocar código.
+local variantCache = {}
+
+local function findVariant(name)
+    if type(name) ~= "string" or name == "" then
+        return nil
+    end
+    local cached = variantCache[name]
+    if cached ~= nil then
+        return cached or nil
+    end
+    local found = false
+    local success, service = pcall(function()
+        return game:GetService("MaterialService")
+    end)
+    if success and service then
+        local variant = service:FindFirstChild(name, true)
+        if variant and variant:IsA("MaterialVariant") then
+            found = variant
+        end
+    end
+    variantCache[name] = found
+    return found or nil
+end
+
+-- Vuelve a buscar los MaterialVariant (al cargar cada capítulo).
+function PropKit.RefreshSurfaces()
+    table.clear(variantCache)
+end
+
+-- Aplica la textura PBR de `key` (Wall, Floor, Ceiling...) del tema si existe.
+-- El material base pasa a ser el del MaterialVariant para que Roblox lo acepte.
+-- Devuelve true si la usó.
+function PropKit.Surface(part, theme, key)
+    local surfaces = theme and theme.Surfaces
+    local variant = surfaces and findVariant(surfaces[key])
+    if not variant then
+        return false
+    end
+    part.Material = variant.BaseMaterial
+    part.MaterialVariant = variant.Name
+    return true
+end
+
 function PropKit.Shade(color, factor)
     return Color3.new(
         math.clamp(color.R * factor, 0, 1),
@@ -124,9 +179,10 @@ end
 
 -- Pieza decorativa: anclada, sin colisión, sin consultas ni sombras. Así no pesa
 -- en la física del celular ni tapa la vista de las criaturas.
--- options: Shape, Solid (colisiona y bloquea la vista), Shadow, Transparency, Reflectance.
+-- options: Shape, Solid (colisiona y bloquea la vista), Shadow, Transparency,
+-- Reflectance, Class ("WedgePart" para cortes en cuña, como los zarpazos).
 function PropKit.Part(parent, name, size, cframe, color, material, options)
-    local item = Instance.new("Part")
+    local item = Instance.new(options ~= nil and options.Class or "Part")
     item.Name = name
     item.Size = size
     item.CFrame = cframe

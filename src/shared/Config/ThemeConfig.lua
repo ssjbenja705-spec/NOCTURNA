@@ -11,6 +11,16 @@
 --   HideKinds:   escondites del capítulo (se reparten en este orden, mezclados).
 --   ExtraHides:  escondites además de los que pide el capítulo.
 --   Passages:    pasadizos secretos entre dos salas (las criaturas no los usan).
+--   Wear:        desgaste de paredes y pisos (Weathering): qué aparece debajo de la
+--                pintura (Peel/Under), manchas, moho y la chance de cada daño por sala
+--                (zarpazos, grietas, descascarado, humedad) y de charcos (Liquid).
+--   Mood:        identidad de la luz: chance de que una sala tenga la lámpara tenue,
+--                rota o titilante, haz de luz en el polvo, polvo flotando y baliza.
+--   Surfaces:    nombres de MaterialVariant con texturas PBR propias (ver
+--                assets/textures/README.md). Si no están en MaterialService, se usan
+--                los materiales de Roblox de arriba sin cambios.
+--   DoorStyle:   puertas comunes del capítulo (DoorModels): cortina, oficina, esclusa,
+--                bóveda o casa, con sus materiales y su forma de abrir.
 return {
     Tunnels = {
         Floor = Color3.fromRGB(52, 54, 55),
@@ -40,7 +50,7 @@ return {
         Trim = "Band",
         CeilingKit = "Pipes",
         Fixture = "Cage",
-        Puddles = true,
+        DoorStyle = "Shutter",
         RoomTypes = {"Maintenance", "Storage", "PumpRoom", "Storage"},
         HideKinds = {"Locker", "Vent", "Locker"},
         HideStyle = {
@@ -50,13 +60,37 @@ return {
         },
         ExtraHides = 4,
         Passages = 3,
+        -- Ladrillo húmedo: ladrillos saltados, salitre, goteras y charcos por todos lados.
+        Wear = {
+            Peel = "Spall",
+            Under = Color3.fromRGB(104, 100, 94),
+            UnderMaterial = "Concrete",
+            Stain = Color3.fromRGB(34, 30, 24),
+            Claws = 0.4,
+            Cracks = 0.6,
+            Peels = 0.45,
+            Damp = 0.75,
+            Puddles = 0.75,
+            Liquid = Color3.fromRGB(20, 25, 27),
+        },
+        -- Luz de túnel: lámparas de sodio desparejas, balizas rojas y polvo en el aire.
+        Mood = {
+            Dim = 0.3,
+            Broken = 0.12,
+            Flicker = 0.18,
+            Shafts = 0.25,
+            Dust = 0.3,
+            Emergency = 0.35,
+            DustColor = Color3.fromRGB(205, 186, 156),
+        },
+        Surfaces = {Wall = "NocturnaTunnelBrick", Floor = "NocturnaWetConcrete", Ceiling = "NocturnaStainedConcrete"},
         Lighting = {
             Exposure = 0.35,
             DiffuseScale = 0.25,
             SpecularScale = 0.55,
-            Atmosphere = {Density = 0.34, Offset = 0.05, Color = Color3.fromRGB(52, 54, 58), Decay = Color3.fromRGB(38, 34, 30), Glare = 0, Haze = 1.6},
+            Atmosphere = {Density = 0.36, Offset = 0.05, Color = Color3.fromRGB(52, 54, 58), Decay = Color3.fromRGB(40, 34, 28), Glare = 0, Haze = 1.9},
             Bloom = {Intensity = 0.5, Size = 22, Threshold = 1.4},
-            Grade = {Brightness = 0.03, Contrast = 0.1, Saturation = -0.22, Tint = Color3.fromRGB(236, 230, 218)},
+            Grade = {Brightness = 0.03, Contrast = 0.16, Saturation = -0.22, Tint = Color3.fromRGB(238, 228, 212)},
             Depth = {FarIntensity = 0.12, FocusDistance = 22, InFocusRadius = 36, NearIntensity = 0},
         },
     },
@@ -89,6 +123,7 @@ return {
         Trim = "Wainscot",
         CeilingKit = "Grid",
         Fixture = "Panel",
+        DoorStyle = "Office",
         Papers = true,
         RoomTypes = {"Office", "Consultation", "Waiting", "Records"},
         HideKinds = {"Locker", "Desk", "Wardrobe", "Desk"},
@@ -102,13 +137,38 @@ return {
         },
         ExtraHides = 4,
         Passages = 2,
+        -- Clínica abandonada: pintura que se descascara, moho, manchas de goteras.
+        Wear = {
+            Peel = "Paint",
+            Under = Color3.fromRGB(150, 148, 142),
+            UnderMaterial = "Concrete",
+            Stain = Color3.fromRGB(70, 66, 44),
+            Mould = Color3.fromRGB(34, 40, 30),
+            Claws = 0.35,
+            Cracks = 0.5,
+            Peels = 0.6,
+            Damp = 0.45,
+            Puddles = 0.15,
+            Liquid = Color3.fromRGB(30, 34, 32),
+        },
+        -- Tubos fluorescentes fríos que titilan; muchas salas a media luz.
+        Mood = {
+            Dim = 0.3,
+            Broken = 0.15,
+            Flicker = 0.3,
+            Shafts = 0.2,
+            Dust = 0.35,
+            Emergency = 0.2,
+            DustColor = Color3.fromRGB(196, 214, 204),
+        },
+        Surfaces = {Wall = "NocturnaPeelingPlaster", Floor = "NocturnaDirtyTiles", Ceiling = "NocturnaStainedPlaster"},
         Lighting = {
             Exposure = 0.3,
             DiffuseScale = 0.3,
             SpecularScale = 0.45,
-            Atmosphere = {Density = 0.3, Offset = 0, Color = Color3.fromRGB(56, 62, 60), Decay = Color3.fromRGB(44, 50, 46), Glare = 0, Haze = 1},
+            Atmosphere = {Density = 0.31, Offset = 0, Color = Color3.fromRGB(56, 62, 60), Decay = Color3.fromRGB(44, 52, 46), Glare = 0, Haze = 1.2},
             Bloom = {Intensity = 0.45, Size = 20, Threshold = 1.5},
-            Grade = {Brightness = 0.02, Contrast = 0.08, Saturation = -0.3, Tint = Color3.fromRGB(222, 238, 228)},
+            Grade = {Brightness = 0.02, Contrast = 0.12, Saturation = -0.32, Tint = Color3.fromRGB(220, 238, 228)},
             Depth = {FarIntensity = 0.1, FocusDistance = 25, InFocusRadius = 40, NearIntensity = 0},
         },
     },
@@ -140,6 +200,7 @@ return {
         Trim = "Kick",
         CeilingKit = "Veins",
         Fixture = "Surgical",
+        DoorStyle = "Airlock",
         Blood = true,
         RoomTypes = {"Lab", "Ward", "Specimen", "Nest"},
         HideKinds = {"Bed", "Locker", "Vent"},
@@ -151,13 +212,37 @@ return {
         },
         ExtraHides = 4,
         Passages = 3,
+        -- Laboratorio tomado por la carne: membranas rotas, sangre y fluidos.
+        Wear = {
+            Peel = "Membrane",
+            Under = Color3.fromRGB(74, 20, 28),
+            UnderMaterial = "Slate",
+            Stain = Color3.fromRGB(70, 18, 24),
+            Claws = 0.55,
+            Cracks = 0.3,
+            Peels = 0.5,
+            Damp = 0.3,
+            Puddles = 0.35,
+            Liquid = Color3.fromRGB(52, 12, 16),
+        },
+        -- Quirófano rojo: luz cruda sobre algunas camillas y bruma espesa.
+        Mood = {
+            Dim = 0.35,
+            Broken = 0.1,
+            Flicker = 0.2,
+            Shafts = 0.3,
+            Dust = 0.15,
+            Emergency = 0.15,
+            DustColor = Color3.fromRGB(214, 150, 140),
+        },
+        Surfaces = {Wall = "NocturnaFleshWall", Floor = "NocturnaStainedSlate", Ceiling = "NocturnaFleshCeiling"},
         Lighting = {
             Exposure = 0.3,
             DiffuseScale = 0.2,
             SpecularScale = 0.8,
-            Atmosphere = {Density = 0.38, Offset = 0.08, Color = Color3.fromRGB(62, 34, 36), Decay = Color3.fromRGB(70, 30, 32), Glare = 0, Haze = 2},
+            Atmosphere = {Density = 0.4, Offset = 0.08, Color = Color3.fromRGB(62, 34, 36), Decay = Color3.fromRGB(74, 28, 30), Glare = 0, Haze = 2.3},
             Bloom = {Intensity = 0.6, Size = 26, Threshold = 1.3},
-            Grade = {Brightness = 0.02, Contrast = 0.14, Saturation = -0.08, Tint = Color3.fromRGB(246, 222, 220)},
+            Grade = {Brightness = 0.02, Contrast = 0.18, Saturation = -0.08, Tint = Color3.fromRGB(246, 220, 218)},
             Depth = {FarIntensity = 0.16, FocusDistance = 20, InFocusRadius = 32, NearIntensity = 0},
         },
     },
@@ -189,6 +274,7 @@ return {
         Trim = "Kick",
         CeilingKit = "Trays",
         Fixture = "Pendant",
+        DoorStyle = "Vault",
         Papers = true,
         RoomTypes = {"Stacks", "ServerRoom", "Records", "Vault"},
         HideKinds = {"Wardrobe", "Locker", "Desk", "Vent"},
@@ -203,13 +289,37 @@ return {
         },
         ExtraHides = 4,
         Passages = 3,
+        -- Archivo de chapa: óxido que chorrea, rayones en el metal y goteras.
+        Wear = {
+            Peel = "Rust",
+            Under = Color3.fromRGB(112, 62, 38),
+            UnderMaterial = "CorrodedMetal",
+            Stain = Color3.fromRGB(28, 30, 34),
+            Claws = 0.4,
+            Cracks = 0.25,
+            Peels = 0.55,
+            Damp = 0.35,
+            Puddles = 0.3,
+            Liquid = Color3.fromRGB(18, 22, 28),
+        },
+        -- Pasillos azules de alto contraste: haces de luz en el polvo y balizas.
+        Mood = {
+            Dim = 0.25,
+            Broken = 0.15,
+            Flicker = 0.15,
+            Shafts = 0.35,
+            Dust = 0.4,
+            Emergency = 0.3,
+            DustColor = Color3.fromRGB(176, 192, 220),
+        },
+        Surfaces = {Wall = "NocturnaScratchedSteel", Floor = "NocturnaWornPlate", Ceiling = "NocturnaStainedConcrete"},
         Lighting = {
             Exposure = 0.35,
             DiffuseScale = 0.25,
             SpecularScale = 0.7,
-            Atmosphere = {Density = 0.33, Offset = 0.02, Color = Color3.fromRGB(44, 50, 64), Decay = Color3.fromRGB(30, 36, 52), Glare = 0, Haze = 1.2},
+            Atmosphere = {Density = 0.34, Offset = 0.02, Color = Color3.fromRGB(44, 50, 64), Decay = Color3.fromRGB(30, 36, 54), Glare = 0, Haze = 1.4},
             Bloom = {Intensity = 0.5, Size = 22, Threshold = 1.4},
-            Grade = {Brightness = 0.02, Contrast = 0.12, Saturation = -0.25, Tint = Color3.fromRGB(220, 230, 246)},
+            Grade = {Brightness = 0.02, Contrast = 0.18, Saturation = -0.28, Tint = Color3.fromRGB(218, 230, 248)},
             Depth = {FarIntensity = 0.12, FocusDistance = 24, InFocusRadius = 38, NearIntensity = 0},
         },
     },
@@ -242,6 +352,7 @@ return {
         Trim = "Wainscot",
         CeilingKit = "Beams",
         Fixture = "Lamp",
+        DoorStyle = "Home",
         RoomTypes = {"Bedroom", "Living", "Kitchen", "Nursery"},
         HideKinds = {"Wardrobe", "Bed", "Desk"},
         HideStyle = {
@@ -254,13 +365,39 @@ return {
         },
         ExtraHides = 4,
         Passages = 2,
+        -- La casa del recuerdo: empapelado arrancado, humedad y moho detrás de los muebles.
+        Wear = {
+            Peel = "Wallpaper",
+            Under = Color3.fromRGB(184, 178, 166),
+            UnderMaterial = "Plaster",
+            Stain = Color3.fromRGB(78, 60, 44),
+            Mould = Color3.fromRGB(46, 44, 30),
+            Claws = 0.3,
+            Cracks = 0.45,
+            Peels = 0.65,
+            Damp = 0.5,
+            Puddles = 0.1,
+            Liquid = Color3.fromRGB(34, 30, 26),
+        },
+        -- Lámparas cálidas de casa, polvo flotando en la luz y rincones a oscuras.
+        -- Una casa no tiene balizas de emergencia.
+        Mood = {
+            Dim = 0.35,
+            Broken = 0.1,
+            Flicker = 0.15,
+            Shafts = 0.35,
+            Dust = 0.5,
+            Emergency = 0,
+            DustColor = Color3.fromRGB(255, 226, 180),
+        },
+        Surfaces = {Wall = "NocturnaTornWallpaper", Floor = "NocturnaScuffedOak", Ceiling = "NocturnaStainedPlaster"},
         Lighting = {
             Exposure = 0.3,
             DiffuseScale = 0.3,
             SpecularScale = 0.4,
-            Atmosphere = {Density = 0.32, Offset = 0.04, Color = Color3.fromRGB(70, 58, 50), Decay = Color3.fromRGB(64, 48, 40), Glare = 0, Haze = 1.4},
+            Atmosphere = {Density = 0.33, Offset = 0.04, Color = Color3.fromRGB(70, 58, 50), Decay = Color3.fromRGB(66, 48, 38), Glare = 0, Haze = 1.6},
             Bloom = {Intensity = 0.55, Size = 28, Threshold = 1.3},
-            Grade = {Brightness = 0.03, Contrast = 0.06, Saturation = -0.12, Tint = Color3.fromRGB(255, 236, 214)},
+            Grade = {Brightness = 0.03, Contrast = 0.1, Saturation = -0.14, Tint = Color3.fromRGB(255, 234, 208)},
             Depth = {FarIntensity = 0.14, FocusDistance = 22, InFocusRadius = 34, NearIntensity = 0},
         },
     },
