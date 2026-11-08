@@ -2096,7 +2096,7 @@ T.Test("las criaturas publican su estado para que el cliente las anime", functio
     Engine.Run(2)
     local model = entry.Model
     local state = model:GetAttribute("State")
-    T.True(table.find({"Patrol", "Investigate", "Search", "Chase", "Attack", "Stunned"}, state) ~= nil, "estado público: " .. tostring(state))
+    T.True(table.find({"Idle", "Patrol", "Investigate", "Search", "Chase", "Attack", "Stunned"}, state) ~= nil, "estado público: " .. tostring(state))
     T.True(model:GetAttribute("BehaviorState") ~= nil, "estado interno")
     T.True(type(model:GetAttribute("MoveSpeed")) == "number", "velocidad real")
     T.True(model:GetAttribute("AttackPhase") ~= nil, "fase del ataque")
@@ -2165,6 +2165,564 @@ T.Test("animación: paso al ritmo de la velocidad, cabeza al objetivo y El Quiet
         T.Equal(entry.Joint.C0, held[index], "El Quieto observado no se mueve ni respira")
     end
     T.NoEngineErrors(Engine)
+end)
+
+-- Animación y cuerpo de las criaturas (locomoción, captura, observación) ------
+
+local function clientModule(folder, name)
+    return Engine.Require(Engine.ClientFolder:FindFirstChild(folder):FindFirstChild(name), "Client")
+end
+
+T.Test("cuerpo: acelera de a poco y gira con inercia, sin giros instantáneos", function()
+    local target = snapshot(Vector3.new(0, 3, 60))
+    local world = fakeWorld({target})
+    world.Sight = false
+    local monster = newMonster("ElColoso", world)
+    monster.Facing = Vector3.new(0, 0, 1)
+    monster.Speed = MonsterConfig.ElColoso.ChaseSpeed
+    monster.Waypoints = {Vector3.new(-400, monster.Height, 0)}
+    monster.WaypointIndex = 1
+    monster:MoveStep(1 / 15)
+    T.True(monster.CurrentSpeed < MonsterConfig.ElColoso.ChaseSpeed * 0.2, "arranca despacio: " .. monster.CurrentSpeed)
+    local turned = math.acos(math.clamp(monster.Facing:Dot(Vector3.new(0, 0, 1)), -1, 1))
+    T.True(turned > 0 and turned <= MonsterConfig.ElColoso.TurnRate / 15 + 1e-6, "gira a lo sumo TurnRate por segundo: " .. turned)
+    for _ = 1, 60 do
+        monster:MoveStep(1 / 15)
+    end
+    T.True(monster.Facing:Dot(Vector3.new(-1, 0, 0)) > 0.99, "termina mirando hacia donde va")
+    T.True(math.abs(monster.CurrentSpeed - MonsterConfig.ElColoso.ChaseSpeed) < 0.01, "llega a su velocidad")
+end)
+
+T.Test("captura: Hold y Release la frenan sin perder la memoria, Stun dura lo pedido y vuelve a perseguir", function()
+    local target = snapshot(Vector3.new(30, 3, 0), {Flashlight = true})
+    local world = fakeWorld({target})
+    world.PatrolCell = function()
+        return nil
+    end
+    local monster = newMonster("ElColoso", world)
+    monster.Facing = Vector3.new(1, 0, 0)
+    tick(monster, 1)
+    T.Equal(monster:PublicState(), "Chase", "persigue")
+
+    monster:Hold("Capture")
+    T.Equal(monster:PublicState(), "Capture", "retenida por la captura")
+    local held = monster.Position
+    target.Position = monster.Position + Vector3.new(3, 0, 0)
+    tick(monster, 3)
+    T.Equal(monster.Position, held, "retenida no se mueve")
+    T.True(monster.Attack == nil and #world.Damaged == 0, "ni ataca")
+    T.True(monster.Target == target.Player, "y no olvida a quién perseguía")
+
+    -- Un ruido durante la retención no la hace salir corriendo después.
+    table.insert(world.NoiseList, {Position = Vector3.new(-50, 3, 0), Radius = 200, Time = 500, Source = nil})
+    monster:Release("Capture")
+    T.False(monster:IsHeld(), "liberada")
+    T.Equal(monster:Hear(), nil, "los ruidos de mientras estaba retenida ya no cuentan")
+
+    -- Dos motivos: sólo se suelta cuando se liberan los dos.
+    monster:Hold("Capture")
+    monster:Hold("Scene")
+    monster:Release("Capture")
+    T.True(monster:IsHeld(), "sigue retenida por la escena")
+    T.Equal(monster:PublicState(), "Idle", "una escena la deja quieta")
+    monster:Release("Scene")
+
+    target.Position = Vector3.new(30, 3, 0)
+    monster:Stun(1)
+    local stunnedAt = monster.Position
+    for index = 1, 14 do
+        monster:Tick(1 / 15)
+        T.Equal(monster:PublicState(), "Stunned", "aturdida en el tick " .. index)
+    end
+    monster:Tick(1 / 15)
+    T.Equal(monster:PublicState(), "Recover", "al segundo exacto se repone")
+    T.Equal(monster.Position, stunnedAt, "aturdida no se movió")
+    local recoverTicks = 0
+    while monster:PublicState() == "Recover" and recoverTicks < 100 do
+        monster:Tick(1 / 15)
+        recoverTicks += 1
+    end
+    T.True(math.abs(recoverTicks / 15 - MonsterConfig.ElColoso.StunRecover) <= 1 / 15 + 1e-6, "se repone en StunRecover: " .. recoverTicks / 15)
+    tick(monster, 1)
+    T.Equal(monster:PublicState(), "Chase", "vuelve a perseguir")
+    T.True(monster.Position ~= stunnedAt, "y a moverse")
+
+    -- Un zarpazo en curso se corta al aturdirla.
+    target.Position = monster.Position + Vector3.new(4, 0, 0)
+    monster.LastAttack = -100
+    tick(monster, 0.2)
+    monster:Stun(0.5)
+    T.True(monster.Attack == nil, "el aturdimiento corta el ataque")
+    monster:Stun(-1)
+    monster:Stun(0 / 0)
+    T.True(monster.StunLeft > 0, "valores inválidos se ignoran")
+end)
+
+T.Test("estado público: Idle, Patrol, Chase, Attack, Miss, Capture, Stunned y Recover llegan al modelo", function()
+    local players = bootServer(1)
+    startMatch(players)
+    T.True(waitForPhase("Playing", 60), "partida")
+    local MonsterService = Engine.RequireServer("Monsters.MonsterService")
+    MonsterService.Clear()
+    local entry = MonsterService.Spawn("ElOyente")
+    local model, controller = entry.Model, entry.Controller
+    Engine.Run(1)
+    T.True(table.find({"Idle", "Patrol", "Investigate", "Search", "Chase", "Attack"}, model:GetAttribute("State")) ~= nil, "estado de ronda: " .. tostring(model:GetAttribute("State")))
+
+    controller:Hold("Capture")
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("State"), "Capture", "captura")
+    controller:Release("Capture")
+    controller:Stun(0.6)
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("State"), "Stunned", "aturdida")
+    T.True(Engine.RunUntil(function()
+        return model:GetAttribute("State") == "Recover"
+    end, 2), "se repone")
+    T.True(Engine.RunUntil(function()
+        local state = model:GetAttribute("State")
+        return state ~= "Recover" and state ~= "Stunned"
+    end, 4), "vuelve a su IA")
+
+    -- Ataque errado: Attack con fase Miss (el cliente lo muestra trastabillando).
+    controller.Attack = {Player = players[1], Phase = "Miss", Time = 0, Hit = false, RecoverTime = 5}
+    MonsterService.Publish(entry)
+    T.Equal(model:GetAttribute("State"), "Attack", "atacando")
+    T.Equal(model:GetAttribute("AttackPhase"), "Miss", "erró")
+    controller.Attack = nil
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("El Quieto: mirarlo con la cámara lo frena, un segundo de micro-movimientos y después inmóvil", function()
+    local settings = MonsterConfig.ElQuieto
+    local watcher = snapshot(Vector3.new(20, 3, 0), {Look = Vector3.new(1, 0, 0), Flashlight = true})
+    -- El cuerpo mira para otro lado, pero la cámara apunta a la criatura.
+    watcher.View = {Origin = Vector3.new(20, 4.5, 0), Look = Vector3.new(-1, 0, 0)}
+    local world = walledWorld({watcher})
+    world.PatrolCell = function()
+        return nil
+    end
+    -- Arranca sin que nadie lo mire (de espaldas) y empieza a moverse.
+    local camera = watcher.View.Look
+    watcher.View.Look = Vector3.new(1, 0, 0)
+    local monster = newMonster("ElQuieto", world)
+    tick(monster, 0.3)
+    T.Equal(monster.State, "Stalk", "nadie lo mira: acecha")
+    watcher.View.Look = camera
+    local start = monster.Position
+
+    tick(monster, 0.4)
+    T.Equal(monster.State, "Settle", "al empezar a mirarlo: micro-movimientos")
+    T.Equal(monster:PublicState(), "Settle", "el cliente lo sabe")
+    T.Equal(monster.Position, start, "no avanza")
+    tick(monster, settings.SettleTime)
+    T.Equal(monster.State, "Frozen", "después queda congelado")
+    T.Equal(monster.Position, start, "inmóvil mientras lo miran")
+
+    -- Mirar para otro lado (con la cámara) lo libera.
+    watcher.View.Look = Vector3.new(0, 0, 1)
+    tick(monster, 1)
+    T.True(monster.State ~= "Frozen" and monster.State ~= "Settle", "deja de estar observado: " .. monster.State)
+    T.True(monster.Position ~= start, "y avanza")
+
+    -- Una pared entre la cámara y la criatura: mirarla no cuenta.
+    local hidden = snapshot(Vector3.new(40, 3, 0), {Look = Vector3.new(-1, 0, 0), Flashlight = true})
+    hidden.View = {Origin = Vector3.new(40, 4.5, 0), Look = Vector3.new(-1, 0, 0)}
+    world.Snapshots = {hidden}
+    local Behavior = Engine.RequireServer("AI.Behaviors.ElQuieto")
+    local blocked = newMonster("ElQuieto", world)
+    T.False(Behavior.IsObservedBy(blocked, hidden), "la pared tapa la mirada")
+    tick(blocked, 1.5)
+    T.True(blocked.State ~= "Frozen" and blocked.State ~= "Settle", "detrás de la pared no se congela")
+
+    -- Fuera del cono de la cámara (mirando de costado) tampoco.
+    hidden.Position = blocked.Position + Vector3.new(10, 0, 0)
+    hidden.View = {Origin = hidden.Position + Vector3.new(0, 1.5, 0), Look = Vector3.new(0, 0, 1)}
+    T.False(Behavior.IsObservedBy(blocked, hidden), "fuera del cono")
+    hidden.View.Look = (blocked.Position + Vector3.new(0, 1.2, 0) - hidden.View.Origin).Unit
+    T.True(Behavior.IsObservedBy(blocked, hidden), "dentro del cono, con la línea libre, sí")
+    -- Sin informe de cámara se usa la cabeza y el frente del cuerpo.
+    hidden.View = nil
+    hidden.Look = Vector3.new(-1, 0, 0)
+    T.True(Behavior.IsObservedBy(blocked, hidden), "sin cámara: la cabeza")
+end)
+
+T.Test("la mirada de cámara se valida en el servidor", function()
+    Engine.Reset()
+    local ViewService = Engine.RequireServer("AI.ViewService")
+    local head = Vector3.new(0, 5, 0)
+    T.True(ViewService.Validate(Vector3.new(0, 5.2, 0), Vector3.new(0, 0, -1), head) ~= nil, "mirada normal")
+    T.Equal(ViewService.Validate(Vector3.new(0, 5, 50), Vector3.new(0, 0, -1), head), nil, "lejos de su cabeza")
+    T.Equal(ViewService.Validate(Vector3.new(0, 5, 0), Vector3.new(0, 0, 0), head), nil, "sin dirección")
+    T.Equal(ViewService.Validate(Vector3.new(0 / 0, 5, 0), Vector3.new(0, 0, -1), head), nil, "NaN")
+    T.Equal(ViewService.Validate("x", Vector3.new(0, 0, -1), head), nil, "tipo equivocado")
+    local _, look = ViewService.Validate(Vector3.new(0, 5, 0), Vector3.new(0, 0, -1.2), head)
+    T.True(math.abs(look.Magnitude - 1) < 1e-6, "dirección normalizada")
+
+    local player = {}
+    T.True(ViewService.Report(player, Vector3.new(0, 5, 0), Vector3.new(1, 0, 0), head, 10), "informe aceptado")
+    T.True(ViewService.Get(player, 10.5) ~= nil, "vigente")
+    T.Equal(ViewService.Get(player, 10 + ViewService.STALE + 0.1), nil, "viejo no cuenta")
+    T.False(ViewService.Report(player, Vector3.new(0, 90, 0), Vector3.new(1, 0, 0), head, 11), "informe falso rechazado")
+
+    -- Por la red: el cliente lo manda y el servidor lo usa.
+    local players = bootServer(1)
+    Engine.Run(1)
+    local character = players[1].Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    T.True(root ~= nil, "personaje")
+    local head = character:FindFirstChild("Head") or root
+    fire("CameraLook", players[1], head.Position + Vector3.new(0, 0.3, 0), Vector3.new(0, 0, -1))
+    fire("CameraLook", players[1], "basura", 12)
+    local Live = Engine.RequireServer("AI.ViewService")
+    local view = Live.Get(players[1])
+    T.True(view ~= nil and view.Look == Vector3.new(0, 0, -1), "la mirada quedó registrada")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("El Trepador cae girando, aterriza atacando y vuelve a subir de a poco", function()
+    local target = snapshot(Vector3.new(20, 3, 0), {Look = Vector3.new(1, 0, 0)})
+    local world = fakeWorld({target})
+    local monster = newMonster("ElTrepador", world)
+    local settings = MonsterConfig.ElTrepador
+    local ceiling = GameConfig.Map.WallHeight - settings.BodyHeight
+    local sawDrop, midHeight = false, false
+    for _ = 1, 150 do
+        monster:Tick(1 / 15)
+        if monster.State == "Drop" then
+            sawDrop = true
+            if monster.Height < ceiling - 0.5 and monster.Height > settings.BodyHeight + 0.5 then
+                midHeight = true
+            end
+        end
+        if monster.State == "Pounce" or monster.Attack then
+            break
+        end
+    end
+    T.True(sawDrop, "pasa por la caída")
+    T.True(midHeight, "la caída no es instantánea")
+    T.Equal(monster.Height, settings.BodyHeight, "aterriza en el piso")
+    T.True(monster.Up.Y > 0 and monster.Roll == 0, "derecho")
+
+    target.Position = Vector3.new(200, 3, 200)
+    world.Sight = false
+    local sawClimb = false
+    for _ = 1, 200 do
+        monster:Tick(1 / 15)
+        if monster.State == "Climb" then
+            sawClimb = true
+            T.True(monster:GetCFrame().Position.Y >= settings.BodyHeight - 1e-3, "sube sin atravesar el piso")
+        end
+        if monster.State == "Crawl" then
+            break
+        end
+    end
+    T.True(sawClimb, "trepa de vuelta")
+    T.Equal(monster.Height, ceiling, "vuelve al techo")
+    T.True(monster:GetCFrame().UpVector.Y < -0.99, "boca abajo")
+
+    -- Aturdido en el aire: cae al piso en lugar de quedar flotando.
+    local other = newMonster("ElTrepador", fakeWorld({snapshot(Vector3.new(4, 3, 0))}))
+    local caught = false
+    for _ = 1, 90 do
+        other:Tick(1 / 15)
+        if other.State == "Drop" and other.Transition and other.Transition.Time > 0 then
+            caught = true
+            break
+        end
+    end
+    T.True(caught, "lo agarra cayendo")
+    other:Stun(1)
+    T.Equal(other.Height, settings.BodyHeight, "aturdido en el aire cae al piso")
+end)
+
+T.Test("animación: AnimOverride frena los motores y al quitarlo vuelve mezclando", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local model = Factory.Build("ElImitador", Engine.Workspace, 3.2)
+    local root = model.PrimaryPart
+    root.CFrame = roblox.CFrame.new(0, 3.2, 0)
+    local rig = Animator.Track(model)
+    local camera = roblox.CFrame.new(0, 5, 20)
+    model:SetAttribute("State", "Chase")
+    for frame = 1, 40 do
+        root.CFrame = roblox.CFrame.new(0, 3.2, -frame * 15 / 60)
+        Animator.Update(1 / 60, camera)
+    end
+
+    model:SetAttribute("AnimOverride", "Capture")
+    model:SetAttribute("State", "Capture")
+    local sentinel = roblox.CFrame.new(0.5, 1, 0.25)
+    for _, entry in ipairs(rig.Joints) do
+        entry.Joint.C0 = sentinel
+    end
+    for frame = 41, 100 do
+        root.CFrame = roblox.CFrame.new(0, 3.2, -frame * 15 / 60)
+        Animator.Update(1 / 60, camera)
+    end
+    for _, entry in ipairs(rig.Joints) do
+        T.Equal(entry.Joint.C0, sentinel, entry.Role .. ": nada escribe los motores durante la captura")
+    end
+    T.False(rig.Broken, "sin errores")
+
+    model:SetAttribute("AnimOverride", nil)
+    model:SetAttribute("State", "Stunned")
+    Animator.Update(1 / 60, camera)
+    for _, entry in ipairs(rig.Joints) do
+        T.True((entry.Joint.C0.Position - sentinel.Position).Magnitude < 0.2, entry.Role .. ": vuelve sin saltos")
+    end
+    for _ = 1, 60 do
+        Animator.Update(1 / 60, camera)
+    end
+    local moved = 0
+    for _, entry in ipairs(rig.Joints) do
+        if (entry.Joint.C0.Position - sentinel.Position).Magnitude > 0.3 then
+            moved += 1
+        end
+    end
+    T.True(moved >= #rig.Joints - 1, "retoma su propia pose")
+    T.Equal(rig.Resume, 1, "terminó la mezcla")
+    T.False(rig.Broken, "sin errores al volver")
+end)
+
+T.Test("animación: cada estado anima a las cinco criaturas sin errores y con transiciones suaves", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local states = {"Idle", "Patrol", "Investigate", "Chase", "Attack", "Capture", "Stunned", "Recover", "Chase", "Search"}
+    local phases = {Attack = {"Windup", "Strike", "Recover", "Miss"}}
+    for _, kind in ipairs({"ElOyente", "ElImitador", "ElQuieto", "ElTrepador", "ElColoso"}) do
+        local height = MonsterConfig[kind].BodyHeight
+        local model = Factory.Build(kind, Engine.Workspace, height)
+        local root = model.PrimaryPart
+        root.CFrame = roblox.CFrame.new(0, height, 0)
+        local rig = Animator.Track(model)
+        local z, yaw = 0, 0
+        local worst, worstStrike = 0, 0
+        for _, state in ipairs(states) do
+            model:SetAttribute("State", state)
+            model:SetAttribute("Gesture", state == "Chase" and "Scream" or "Click")
+            model:SetAttribute("GestureCount", (model:GetAttribute("GestureCount") or 0) + 1)
+            for _, phase in ipairs(phases[state] or {""}) do
+                model:SetAttribute("AttackPhase", phase)
+                for _ = 1, 20 do
+                    local speed = (state == "Chase" and 15) or (state == "Patrol" and 6) or 0
+                    z -= speed / 60
+                    yaw += state == "Search" and 0.03 or 0
+                    root.CFrame = roblox.CFrame.new(0, height, z) * roblox.CFrame.Angles(0, yaw, 0)
+                    -- Pose de cada pieza respecto del cuerpo (sin el seguimiento de la raíz).
+                    local before = {}
+                    for index, entry in ipairs(rig.Joints) do
+                        before[index] = rig.Offset:Inverse() * entry.Joint.C0
+                    end
+                    local camera = roblox.CFrame.new(0, 5, z + 20)
+                    Animator.Update(1 / 60, camera)
+                    for index, entry in ipairs(rig.Joints) do
+                        local now = rig.Offset:Inverse() * entry.Joint.C0
+                        local jump = (now.Position - before[index].Position).Magnitude
+                        if phase == "Strike" then
+                            worstStrike = math.max(worstStrike, jump)
+                        else
+                            worst = math.max(worst, jump)
+                        end
+                    end
+                end
+            end
+            model:SetAttribute("AttackPhase", "")
+        end
+        T.False(rig.Broken, kind .. " anima todos los estados")
+        -- Sin saltos de un cuadro a otro: el golpe es lo único rápido (y tampoco teletransporta).
+        T.True(worst < 0.7, kind .. " sin cortes secos entre estados: " .. worst)
+        T.True(worstStrike < 1, kind .. " golpe rápido pero continuo: " .. worstStrike)
+        model:Destroy()
+    end
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("animación: el pie apoyado no patina (zancada atada a la velocidad real)", function()
+    local Motion = clientModule("Effects", "CreatureMotion")
+    for _, case in ipairs({{Cycle = 8, Duty = 0.62, Length = 4.8}, {Cycle = 13, Duty = 0.42, Length = 4.1}, {Cycle = 6, Duty = 0.68, Length = 4.4}}) do
+        local amplitude = Motion.StrideAmplitude(case.Cycle, case.Duty, case.Length)
+        -- Apoyado, el pie recorre (respecto de la cadera) lo mismo que avanza el cuerpo.
+        local sweep = 2 * case.Length * math.sin(amplitude)
+        T.True(math.abs(sweep - case.Cycle * case.Duty) < 1e-6, "barrido igual al avance: " .. sweep)
+    end
+    -- Ciclo: apoyo lineal (velocidad constante) y vuelta suave, continuo en los bordes.
+    local s0 = Motion.Cycle(0, 0.6)
+    local s1 = Motion.Cycle(0.3, 0.6)
+    local s2 = Motion.Cycle(0.6 - 1e-9, 0.6)
+    T.True(math.abs(s0 - 1) < 1e-6 and math.abs(s1) < 1e-6 and math.abs(s2 + 1) < 1e-6, "apoyo lineal de adelante hacia atrás")
+    local _, lift = Motion.Cycle(0.8, 0.6)
+    T.True(lift > 0.9, "en el aire levanta la pata")
+    T.True(math.abs(Motion.Cycle(1 - 1e-9, 0.6) - 1) < 1e-6, "cierra el ciclo sin salto")
+    local hip, knee = Motion.TwoBone(2, 2, 3)
+    T.True(hip > 0 and knee > 0 and knee < math.pi, "rodilla doblada para alcanzar")
+    local _, straight = Motion.TwoBone(2, 2, 4)
+    T.True(straight < 0.1, "estirada al máximo")
+end)
+
+T.Test("El Coloso: cada pisada sacude la cámara según la distancia y nada de lejos", function()
+    Engine.Reset()
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local near = Animator.StompPower(5)
+    local mid = Animator.StompPower(30)
+    T.True(near == 1, "muy cerca: impacto completo")
+    T.True(mid > 0 and mid < near, "a media distancia, menos: " .. mid)
+    T.Equal(Animator.StompPower(60), 0, "lejos: nada")
+    T.Equal(Animator.StompPower(200), 0, "muy lejos: nada")
+    local last = 2
+    for distance = 8, 60, 4 do
+        local power = Animator.StompPower(distance)
+        T.True(power <= last, "baja con la distancia")
+        last = power
+    end
+
+    -- La curva: sube enseguida, vuelve a cero en ~1 s y no queda temblando.
+    local FirstPerson = clientModule("Camera", "FirstPerson")
+    T.True(FirstPerson.ImpulseCurve(0.07) > 0.5, "golpe inmediato")
+    T.True(math.abs(FirstPerson.ImpulseCurve(0.9)) < 0.05, "casi apagado al segundo")
+    T.Equal(FirstPerson.ImpulseCurve(1.2), 0, "terminado")
+    local previous = 0
+    local maxStep = 0
+    for step = 1, 120 do
+        local value = FirstPerson.ImpulseCurve(step / 100)
+        maxStep = math.max(maxStep, math.abs(value - previous))
+        previous = value
+    end
+    T.True(maxStep < 0.3, "curva suave, sin saltos: " .. maxStep)
+    FirstPerson.Impulse(1, 1)
+    local now = Engine.Clock()
+    T.True(FirstPerson.ImpulseOffset(now + 0.07) > 0.4, "el impacto se aplica")
+    T.Equal(FirstPerson.ImpulseOffset(now + 2), 0, "y se termina solo")
+
+    -- Con el paso real: cerca sacude, lejos no.
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local function walk(cameraDistance)
+        local model = Factory.Build("ElColoso", Engine.Workspace, 5.5)
+        local root = model.PrimaryPart
+        root.CFrame = roblox.CFrame.new(0, 5.5, 0)
+        local rig = Animator.Track(model)
+        model:SetAttribute("State", "Patrol")
+        local strongest = 0
+        for frame = 1, 240 do
+            local z = -frame * 6 / 60
+            root.CFrame = roblox.CFrame.new(0, 5.5, z)
+            rig.LastImpulse = 0
+            Animator.Update(1 / 60, roblox.CFrame.new(cameraDistance, 5, z) * roblox.CFrame.Angles(0, math.pi / 2, 0))
+            strongest = math.max(strongest, rig.LastImpulse)
+        end
+        T.True(rig.Stomps >= 4, "pisa al ritmo del paso: " .. rig.Stomps)
+        model:Destroy()
+        return strongest
+    end
+    local close = walk(6)
+    local medium = walk(30)
+    local distant = walk(65)
+    T.True(close > medium and medium > 0, "más cerca, más fuerte: " .. close .. " > " .. medium)
+    T.Equal(distant, 0, "de lejos no sacude")
+end)
+
+T.Test("animación: El Quieto se acomoda al ser mirado y después no se mueve", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local model = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    local root = model.PrimaryPart
+    root.CFrame = roblox.CFrame.new(0, 3.6, 0)
+    local rig = Animator.Track(model)
+    model:SetAttribute("State", "Chase")
+    local z = 0
+    for frame = 1, 30 do
+        z = -frame * 16 / 60
+        root.CFrame = roblox.CFrame.new(0, 3.6, z)
+        Animator.Update(1 / 60, roblox.CFrame.new(0, 5, z + 15))
+    end
+    local camera = roblox.CFrame.new(0, 5, z + 15)
+    model:SetAttribute("State", "Settle")
+    local function snapshotJoints()
+        local result = {}
+        for index, entry in ipairs(rig.Joints) do
+            result[index] = entry.Joint.C0
+        end
+        return result
+    end
+    local first = nil
+    local changes = 0
+    for frame = 1, 60 do
+        Animator.Update(1 / 60, camera)
+        if frame == 20 then
+            first = snapshotJoints()
+        elseif frame == 59 then
+            for index, entry in ipairs(rig.Joints) do
+                if entry.Joint.C0 ~= first[index] then
+                    changes += 1
+                end
+            end
+        end
+    end
+    T.True(changes >= 2, "micro-movimientos durante el segundo de ajuste: " .. changes)
+    model:SetAttribute("State", "Frozen")
+    local held = snapshotJoints()
+    for _ = 1, 90 do
+        Animator.Update(1 / 60, camera)
+    end
+    for index, entry in ipairs(rig.Joints) do
+        T.Equal(entry.Joint.C0, held[index], "congelado del todo")
+    end
+end)
+
+T.Test("criaturas: mandíbula, lengua y rodillas propias se usan si el modelo las trae", function()
+    Engine.Reset()
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local folder = Engine.New("Folder", "NocturnaModels")
+    folder.Parent = Engine.Services.ServerStorage
+    local set = Engine.New("Model", "ElImitador")
+    set.Parent = folder
+    for _, spec in ipairs({{"Jaw", Vector3.new(0.6, 0.3, 0.5)}, {"Tongue", Vector3.new(0.15, 0.08, 0.9)}, {"Leg1Lower", Vector3.new(0.6, 2, 0.6)}}) do
+        local mesh = Engine.New("MeshPart", spec[1])
+        mesh.Size = spec[2]
+        mesh.Parent = set
+    end
+
+    local model = Factory.Build("ElImitador", Engine.Workspace, 3.2)
+    local jaw = model:FindFirstChild("Jaw")
+    T.True(jaw ~= nil and jaw.ClassName == "MeshPart" and jaw.Size == Vector3.new(0.6, 0.3, 0.5), "usa la mandíbula propia con su tamaño")
+    T.Equal(jaw:FindFirstChild("JawJoint"):GetAttribute("JawHinge"), true, "marcada como articulada")
+    T.True(model:FindFirstChild("Tongue") ~= nil, "lengua")
+    local lower = model:FindFirstChild("LegLower")
+    T.True(lower ~= nil, "parte baja de la pierna")
+    local knee = lower:FindFirstChild("LegLowerJoint")
+    T.True(knee ~= nil and knee.Part0 == model:FindFirstChild("Leg"), "colgada de la pierna")
+
+    local root = model.PrimaryPart
+    root.CFrame = roblox.CFrame.new(0, 3.2, 0)
+    local rig = Animator.Track(model)
+    T.Equal(rig.JawMax, 1, "la boca puede abrirse del todo")
+    model:SetAttribute("State", "Chase")
+    local kneeAngles = {}
+    local z = 0
+    for frame = 1, 60 do
+        z = -frame * 15 / 60
+        root.CFrame = roblox.CFrame.new(0, 3.2, z)
+        Animator.Update(1 / 60, roblox.CFrame.new(0, 5, z + 15))
+        if frame % 15 == 0 then
+            table.insert(kneeAngles, knee.C0)
+        end
+    end
+    T.True(kneeAngles[2] ~= kneeAngles[4], "la rodilla se dobla con el paso")
+    local tongueJoint = model:FindFirstChild("Tongue"):FindFirstChild("TongueJoint")
+    local resting = tongueJoint.C0
+    local camera = roblox.CFrame.new(0, 5, z + 15)
+    model:SetAttribute("AttackPhase", "Strike")
+    model:SetAttribute("State", "Attack")
+    for _ = 1, 20 do
+        Animator.Update(1 / 60, camera)
+    end
+    T.True((tongueJoint.C0.Position - resting.Position).Magnitude > 0.2, "al atacar la lengua sale")
+    T.False(rig.Broken, "sin errores")
+    folder:Destroy()
 end)
 
 local function almaScene(options)

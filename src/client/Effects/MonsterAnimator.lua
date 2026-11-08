@@ -262,6 +262,7 @@ local function addRig(model)
         Gesture = nil,
         GestureTime = 99,
         GestureResult = {Pitch = 0, Roll = 0, Yaw = 0, Jaw = 0, Out = 0, Lean = 0, Jitter = 0},
+        GestureSmooth = {Pitch = 0, Roll = 0, Yaw = 0, Jaw = 0, Out = 0, Lean = 0, Jitter = 0},
         TwitchActive = false,
         TwitchRole = "Head",
         TwitchSide = 1,
@@ -273,6 +274,7 @@ local function addRig(model)
         SwayX = 0,
         BodyRoll = 0,
         BodyLean = 0,
+        AccelLean = 0,
         BodyTwist = 0,
         ExtraYaw = 0,
         ExtraTwist = 0,
@@ -613,7 +615,7 @@ local function updateAttack(rig, deltaTime, distance)
     if phase == "Windup" then
         pose, rate = poses.Windup, 2.3 / math.max(rig.Settings.AttackWindup or 0.3, 0.05)
     elseif phase == "Strike" then
-        pose, rate = poses.Strike, 30
+        pose, rate = poses.Strike, rig.Style.StrikeRate
     elseif phase == "Recover" then
         pose, rate = poses.Recover, 4
     elseif phase == "Miss" then
@@ -635,7 +637,9 @@ local function bump(t, from, to)
     return math.sin((t - from) / (to - from) * math.pi)
 end
 
-local function gestureOffsets(rig, deltaTime)
+local GESTURE_KEYS = {"Pitch", "Roll", "Yaw", "Jaw", "Out", "Lean", "Jitter"}
+
+local function rawGesture(rig, deltaTime)
     rig.GestureTime += deltaTime
     local t = rig.GestureTime
     local name = rig.Gesture
@@ -687,6 +691,16 @@ local function gestureOffsets(rig, deltaTime)
         result.Jitter = 2.5
     end
     return result
+end
+
+-- Un gesto nuevo no corta de golpe al anterior: los canales se suavizan.
+local function gestureOffsets(rig, deltaTime)
+    local raw = rawGesture(rig, deltaTime)
+    local smooth = rig.GestureSmooth
+    for _, key in ipairs(GESTURE_KEYS) do
+        smooth[key] = Approach(smooth[key], raw[key], 22, deltaTime)
+    end
+    return smooth
 end
 
 -- Tics de quieto: un sacudón rápido que vuelve solo (sin tablas nuevas).
@@ -1074,9 +1088,13 @@ local function animate(rig, deltaTime, distance)
         entry.Swing = angle
         entry.Lift = lift * gait
         if lift == 0 then
-            drop += CreatureMotion.HipDrop(angle, entry.Length)
-            planted += 1
-            support += entry.Side
+            -- Peso de la pata apoyada: entra y sale suave al pisar y al despegar,
+            -- así la cadera no salta cuando cambia qué patas tocan el piso.
+            local edge = math.min(u / entryDuty, 1 - u / entryDuty) / 0.18
+            local weight = Smooth(edge)
+            drop += CreatureMotion.HipDrop(angle, entry.Length) * weight
+            planted += weight
+            support += entry.Side * weight
         end
         if entry.Role == "Leg" then
             twist -= entry.Side * s * 0.5
@@ -1088,10 +1106,11 @@ local function animate(rig, deltaTime, distance)
         end
     end
     rig.LeftS, rig.RightS = leftS, rightS
-    local hipDrop = planted > 0 and drop / planted or 0
-    -- En carrera hay un momento en el aire: el cuerpo sube un poco.
-    local flight = planted == 0 and style.RunBounce * rig.Run * gait or 0
-    rig.SwayX = Approach(rig.SwayX, (planted > 0 and support / planted or 0) * style.Sway * gait, 6, deltaTime)
+    -- Con menos de una pata entera apoyada (carrera) el cuerpo queda en el aire.
+    local carried = math.max(planted, 1)
+    local hipDrop = drop / carried
+    local flight = (1 - math.min(planted, 1)) * style.RunBounce * rig.Run * gait
+    rig.SwayX = Approach(rig.SwayX, support / carried * style.Sway * gait, 6, deltaTime)
 
     -- Impacto de las pisadas pesadas (resorte que vuelve solo).
     rig.Impact, rig.ImpactVel = Spring(rig.Impact, rig.ImpactVel, 0, 3, 0.55, deltaTime)
@@ -1105,7 +1124,8 @@ local function animate(rig, deltaTime, distance)
     if style.Tremor then
         tremor = (style.Tremor + gesture.Jitter * 0.04) * math.noise(rig.Seed, rig.Clock * 9)
     end
-    local accelLean = math.clamp(rig.Accel * style.AccelLean, -0.25, 0.3)
+    rig.AccelLean = Approach(rig.AccelLean, math.clamp(rig.Accel * style.AccelLean, -0.25, 0.3), 3, deltaTime)
+    local accelLean = rig.AccelLean
     local lean = style.Lean * rig.Run * gait + accelLean + pose.Lean
     local bank = math.clamp(-rig.YawVel * rig.Speed * style.Bank, -0.25, 0.25)
     local bodyTwist = twist * style.Twist * gait + rig.ExtraTwist + tremor

@@ -40,6 +40,8 @@ local DEFAULT = {
     Breath = 2.6, BreathAmount = 0.05, TwitchEvery = {2, 5}, TwitchSize = 0.2,
     -- Aturdido
     StunCrouch = -0.45,
+    -- Rapidez con que llega a la pose del golpe (por segundo).
+    StrikeRate = 18,
     -- Boca: apertura máxima con la pieza cortada del modelo y con una mandíbula propia.
     JawCut = 0.3, JawHinged = 1,
     States = {
@@ -163,7 +165,7 @@ local STYLES = {
     ElColoso = {
         StrideWalk = 1.7, StrideRun = 2.4, WalkDuty = 0.68, RunDuty = 0.55,
         WalkSpeed = 7, RunSpeed = 14, Clearance = 0.06, RunBounce = 0.02,
-        ImpactDip = 0.32, Heavy = true,
+        ImpactDip = 0.32, Heavy = true, StrikeRate = 12,
         Follow = 3.2, TurnFreq = 0.9, TurnDamp = 0.8, AccelLean = 0.02, Bank = 0.02,
         Lean = 0.18, Sway = 0.28, Twist = 0.1,
         ArmSwing = 0.22, ArmFreq = 1.1, ArmDamp = 0.45,
