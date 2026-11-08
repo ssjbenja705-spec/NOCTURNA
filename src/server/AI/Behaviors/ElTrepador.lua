@@ -1,5 +1,10 @@
 -- El Trepador: recorre el techo boca abajo, se deja caer sobre quien no mira y
 -- vuelve a subir. La linterna apuntada lo hace huir.
+--
+-- Pasar del techo al piso no es instantáneo: "Drop" dura DropTime (cae girando
+-- sobre su eje de avance y aterriza encima del jugador, ya atacando) y "Climb"
+-- dura ClimbTime (sube y se da vuelta hasta quedar colgado). El cliente anima
+-- esas transiciones (y, si hay una pared cerca, sube por ella).
 local Behavior = {}
 
 -- Boca abajo, con los pies apoyados en el techo.
@@ -7,20 +12,85 @@ local function ceilingHeight(monster)
     return monster.World.CeilingHeight - monster.Settings.BodyHeight
 end
 
-local function climb(monster)
-    monster.Height = ceilingHeight(monster)
-    monster.Position = Vector3.new(monster.Position.X, monster.Height, monster.Position.Z)
-    monster.Up = Vector3.new(0, -1, 0)
+local function setHeight(monster, height)
+    monster.Height = height
+    monster.Position = Vector3.new(monster.Position.X, height, monster.Position.Z)
 end
 
-local function drop(monster)
-    monster.Height = monster.Settings.BodyHeight
-    monster.Position = Vector3.new(monster.Position.X, monster.Height, monster.Position.Z)
+local function settleOnCeiling(monster)
+    setHeight(monster, ceilingHeight(monster))
+    monster.Up = Vector3.new(0, -1, 0)
+    monster.Roll = 0
+end
+
+local function settleOnFloor(monster)
+    setHeight(monster, monster.Settings.BodyHeight)
     monster.Up = Vector3.new(0, 1, 0)
+    monster.Roll = 0
+end
+
+-- Durante la transición la orientación se expresa con Roll (π = boca abajo).
+local function startTransition(monster, kind)
+    local settings = monster.Settings
+    local onCeiling = monster.Up.Y < 0 or math.abs(monster.Roll) > math.pi / 2
+    local toCeiling = kind == "Climb"
+    monster.Transition = {
+        Kind = kind,
+        Time = 0,
+        Duration = toCeiling and (settings.ClimbTime or 0.9) or (settings.DropTime or 0.4),
+        From = monster.Height,
+        To = toCeiling and ceilingHeight(monster) or settings.BodyHeight,
+        FromRoll = onCeiling and math.pi or 0,
+        ToRoll = toCeiling and math.pi or 0,
+    }
+    monster.Up = Vector3.new(0, 1, 0)
+    monster.Roll = monster.Transition.FromRoll
+    monster.Speed = 0
+    monster:ClearPath()
+    monster:SetState(kind)
+end
+
+local function smooth(alpha)
+    return alpha * alpha * (3 - 2 * alpha)
+end
+
+-- Avanza la transición. Devuelve true mientras siga en curso.
+local function updateTransition(monster, deltaTime)
+    local transition = monster.Transition
+    if not transition then
+        return false
+    end
+    transition.Time += deltaTime
+    local alpha = math.clamp(transition.Time / transition.Duration, 0, 1)
+    -- Cae acelerando; sube con arranque y llegada suaves.
+    local heightAlpha = transition.Kind == "Drop" and alpha * alpha or smooth(alpha)
+    -- Se da vuelta antes de tocar el piso (o apenas despega, al subir).
+    local rollAlpha = smooth(math.clamp(transition.Kind == "Drop" and alpha / 0.75 or (alpha - 0.15) / 0.75, 0, 1))
+    setHeight(monster, transition.From + (transition.To - transition.From) * heightAlpha)
+    monster.Roll = transition.FromRoll + (transition.ToRoll - transition.FromRoll) * rollAlpha
+    monster.Speed = 0
+    if alpha < 1 then
+        return true
+    end
+
+    monster.Transition = nil
+    if transition.Kind == "Drop" then
+        settleOnFloor(monster)
+        monster:SetState("Pounce")
+        -- Ataque desde arriba: aterriza ya lanzando el zarpazo si lo tiene al alcance.
+        local snapshot = monster.Target and monster:FindSnapshot(monster.Target)
+        if snapshot and not snapshot.Hidden then
+            monster:TryAttack(snapshot)
+        end
+    else
+        settleOnCeiling(monster)
+        monster:SetState("Crawl")
+    end
+    return true
 end
 
 function Behavior.Init(monster)
-    climb(monster)
+    settleOnCeiling(monster)
     monster:SetState("Crawl")
 end
 
@@ -46,7 +116,7 @@ end
 local function flee(monster)
     local world = monster.World
     if monster.Height < ceilingHeight(monster) then
-        climb(monster)
+        settleOnCeiling(monster)
     end
     local cells = world.Nav:CellsBetween(world.Nav:CellAt(monster.Position), 2, 4)
     if #cells > 0 then
@@ -61,10 +131,23 @@ local function flee(monster)
 end
 
 local function backToCeiling(monster)
-    climb(monster)
     monster.Target = nil
     monster:ClearPath()
-    monster:SetState("Crawl")
+    if monster.Height < ceilingHeight(monster) - 0.01 then
+        startTransition(monster, "Climb")
+    else
+        settleOnCeiling(monster)
+        monster:SetState("Crawl")
+    end
+end
+
+-- Retenido o aturdido a mitad de camino entre el techo y el piso: cae al piso.
+function Behavior.OnInterrupt(monster)
+    if monster.Transition then
+        monster.Transition = nil
+        settleOnFloor(monster)
+        monster:SetState("Pounce")
+    end
 end
 
 -- Después del zarpazo vuelve a subir: nunca se queda peleando en el piso.
@@ -96,16 +179,19 @@ local function stalk(monster)
     monster.LookTarget = goal
     monster:GoTo(goal)
     if since <= 1.2 and monster:Distance(snapshot.Position) <= settings.DropRange * 0.5 then
-        drop(monster)
-        monster:ClearPath()
-        monster:SetState("Pounce")
+        monster.LookTarget = snapshot.Position
+        startTransition(monster, "Drop")
         monster.World:Effect("TrepadorDrop", {Position = monster.Position})
         monster:Gesture("Drop")
     end
 end
 
-function Behavior.Update(monster)
+function Behavior.Update(monster, deltaTime)
     local settings = monster.Settings
+
+    if updateTransition(monster, deltaTime or 0) then
+        return
+    end
 
     if monster.State ~= "Flee" and monster.State ~= "Pounce" and isRepelled(monster) then
         flee(monster)

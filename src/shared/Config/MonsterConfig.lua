@@ -12,6 +12,8 @@
 -- Sentidos: VisionRange y VisionAngle (cono frontal; de muy cerca se nota
 -- igual), HearingMultiplier sobre el radio del ruido, CloseSense (lo que está
 -- pegado) y LoseTime (cuánto tarda en darlo por perdido sin verlo ni oírlo).
+-- Cuerpo: TurnRate (rad/s, giro máximo al caminar), Acceleration y Deceleration
+-- (studs/s²) y StunRecover (segundos para reponerse después de un aturdimiento).
 return {
     ElOyente = {
         DisplayName = "El Oyente",
@@ -33,6 +35,10 @@ return {
         SearchTime = 7,
         ListenEvery = 9,
         ListenTime = 2,
+        TurnRate = 5,
+        Acceleration = 26,
+        Deceleration = 34,
+        StunRecover = 1.1,
         BodyHeight = 4,
     },
     ElImitador = {
@@ -57,6 +63,10 @@ return {
         AmbushTime = 18,
         AmbushRange = 12,
         ChaseLimit = 14,
+        TurnRate = 7,
+        Acceleration = 38,
+        Deceleration = 42,
+        StunRecover = 0.8,
         BodyHeight = 3.2,
         Lines = {
             "¡Vení, por acá! ¡Encontré la salida!",
@@ -87,6 +97,12 @@ return {
         AttackCooldown = 3,
         Damage = 50,
         SearchTime = 4,
+        -- Al empezar a mirarlo: un segundo de micro-movimientos antes de congelarse.
+        SettleTime = 1,
+        TurnRate = 9,
+        Acceleration = 60,
+        Deceleration = 80,
+        StunRecover = 0.6,
         BodyHeight = 3.6,
     },
     ElTrepador = {
@@ -115,6 +131,13 @@ return {
         RepelRange = 28,
         RepelDot = 0.8,
         RepelTime = 6,
+        -- Pasar del techo al piso (cayendo) y del piso al techo (trepando).
+        DropTime = 0.4,
+        ClimbTime = 0.9,
+        TurnRate = 8,
+        Acceleration = 48,
+        Deceleration = 60,
+        StunRecover = 0.7,
         BodyHeight = 3.5,
     },
     ElColoso = {
@@ -140,6 +163,11 @@ return {
         SearchTime = 9,
         EnvironmentInterval = 24,
         CollapseDuration = 50,
+        -- Pesado: gira y arranca despacio, frena con esfuerzo.
+        TurnRate = 2.4,
+        Acceleration = 9,
+        Deceleration = 14,
+        StunRecover = 1.6,
         BodyHeight = 5.5,
     },
 }

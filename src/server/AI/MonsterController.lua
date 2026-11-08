@@ -4,6 +4,12 @@
 -- Percepción propia de cada criatura: sólo persigue a quien vio, oyó o tiene
 -- pegado. No hay alerta compartida ni objetivos adivinados; si lo pierde, va a la
 -- última posición conocida, busca un rato y se rinde.
+--
+-- El cuerpo tiene inercia: acelera y frena de a poco (Acceleration/Deceleration)
+-- y gira con velocidad angular limitada (TurnRate). El cliente anima a partir del
+-- estado público (PublicState) y de la velocidad real.
+--
+-- La captura (otro sistema) la controla con Hold/Release y Stun.
 local MonsterController = {}
 MonsterController.__index = MonsterController
 
@@ -17,24 +23,50 @@ local TRACK_GRACE = 1.2
 local DEFAULT_LOSE_TIME = 3
 local LUNGE_TIME = 0.15
 local WINDUP_SPEED = 0.35
+-- Giro quieto (mirando algo): más lento que al caminar.
 local TURN_RATE = 4
+local DEFAULT_TURN_RATE = 6
 local TELEPORT_DISTANCE = 12
+-- Aceleración por defecto (studs/s²) si la criatura no define la suya.
+local DEFAULT_ACCELERATION = 30
+local DEFAULT_DECELERATION = 40
+-- Quieta este tiempo en una ronda, se publica como Idle (el cliente respira y mira).
+local IDLE_AFTER = 0.5
+local DEFAULT_RECOVER = 1
+local MAX_STUN = 60
+local EPSILON = 1e-6
+-- Altura de los ojos del jugador sobre su raíz, si no informó su cámara.
+local HEAD_HEIGHT = 1.5
 
 -- Estados internos de cada comportamiento -> estado público que anima el cliente.
+-- Recorrido completo: Idle -> Patrol -> Investigate -> Chase -> Attack -> (Capture)
+-- -> Stunned -> Recover -> Chase. El detalle fino va en BehaviorState.
 local PUBLIC_STATE = {
     Patrol = "Patrol",
     Crawl = "Patrol",
-    Idle = "Patrol",
-    Listen = "Patrol",
+    Idle = "Idle",
+    Listen = "Idle",
     Investigate = "Investigate",
     Search = "Search",
     Chase = "Chase",
     Stalk = "Chase",
     Pounce = "Chase",
+    Drop = "Chase",
+    Climb = "Patrol",
     Ambush = "Ambush",
+    Settle = "Settle",
     Frozen = "Frozen",
     Flee = "Flee",
 }
+
+-- Rondas que, sin moverse, se ven como Idle.
+local ROAMING = {Patrol = true, Crawl = true}
+
+-- Motivos de retención que el cliente anima con un estado propio; el resto, Idle.
+local HOLD_STATES = {Capture = "Capture", Stunned = "Stunned", Recover = "Recover"}
+
+-- Mirada de cámara informada por cada jugador (la registra ViewService).
+local viewProvider = nil
 
 local function flat(vector)
     return Vector3.new(vector.X, 0, vector.Z)
@@ -49,9 +81,14 @@ function MonsterController.new(kind, settings, behavior, world, position, scale)
         Position = position,
         Facing = Vector3.new(0, 0, 1),
         Up = Vector3.new(0, 1, 0),
+        -- Giro sobre el eje de avance (El Trepador al pasar del techo al piso).
+        Roll = 0,
         Height = settings.BodyHeight,
         Speed = 0,
+        -- Velocidad que lleva: se acerca a Speed con aceleración, sin arranques secos.
+        CurrentSpeed = 0,
         ActualSpeed = 0,
+        StillTime = 0,
         SpeedScale = scale and scale.Speed or 1,
         DamageScale = scale and scale.Damage or 1,
         SenseScale = scale and scale.Senses or 1,
@@ -69,7 +106,11 @@ function MonsterController.new(kind, settings, behavior, world, position, scale)
         LookTarget = nil,
         Target = nil,
         HeardUntil = 0,
-        Stunned = 0,
+        -- Aturdida (StunLeft) y después reponiéndose (RecoverLeft); ver Stun.
+        StunLeft = 0,
+        RecoverLeft = 0,
+        -- Retenciones activas por motivo (captura, escena...); ver Hold.
+        Holds = {},
         Attack = nil,
         Rage = false,
         Encountered = {},
@@ -82,6 +123,11 @@ function MonsterController.new(kind, settings, behavior, world, position, scale)
     return self
 end
 
+-- provider(player) -> {Origin = Vector3, Look = Vector3} o nil.
+function MonsterController.SetViewProvider(provider)
+    viewProvider = provider
+end
+
 function MonsterController:SetState(state)
     if self.State ~= state then
         self.State = state
@@ -90,17 +136,24 @@ function MonsterController:SetState(state)
     end
 end
 
--- Lo que ve el cliente: Patrol, Investigate, Search, Chase, Attack, Stunned...
+-- Lo que ve el cliente: Idle, Patrol, Investigate, Search, Chase, Attack, Capture,
+-- Stunned, Recover... (el zarpazo errado es Attack con fase Miss).
 function MonsterController:PublicState()
-    if self.Stunned > 0 then
+    local held = next(self.Holds)
+    if held then
+        return self.Holds.Capture and "Capture" or HOLD_STATES[held] or "Idle"
+    end
+    if self.StunLeft > 0 then
         return "Stunned"
     end
-    local attack = self.Attack
-    if attack then
-        if attack.Phase == "Recover" and not attack.Hit then
-            return "Stunned"
-        end
+    if self.RecoverLeft > 0 then
+        return "Recover"
+    end
+    if self.Attack then
         return "Attack"
+    end
+    if ROAMING[self.State] and self.StillTime >= IDLE_AFTER then
+        return "Idle"
     end
     return PUBLIC_STATE[self.State] or self.State
 end
@@ -109,6 +162,90 @@ end
 function MonsterController:Gesture(name)
     self.GestureName = name
     self.GestureCount += 1
+end
+
+-- Retención y aturdimiento (los usa la captura) ---------------------------------
+
+function MonsterController:IsHeld()
+    return next(self.Holds) ~= nil
+end
+
+function MonsterController:IsStunned()
+    return self.StunLeft > 0 or self.RecoverLeft > 0
+end
+
+-- Ruidos que sonaron mientras no podía reaccionar: no los persigue después.
+function MonsterController:ForgetNoises()
+    for _, noise in ipairs(self.World:Noises()) do
+        self.HeardUntil = math.max(self.HeardUntil, noise.Time)
+        if noise.Source ~= nil then
+            self.HeardMark[noise.Source] = math.max(self.HeardMark[noise.Source] or -math.huge, noise.Time)
+        end
+    end
+end
+
+-- Corta el ataque y el camino, y frena en seco.
+function MonsterController:Interrupt()
+    self.Attack = nil
+    self:ClearPath()
+    self.CurrentSpeed = 0
+    self.ActualSpeed = 0
+    if self.Behavior.OnInterrupt then
+        self.Behavior.OnInterrupt(self)
+    end
+end
+
+-- La deja quieta (sin moverse ni atacar) hasta Release con el mismo motivo. Su
+-- reloj de percepción se detiene: al soltarla recuerda lo mismo que antes y no
+-- reacciona a ruidos viejos.
+function MonsterController:Hold(reason)
+    reason = type(reason) == "string" and reason or "Hold"
+    self.Holds[reason] = true
+    self:Interrupt()
+end
+
+function MonsterController:Release(reason)
+    reason = type(reason) == "string" and reason or "Hold"
+    if not self.Holds[reason] then
+        return
+    end
+    self.Holds[reason] = nil
+    if not next(self.Holds) then
+        self:ForgetNoises()
+        -- Vuelve a calcular el camino enseguida.
+        self.PathClock = -math.huge
+    end
+end
+
+-- Aturdida durante `seconds` exactos; después se repone (Recover, StunRecover
+-- segundos) y vuelve a su IA donde la dejó.
+function MonsterController:Stun(seconds)
+    seconds = tonumber(seconds)
+    if not seconds or seconds ~= seconds or seconds <= 0 then
+        return
+    end
+    self:Interrupt()
+    self.StunLeft = math.min(seconds, MAX_STUN)
+    self.RecoverLeft = 0
+    self.LookTarget = nil
+end
+
+function MonsterController:UpdateStun(deltaTime)
+    if self.StunLeft > 0 then
+        self.StunLeft -= deltaTime
+        if self.StunLeft <= EPSILON then
+            local overshoot = math.max(-self.StunLeft, 0)
+            self.StunLeft = 0
+            self.RecoverLeft = math.max((self.Settings.StunRecover or DEFAULT_RECOVER) - overshoot, EPSILON * 2)
+        end
+    elseif self.RecoverLeft > 0 then
+        self.RecoverLeft -= deltaTime
+        if self.RecoverLeft <= EPSILON then
+            self.RecoverLeft = 0
+            self:ForgetNoises()
+            self.PathClock = -math.huge
+        end
+    end
 end
 
 function MonsterController:Distance(position)
@@ -142,8 +279,59 @@ function MonsterController:GoTo(position, force)
     return true
 end
 
+-- Gira el frente hacia `heading` con velocidad angular limitada: nada de giros
+-- instantáneos. Devuelve cuánto quedó alineado (1 = de frente, -1 = de espaldas).
+function MonsterController:SteerTowards(heading, deltaTime, rate)
+    local wanted = flat(heading)
+    if wanted.Magnitude < 0.05 then
+        return 1
+    end
+    wanted = wanted.Unit
+    local facing = self.Facing
+    local dot = math.clamp(facing:Dot(wanted), -1, 1)
+    local angle = math.acos(dot)
+    if angle < 1e-3 then
+        return dot
+    end
+
+    local step = math.min(angle, (rate or self.Settings.TurnRate or DEFAULT_TURN_RATE) * deltaTime)
+    -- Sentido del giro según la componente vertical del producto cruz.
+    local turn = facing:Cross(wanted).Y < 0 and -step or step
+    local cosTurn, sinTurn = math.cos(turn), math.sin(turn)
+    local turned = Vector3.new(
+        facing.X * cosTurn + facing.Z * sinTurn,
+        0,
+        -facing.X * sinTurn + facing.Z * cosTurn
+    )
+    if turned.Magnitude > 0.05 then
+        self.Facing = turned.Unit
+    end
+    return math.clamp(self.Facing:Dot(wanted), -1, 1)
+end
+
+-- Acelera y frena de a poco hacia la velocidad pedida.
+function MonsterController:Throttle(goal, deltaTime)
+    local settings = self.Settings
+    local current = self.CurrentSpeed
+    if goal > current then
+        current = math.min(goal, current + (settings.Acceleration or DEFAULT_ACCELERATION) * deltaTime)
+    else
+        current = math.max(goal, current - (settings.Deceleration or DEFAULT_DECELERATION) * deltaTime)
+    end
+    self.CurrentSpeed = current
+    return current
+end
+
 function MonsterController:MoveStep(deltaTime, speedFactor)
-    local budget = self.Speed * self.SpeedScale * (speedFactor or 1) * deltaTime
+    if not self:HasPath() then
+        self:Throttle(0, deltaTime)
+        return
+    end
+
+    -- Con el frente desalineado avanza más despacio mientras termina de girar.
+    local alignment = self:SteerTowards(self.Waypoints[self.WaypointIndex] - self.Position, deltaTime)
+    local goal = self.Speed * self.SpeedScale * (speedFactor or 1) * (0.6 + 0.4 * math.max(alignment, 0))
+    local budget = self:Throttle(goal, deltaTime) * deltaTime
 
     while budget > 0 and self:HasPath() do
         local waypoint = self.Waypoints[self.WaypointIndex]
@@ -155,12 +343,7 @@ function MonsterController:MoveStep(deltaTime, speedFactor)
             budget -= distance
             self.WaypointIndex += 1
         else
-            local direction = offset / distance
-            self.Position += direction * budget
-            local heading = flat(direction)
-            if heading.Magnitude > 0.05 then
-                self.Facing = heading.Unit
-            end
+            self.Position += offset / distance * budget
             budget = 0
         end
     end
@@ -176,16 +359,7 @@ function MonsterController:TurnTowards(position, deltaTime)
     if wanted.Magnitude < 0.5 then
         return
     end
-    wanted = wanted.Unit
-    local angle = math.acos(math.clamp(self.Facing:Dot(wanted), -1, 1))
-    if angle < 1e-3 then
-        return
-    end
-    local step = math.min(1, TURN_RATE * deltaTime / angle)
-    local blended = self.Facing:Lerp(wanted, step)
-    if blended.Magnitude > 0.05 then
-        self.Facing = flat(blended).Unit
-    end
+    self:SteerTowards(wanted, deltaTime, math.min(self.Settings.TurnRate or TURN_RATE, TURN_RATE))
 end
 
 function MonsterController:FaceTowards(position)
@@ -228,6 +402,16 @@ end
 
 function MonsterController:Eye()
     return Vector3.new(self.Position.X, math.max(self.Position.Y, 3), self.Position.Z)
+end
+
+-- Desde dónde y hacia dónde mira un jugador: su cámara si la informó hace poco;
+-- si no, la cabeza y el frente del cuerpo.
+function MonsterController:ViewOf(snapshot)
+    local view = snapshot.View or (viewProvider and viewProvider(snapshot.Player))
+    if view and view.Origin and view.Look then
+        return view.Origin, view.Look
+    end
+    return snapshot.Position + Vector3.new(0, HEAD_HEIGHT, 0), snapshot.Look
 end
 
 function MonsterController:CanSee(snapshot)
@@ -475,7 +659,8 @@ function MonsterController:UpdateAttack(deltaTime)
             self.Position = attack.From:Lerp(attack.To, alpha)
         end
         if attack.Time >= LUNGE_TIME then
-            attack.Phase = "Recover"
+            -- Si erró, el cliente lo muestra trastabillando (Miss).
+            attack.Phase = attack.Hit and "Recover" or "Miss"
             attack.Time = 0
         end
     elseif attack.Time >= attack.RecoverTime then
@@ -571,13 +756,25 @@ function MonsterController:UpdateSearch(speed)
 end
 
 function MonsterController:Tick(deltaTime)
+    -- Retenida (captura, escena): no se mueve, no ataca y su reloj no corre.
+    if next(self.Holds) then
+        self.ActualSpeed = 0
+        self.CurrentSpeed = 0
+        return
+    end
+    -- Aturdida o reponiéndose: tampoco piensa ni se mueve.
+    if self.StunLeft > 0 or self.RecoverLeft > 0 then
+        self.ActualSpeed = 0
+        self.CurrentSpeed = 0
+        self:UpdateStun(deltaTime)
+        return
+    end
+
     self.Clock += deltaTime
     self.StateTime += deltaTime
     local before = self.Position
 
-    if self.Stunned > 0 then
-        self.Stunned -= deltaTime
-    elseif self.Attack then
+    if self.Attack then
         self:UpdateAttack(deltaTime)
     else
         self.Behavior.Update(self, deltaTime)
@@ -591,10 +788,19 @@ function MonsterController:Tick(deltaTime)
     -- Velocidad real (la que anima el cliente): un salto de teletransporte no cuenta.
     local moved = flat(self.Position - before).Magnitude
     self.ActualSpeed = (moved > TELEPORT_DISTANCE or deltaTime <= 0) and 0 or moved / deltaTime
+    if self.ActualSpeed < 0.3 then
+        self.StillTime += deltaTime
+    else
+        self.StillTime = 0
+    end
 end
 
 function MonsterController:GetCFrame()
-    return CFrame.lookAt(self.Position, self.Position + self.Facing, self.Up)
+    local cframe = CFrame.lookAt(self.Position, self.Position + self.Facing, self.Up)
+    if self.Roll ~= 0 then
+        cframe *= CFrame.Angles(0, 0, self.Roll)
+    end
+    return cframe
 end
 
 return MonsterController
