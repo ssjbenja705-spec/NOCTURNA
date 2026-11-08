@@ -532,6 +532,7 @@ local SIGNATURES = {}
 
 local function footstep(rig, entry, distance)
     rig.Steps += 1
+    rig.Model:SetAttribute("Footstep", rig.Steps * entry.Side) -- ColosoFootsteps escucha este pulso (signo = pie).
     local style = rig.Style
     if style.Heavy then
         -- Impacto: la cadera se hunde y las placas saltan.

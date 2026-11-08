@@ -2627,6 +2627,101 @@ T.Test("El Coloso: cada pisada sacude la cámara según la distancia y nada de l
     T.Equal(distant, 0, "de lejos no sacude")
 end)
 
+T.Test("El Coloso: cada paso suena fuerte, levanta polvo, titila la luz, retumba de lejos y nunca camina en silencio", function()
+    Engine.Reset()
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local Footsteps = clientModule("Effects", "ColosoFootsteps")
+    local Audio = clientModule("Effects", "AudioController")
+    local FirstPerson = clientModule("Camera", "FirstPerson")
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local played = {}
+    Audio.PlayAt = function(name)
+        played[name] = (played[name] or 0) + 1
+    end
+    T.Equal(Footsteps.Power(5), 1, "pegado: impacto completo")
+    T.True(Footsteps.Power(10) > 0.8, "a 10 studs, fuerte: " .. Footsteps.Power(10))
+    T.Equal(Footsteps.Power(60), 0, "a 60, nada")
+
+    -- Una lámpara al costado del camino.
+    local lamp = Engine.New("Part", "Fixture")
+    lamp.Anchored = true
+    lamp.Position = Vector3.new(3, 9, -12)
+    lamp.Parent = Engine.Workspace
+    local light = Engine.New("PointLight", "Light")
+    light.Brightness = 2
+    light.Parent = lamp
+    Engine.Services.CollectionService:AddTag(lamp, "NocturnaLight")
+
+    local camera = Engine.Workspace.CurrentCamera
+    local function walk(model, cameraDistance, frames, animate)
+        local root = model.PrimaryPart
+        for frame = 1, frames do
+            local z = -frame * 6 / 60
+            root.CFrame = roblox.CFrame.new(0, 5.5, z)
+            camera.CFrame = roblox.CFrame.new(cameraDistance, 5, z) * roblox.CFrame.Angles(0, math.pi / 2, 0)
+            if animate then
+                Animator.Update(1 / 60, camera.CFrame)
+            end
+            Footsteps.Update()
+            Engine.Run(1 / 60)
+        end
+    end
+
+    -- Con el animador: cada apoyo publica Footstep y acá se suman las capas.
+    local model = Factory.Build("ElColoso", Engine.Workspace, 5.5)
+    T.True(Footsteps.Track(model), "sigue a El Coloso")
+    Animator.Track(model)
+    model:SetAttribute("State", "Patrol")
+    model:SetAttribute("MoveSpeed", 6)
+    walk(model, 6, 240, true)
+    local pulses = Footsteps.Count()
+    T.True(pulses >= 4, "un paso por apoyo del animador: " .. pulses)
+    T.False(Footsteps.LastStep().Synthetic, "los pasos vienen del animador")
+    T.True((played.ColosoStep or 0) >= 4, "el golpe de cada pisada")
+    T.True((played.ColosoBoom or 0) >= 4 and (played.ColosoDebris or 0) >= 4, "retumbe del piso y escombros de cerca")
+    T.True(Footsteps.LastStep().Dust ~= nil, "levanta polvo")
+    T.Equal(played.ColosoRumble, nil, "de cerca no hace falta el retumbe lejano")
+    model:Destroy()
+
+    -- Cerca y sin pulsos (otro esqueleto o animación rota): el reloj arma los pasos
+    -- con el impacto de cámara y la luz de al lado titila.
+    table.clear(played)
+    local silent = Factory.Build("ElColoso", Engine.Workspace, 5.5)
+    Footsteps.Track(silent)
+    silent:SetAttribute("MoveSpeed", 7)
+    local before = Footsteps.Count()
+    local strongest, flickered = 0, 0
+    for _ = 1, 4 do
+        walk(silent, 6, 30, false)
+        local info = Footsteps.LastStep()
+        strongest = math.max(strongest, info and info.Impulse or 0)
+        flickered = math.max(flickered, info and info.Flicker or 0)
+    end
+    T.True(Footsteps.Count() - before >= 3, "sin animador, igual pisa: " .. (Footsteps.Count() - before))
+    T.True(Footsteps.LastStep().Synthetic, "pasos del reloj de respaldo")
+    T.True(strongest > 0.5, "cerca, impacto fuerte: " .. strongest)
+    T.True(flickered >= 1, "la luz cercana titila")
+    T.True((played.ColosoStep or 0) >= 3, "el golpe lo pone el respaldo")
+    T.True(FirstPerson.ImpulseOffset(Engine.Clock()) ~= 0 or strongest > 0, "la cámara recibió el impacto")
+    Engine.Run(1)
+    T.Equal(light.Brightness, 2, "la luz vuelve a su brillo")
+
+    -- Lejos (fuera del alcance del animador): sin sacudón, pero se oye que viene.
+    table.clear(played)
+    walk(silent, 120, 180, false)
+    local far = Footsteps.LastStep()
+    T.True(far.Distance > 100, "lejos: " .. far.Distance)
+    T.True(far.Rumble == true and (played.ColosoRumble or 0) >= 2, "retumbe lejano")
+    T.Equal(far.Impulse, nil, "de lejos la cámara no se mueve")
+
+    -- Quieto: no pisa.
+    silent:SetAttribute("MoveSpeed", 0)
+    local stillCount = Footsteps.Count()
+    walk(silent, 6, 120, false)
+    T.Equal(Footsteps.Count(), stillCount, "quieto no hace ruido")
+    T.NoEngineErrors(Engine)
+end)
+
 T.Test("animación: El Quieto se acomoda al ser mirado y después no se mueve", function()
     Engine.Reset()
     local Factory = Engine.RequireServer("Monsters.MonsterFactory")

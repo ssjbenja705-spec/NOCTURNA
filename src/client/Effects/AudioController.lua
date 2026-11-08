@@ -75,8 +75,11 @@ function AudioController.PlayAt(name, position)
     end
 
     -- Más allá de donde se apaga no se oye: no se crea nada (ahorra en celulares).
+    -- RollOff / MaxDistance (opcionales en AudioConfig): hasta dónde suena al
+    -- máximo y dónde se apaga (los retumbes lejanos llegan más lejos).
+    local maxDistance = definition.MaxDistance or SFX_MAX_DISTANCE
     local camera = workspace.CurrentCamera
-    if camera and (position - camera.CFrame.Position).Magnitude > SFX_MAX_DISTANCE then
+    if camera and (position - camera.CFrame.Position).Magnitude > maxDistance then
         return
     end
 
@@ -86,10 +89,11 @@ function AudioController.PlayAt(name, position)
 
     local sound = createSound(name, definition, effectsGroup, emitter)
     sound.RollOffMode = Enum.RollOffMode.InverseTapered
-    sound.RollOffMinDistance = 12
-    sound.RollOffMaxDistance = SFX_MAX_DISTANCE
+    sound.RollOffMinDistance = definition.RollOff or 12
+    sound.RollOffMaxDistance = maxDistance
     sound:Play()
     Debris:AddItem(emitter, 8)
+    return sound
 end
 
 local function setMusicTarget(name, volume)
