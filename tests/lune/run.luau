@@ -5224,6 +5224,10 @@ T.Test("sustos: cada uno una vez, cerca y mirando, con esperas al azar y sin dos
     local plan = Director.Plan()
     T.True(plan ~= nil and #plan >= 3 and #plan <= 4, "plan del mapa")
     T.Equal(Director.Blocked(), "espera", "nada al empezar el capítulo")
+    -- Calma total: sin criaturas cerca (frenan cualquier susto) y a oscuras, para
+    -- que también pueda aparecer la silueta en lo oscuro.
+    Engine.RequireServer("Monsters.MonsterService").Clear()
+    gameState().Powered = false
 
     local nav = gameState().Nav
     local fired = 0
@@ -5261,6 +5265,8 @@ T.Test("sustos: nunca durante escenas, golpes, la persecución o con una criatur
     local EventBus = Engine.RequireServer("Core.EventBus")
     local Noise = Engine.RequireServer("AI.NoiseService")
     local entry = Director.Plan()[1]
+    Monsters.Clear()
+    gameState().Powered = false
     local anchor = gameState().Nav:Center(entry.Cell, 0)
     placeFacing(player, anchor, 24)
 

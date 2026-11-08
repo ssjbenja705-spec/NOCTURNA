@@ -511,18 +511,23 @@ function FinalChaseClient.PressContext()
     return FinalChaseClient.Action(action)
 end
 
-local JUMP_KEYS = {[Enum.KeyCode.Space] = true, [Enum.KeyCode.ButtonA] = true}
-local DUCK_KEYS = {[Enum.KeyCode.C] = true, [Enum.KeyCode.LeftControl] = true, [Enum.KeyCode.ButtonB] = true}
+-- Se compara con == (no como clave de tabla): así vale para cualquier EnumItem.
+local function isJumpKey(key)
+    return key == Enum.KeyCode.Space or key == Enum.KeyCode.ButtonA
+end
+local function isDuckKey(key)
+    return key == Enum.KeyCode.C or key == Enum.KeyCode.LeftControl or key == Enum.KeyCode.ButtonB
+end
 
 -- Manejador de MovementInput: C no pone en sigilo durante la persecución. Espacio
--- lo atiende onJumpInput, porque Roblox marca el salto como "procesado".
+-- lo atiende el InputBegan de Start, porque Roblox marca el salto como "procesado".
 local function onActionKey(key)
     if not view or not localPosition() then
         return false
     end
-    if JUMP_KEYS[key] then
+    if isJumpKey(key) then
         return true
-    elseif DUCK_KEYS[key] then
+    elseif isDuckKey(key) then
         -- Durante la persecución C no pone en sigilo: se agacha para pasar.
         FinalChaseClient.Action("Duck")
         return true
@@ -985,7 +990,7 @@ function FinalChaseClient.Start()
     UserInputService.InputBegan:Connect(function(input, processed)
         -- El salto de Roblox (Espacio, A del mando) llega como procesado: se acepta
         -- igual, salvo que el jugador esté escribiendo.
-        if JUMP_KEYS[input.KeyCode] and view and localPosition() then
+        if isJumpKey(input.KeyCode) and view and localPosition() then
             local ok, box = pcall(function()
                 return UserInputService:GetFocusedTextBox()
             end)
