@@ -10,6 +10,10 @@ Uso (desde la raíz del repositorio):
   --only-preview  sólo la hoja de muestra
   Nombre ...      sólo esos materiales (por ejemplo NocturnaTunnelBrick)
 
+En Windows, si la ruta del repositorio es larga, usá --out con una carpeta corta
+(por ejemplo C:/tmp/ntx) y copiá el resultado a assets/textures: Python no puede
+escribir archivos con rutas de más de 260 caracteres.
+
 Cada material se arma con nodos procedurales de Blender (ruido, voronoi, ruido
 fractal multifractal/ridged, ladrillos y baldosas hechos con matemática de UV) y
 se hornea con Cycles (pasada EMIT) sobre un plano con UV 0..1:
@@ -330,6 +334,17 @@ def streaks(g, seed, across=14.0, along=1.2, lo=0.55, hi=0.75):
     return g.ss(n, lo, hi)
 
 
+def scratches(g, fu, fv, seed, width=0.004, density=1.0, lo=0.45, hi=0.6):
+    """Rayones finos: la curva de nivel 0,5 de un ruido muy estirado (fu rasgos a lo
+    ancho, fv a lo alto) da líneas largas y delgadas; otro ruido decide dónde hay.
+    density=0 devuelve las líneas sin máscara. 1 = rayón."""
+    n = g.noise(fu, 2, 0.5, seed=seed, fv=fv)
+    line = g.inv(g.ss(g.absv(g.sub(n, 0.5)), 0.0, width))
+    if not density:
+        return line
+    return g.mul(line, g.ss(g.noise(3, 3, seed=seed + 1), lo, hi))
+
+
 def grime(g, f, seed, lo=0.45, hi=0.75, detail=6):
     return g.ss(g.noise(f, detail, 0.6, seed=seed), lo, hi)
 
@@ -371,18 +386,18 @@ def tunnel_brick(g):
     pits = g.ss(g.voronoi(40, seed=4), 0.18, 0.0)
     surface = g.noise(14, 6, 0.6, seed=5)
     brick = g.ramp(g.add(g.mul(rnd, 0.7), g.mul(surface, 0.3)),
-                   [(0.0, "#4a271d"), (0.35, "#6b3627"), (0.7, "#7d4630"), (1.0, "#5a3a2e")])
+                   [(0.0, "#3e2219"), (0.35, "#572d21"), (0.7, "#683a29"), (1.0, "#4e3228")])
     brick = g.mixc(g.mul(g.ss(rnd2, 0.85, 0.95), 0.6), brick, "#3a2a24")
     brick = g.mixc(g.mul(pits, 0.35), brick, "#2c1a14")
-    mortar_col = g.mixc(g.noise(30, 4, seed=6), "#6f6a60", "#8d877b")
+    mortar_col = g.mixc(g.noise(30, 4, seed=6), "#57534b", "#726d63")
     color = g.mixc(mortar, brick, mortar_col)
     # Salitre: blanco que sale de las juntas y mancha la parte baja.
     salt = g.mul(g.ss(g.noise(5, 6, 0.65, seed=7), 0.55, 0.72), g.inv(g.ss(edge, 0.0, 0.05)))
     color = g.mixc(g.mul(salt, 0.75), color, "#c9c3b2")
-    soot = grime(g, 3, 8, 0.4, 0.8)
-    color = g.mixc(g.mul(soot, 0.75), color, "#16120f")
-    wet = streaks(g, 9, 12, 1.0, 0.52, 0.72)
-    color = g.scale_color(color, g.lerp(wet, 1.0, 0.6))
+    soot = grime(g, 2.5, 8, 0.35, 0.75)
+    color = g.mixc(g.mul(soot, 0.85), color, "#120e0c")
+    wet = streaks(g, 9, 12, 1.0, 0.5, 0.7)
+    color = g.scale_color(color, g.lerp(wet, 1.0, 0.5))
     height = g.add(g.mul(face, g.add(0.62, g.mul(rnd, 0.08))), g.mul(surface, 0.12))
     height = g.sub(height, g.mul(pits, 0.08))
     height = g.add(height, g.mul(mortar, g.mul(g.noise(40, 3, seed=10), 0.08)))
@@ -572,7 +587,7 @@ def stained_slate(g):
     stain_col = g.mixc(g.noise(6, 3, seed=74), "#2c2416", "#3a3a22")
     color = g.mixc(g.mul(stain, 0.8), color, stain_col)
     color = g.mixc(g.mul(edge_ring, 0.8), color, "#1b160e")
-    scratch = g.ss(g.noise(1.5, 2, seed=75, fv=90, kind="RIDGED_MULTIFRACTAL", offset=1.0, gain=1.0), 0.9, 0.98)
+    scratch = scratches(g, 1.5, 90, 75, 0.004)
     color = g.mixc(g.mul(scratch, 0.35), color, "#6a6c68")
     color = g.mixc(seam, color, "#121313")
     height = g.add(g.mul(layers, 0.2), 0.5)
@@ -622,8 +637,8 @@ def scratched_steel(g):
     paint = g.ramp(g.add(g.mul(rnd, 0.5), g.mul(g.noise(3, 3, seed=92), 0.5)),
                    [(0.0, "#3f4850"), (0.5, "#4b555e"), (1.0, "#57616a")])
     # Rayones: líneas finas en dos direcciones.
-    s1 = g.ss(g.noise(2, 2, seed=93, fv=70, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.96, 0.995)
-    s2 = g.ss(g.noise(55, 2, seed=94, fv=3, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.965, 0.998)
+    s1 = scratches(g, 2, 70, 93, 0.003)
+    s2 = scratches(g, 55, 3, 94, 0.003)
     scratch = g.mx(s1, s2)
     scratch = g.mul(scratch, g.ss(g.noise(3, 3, seed=96), 0.4, 0.6))
     chipped = g.ss(g.add(g.noise(6, 6, 0.6, seed=97), g.mul(near, 0.25)), 0.75, 0.77)
@@ -672,7 +687,7 @@ def worn_plate(g):
     rust = g.ss(g.noise(3.5, 6, 0.65, seed=114), 0.64, 0.74)
     rust_col = g.ramp(g.noise(25, 4, seed=115), [(0.0, "#3a1c0d"), (0.6, "#653318"), (1.0, "#80461f")])
     color = g.mixc(rust, color, rust_col)
-    scratch = g.ss(g.noise(2, 2, seed=116, fv=60, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.94, 0.99)
+    scratch = scratches(g, 2, 60, 116, 0.004)
     color = g.mixc(g.mul(scratch, 0.5), color, "#9a9b99")
     height = g.add(g.mul(bump, 0.45), 0.3)
     height = g.add(height, g.mul(rust, g.mul(g.noise(50, 3, seed=117), 0.1)))
@@ -739,7 +754,7 @@ def scuffed_oak(g):
                   [(0.0, "#4e341f"), (0.4, "#6b4a2d"), (0.75, "#81603b"), (1.0, "#5d4128")])
     wood = g.mixc(g.mul(rings, 0.3), wood, "#3f2a18")
     # Marcas de arrastre y polvo en las juntas.
-    scuff = g.mul(g.ss(g.noise(3, 2, seed=133, fv=40, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.85, 0.97),
+    scuff = g.mul(scratches(g, 3, 40, 133, 0.008, density=0.0),
                   g.ss(g.noise(2.5, 3, seed=134), 0.45, 0.6))
     wood = g.mixc(g.mul(scuff, 0.55), wood, "#a48a68")
     worn = g.ss(g.noise(1.8, 4, seed=135), 0.55, 0.75)
@@ -770,7 +785,7 @@ def rotten_wood(g):
     grain = g.noise(2.5, 6, 0.62, seed=142, fv=45, dist=1.0, v=vv)
     color = g.ramp(g.add(g.mul(grain, 0.7), g.mul(rnd, 0.3)),
                    [(0.0, "#b3a796"), (0.5, "#c6b9a6"), (1.0, "#d4c7b2")])
-    split = g.ss(g.noise(2, 3, seed=143, fv=50, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.965, 0.995)
+    split = scratches(g, 2, 50, 143, 0.006, lo=0.5, hi=0.62)
     color = g.mixc(g.mul(split, 0.6), color, "#3a3128")
     rot = g.ss(g.noise(2.5, 6, 0.65, seed=144, dist=0.4), 0.62, 0.72)
     color = g.mixc(g.mul(rot, 0.75), color, "#4e463c")
@@ -798,7 +813,7 @@ def rusted_sheet(g):
     color = g.mixc(g.mul(heavy, 0.7), color, "#4a2c1c")
     run = g.mul(streaks(g, 154, 18, 1.4, 0.6, 0.8), 0.6)
     color = g.mixc(run, color, "#8a5a3a")
-    scratch = g.ss(g.noise(2, 2, seed=155, fv=60, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.95, 0.99)
+    scratch = scratches(g, 2, 60, 155, 0.004)
     color = g.mixc(g.mul(scratch, g.inv(rust)), color, "#d8d8d4")
     height = g.add(g.mul(ripple, 0.35), 0.3)
     height = g.add(height, g.mul(rust, g.mul(g.noise(45, 4, seed=156), 0.18)))
@@ -813,8 +828,8 @@ def grimy_metal(g):
     brushed = g.noise(1.5, 4, 0.6, seed=161, fv=120)
     base = g.mixc(brushed, "#b9bbbb", "#d2d3d1")
     scratch = g.mx(
-        g.ss(g.noise(2, 2, seed=162, fv=70, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.94, 0.99),
-        g.ss(g.noise(45, 2, seed=163, fv=4, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.95, 0.995))
+        scratches(g, 2, 70, 162, 0.003),
+        scratches(g, 45, 4, 163, 0.003))
     color = g.mixc(g.mul(scratch, 0.35), base, "#eeeeec")
     dirt = grime(g, 3, 164, 0.45, 0.8)
     color = g.mixc(g.mul(dirt, 0.55), color, "#5c574e")
@@ -885,7 +900,7 @@ def dirty_glass(g):
     dust = g.ss(g.noise(40, 3, seed=193), 0.5, 0.7)
     dirt = g.clamp(g.add(g.mul(smudge, 0.7), g.add(g.mul(drips, 0.6), g.mul(dust, 0.2))))
     color = g.mixc(dirt, "#f2f2ee", "#8f8a7e")
-    scratch = g.ss(g.noise(2, 2, seed=194, fv=70, kind="RIDGED_MULTIFRACTAL", offset=1.0), 0.95, 0.995)
+    scratch = scratches(g, 2, 70, 194, 0.003)
     height = g.add(0.5, g.mul(dirt, 0.05))
     height = g.sub(height, g.mul(scratch, 0.05))
     rough = g.lerp(dirt, 0.04, 0.7)
@@ -1158,7 +1173,7 @@ def preview(names):
     bpy.ops.object.light_add(type="SUN", rotation=(math.radians(62), 0, math.radians(-40)))
     bpy.context.active_object.data.energy = 3.2
     bpy.ops.object.light_add(type="AREA", location=(0, 0, 9))
-    bpy.context.active_object.data.energy = 900
+    bpy.context.active_object.data.energy = 350
     bpy.context.active_object.data.size = 14
     bpy.ops.object.camera_add(location=(0, 0, 20))
     camera = bpy.context.active_object
