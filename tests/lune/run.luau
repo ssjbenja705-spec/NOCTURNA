@@ -2915,6 +2915,17 @@ T.Test("huesos: la criatura usa su esqueleto con piel si está importado; si no,
     local mannequin = Factory.BuildMannequin(Engine.Workspace, roblox.CFrame.new(20, 0, 0))
     T.Equal(mannequin:GetAttribute("BoneRig"), true, "los maniquíes son iguales a El Quieto")
 
+    -- Si el importador descarta el hueso Root (no pesa vértices), se ubica por Hips.
+    Engine.Reset()
+    Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local _, data = rigTemplate("ElQuieto", {Without = {Root = true}})
+    local rootless = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    T.Equal(rootless:GetAttribute("BoneRig"), true, "sin Root también sirve")
+    local hipsRest = data.Bones[2]
+    T.Equal(hipsRest.Name, "Hips", "orden del JSON")
+    local expected = rootless.PrimaryPart.Position + Vector3.new(hipsRest.Head[1], hipsRest.Head[2], hipsRest.Head[3])
+    T.True((bodyBone(rootless, "Hips").WorldPosition - expected).Magnitude < 1e-3, "la cadera queda donde la midió Blender")
+
     Engine.Reset()
     Factory = Engine.RequireServer("Monsters.MonsterFactory")
     rigTemplate("ElQuieto", {Without = {Hips = true}})
@@ -6094,6 +6105,33 @@ T.Test("cliente: forcejeo con teclado y mando, cámara protegida y animación de
     for _, message in ipairs(Engine.Warnings()) do
         T.False(string.find(message, "aptura") or string.find(message, "StruggleUI") or string.find(message, "Capture"), "aviso: " .. message)
     end
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente: la captura de una criatura con huesos abre la mandíbula del esqueleto", function()
+    local players, MonsterService, CaptureService = captureMatch(1, {Client = true})
+    local player = players[1]
+    rigTemplate("ElImitador")
+    local entry = MonsterService.Spawn("ElImitador")
+    local model = entry.Model
+    T.Equal(model:GetAttribute("BoneRig"), true, "con esqueleto")
+    local jawPart = model:FindFirstChild("Jaw")
+    T.True(jawPart ~= nil and jawPart:IsA("BasePart"), "guía de la boca")
+    strike(entry, player)
+    toStruggle(CaptureService, player)
+    Engine.Run(0.6)
+    local animator = clientModule("Effects", "CaptureAnimator")
+    local session = animator.Sessions()[model]
+    T.True(session ~= nil and session.Bones ~= nil, "la captura mueve los huesos")
+    local nodes = session.Bones.ByName
+    local relative = (nodes.Head.Rest:Inverse() * nodes.Jaw.Rest):Inverse() * (nodes.Head.R:Inverse() * nodes.Jaw.R)
+    local _, opened = relative:ToAxisAngle()
+    T.True(math.abs(opened) > 0.15, "la mandíbula se abre: " .. opened)
+    T.True(jawPart:FindFirstChild("CaptureDrip", true) ~= nil, "baba en la boca del esqueleto")
+    T.True(model:FindFirstChild("Head"):FindFirstChild("CaptureRim") ~= nil, "luz de recorte en la cabeza")
+    solve(player, CaptureService.CaptureOf(player))
+    Engine.Run(2)
+    T.Equal(animator.Sessions()[model], nil, "termina la sesión")
     T.NoEngineErrors(Engine)
 end)
 

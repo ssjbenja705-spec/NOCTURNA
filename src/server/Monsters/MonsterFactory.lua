@@ -373,7 +373,9 @@ end
 -- criatura es esa malla entera, soldada a la raíz, y el cliente mueve los huesos
 -- (CreatureBones). Si no está o le faltan huesos, se arma con piezas como antes.
 
-local REQUIRED_BONES = {"Root", "Hips", "Chest", "Head", "LeftThigh", "LeftShin", "LeftFoot", "RightThigh", "RightShin", "RightFoot"}
+-- Root no es obligatorio: no pesa vértices y el importador puede descartarlo
+-- (entonces se ubica por Hips, con su posición medida en Blender).
+local REQUIRED_BONES = {"Hips", "Chest", "Head", "LeftThigh", "LeftShin", "LeftFoot", "RightThigh", "RightShin", "RightFoot"}
 local warnedRig = {}
 
 local function rigTemplate(kind)
@@ -437,16 +439,23 @@ end
 -- frente que dejó el importador): arriba es +Y (el importador siempre deja Y
 -- arriba) y el costado va de la cadera izquierda a la derecha; con eso el frente
 -- queda definido (la criatura mira hacia -Z de esa base, como la raíz).
-local function rigFrame(body)
+local function rigFrame(body, info)
     local root = findBone(body, "Root")
     local left, right = findBone(body, "LeftThigh"), findBone(body, "RightThigh")
-    local origin = boneWorld(root).Position
     local side = boneWorld(right).Position - boneWorld(left).Position
     side = Vector3.new(side.X, 0, side.Z)
     if side.Magnitude < 1e-3 then
         return nil
     end
-    return CFrame.fromMatrix(origin, side.Unit, Vector3.yAxis)
+    local axes = CFrame.fromMatrix(Vector3.zero, side.Unit, Vector3.yAxis)
+    local origin
+    if root then
+        origin = boneWorld(root).Position
+    else
+        local hips = info and info.Hips or Vector3.zero
+        origin = boneWorld(findBone(body, "Hips")).Position - axes:VectorToWorldSpace(hips)
+    end
+    return CFrame.new(origin) * axes
 end
 
 -- Pieza invisible que sigue a un hueso (Head, Jaw): la cámara de la captura y los
@@ -494,12 +503,12 @@ local function buildBoneRig(model, root, kind, template)
     end
 
     -- Escala: el importador puede traerla en otras unidades (100 veces más grande
-    -- si lee centímetros). Se compara la distancia de la raíz a la cabeza con la
+    -- si lee centímetros). Se compara la distancia de la cadera a la cabeza con la
     -- medida en Blender (CreatureRigs).
     local info = CreatureRigs[kind]
-    local rootBone, headBone = findBone(body, "Root"), findBone(body, "Head")
-    if info and info.Span and rootBone and headBone then
-        local measured = (boneWorld(headBone).Position - boneWorld(rootBone).Position).Magnitude
+    local hipsBone, headBone = findBone(body, "Hips"), findBone(body, "Head")
+    if info and info.Span and hipsBone and headBone then
+        local measured = (boneWorld(headBone).Position - boneWorld(hipsBone).Position).Magnitude
         local ratio = measured > 1e-3 and info.Span / measured or 1
         if math.abs(ratio - 1) > 0.03 then
             local ok = pcall(function()
@@ -512,7 +521,7 @@ local function buildBoneRig(model, root, kind, template)
     end
 
     -- Ubicación: el hueso Root va sobre la raíz, mirando hacia donde mira ella.
-    local frame = rigFrame(body)
+    local frame = rigFrame(body, info)
     if not frame then
         body:Destroy()
         return false

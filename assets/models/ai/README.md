@@ -75,6 +75,13 @@ El juego la copia a todas las piezas de esa criatura.
 **Si una criatura aparece mirando hacia atrás**, poné `TurnAround = true` en la
 carpeta `NocturnaModels`.
 
+## Esqueleto con piel (recomendado)
+
+Las piezas rígidas no doblan rodillas ni codos. `assets/blender/rig_creatures.py`
+arma la misma malla entera con huesos (`../rigged/<Criatura>.fbx`): importada en
+Studio como `NocturnaModels/<Criatura>Rig`, el juego la usa en lugar de las
+piezas y la anima con IK. Ver [`../rigged/README.md`](../rigged/README.md).
+
 ## Piezas opcionales para la animación
 
 Las criaturas se animan por código (no hay animaciones subidas). Con los cortes

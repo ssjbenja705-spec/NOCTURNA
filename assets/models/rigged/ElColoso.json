@@ -1,0 +1,459 @@
+{
+  "Creature": "ElColoso",
+  "Triangles": 17460,
+  "Height": 8.999999523162842,
+  "Feet": -5.5,
+  "Space": "studs de Roblox relativos a HumanoidRootPart; frente -Z, arriba +Y",
+  "Bones": [
+    {
+      "Name": "Root",
+      "Parent": null,
+      "Head": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "Tail": [
+        0.0,
+        0.6,
+        0.0
+      ],
+      "Length": 0.6
+    },
+    {
+      "Name": "Hips",
+      "Parent": "Root",
+      "Head": [
+        0.0,
+        -1.1619,
+        0.3874
+      ],
+      "Tail": [
+        0.0,
+        -0.5204,
+        0.3797
+      ],
+      "Length": 0.6416
+    },
+    {
+      "Name": "Spine1",
+      "Parent": "Hips",
+      "Head": [
+        0.0,
+        -0.5204,
+        0.3797
+      ],
+      "Tail": [
+        0.0,
+        0.1212,
+        0.846
+      ],
+      "Length": 0.7931
+    },
+    {
+      "Name": "Spine2",
+      "Parent": "Spine1",
+      "Head": [
+        0.0,
+        0.1212,
+        0.846
+      ],
+      "Tail": [
+        0.0,
+        0.7627,
+        0.2156
+      ],
+      "Length": 0.8994
+    },
+    {
+      "Name": "Chest",
+      "Parent": "Spine2",
+      "Head": [
+        0.0,
+        0.7627,
+        0.2156
+      ],
+      "Tail": [
+        0.0,
+        1.3414,
+        -0.3301
+      ],
+      "Length": 0.7954
+    },
+    {
+      "Name": "Neck",
+      "Parent": "Chest",
+      "Head": [
+        0.0,
+        1.3414,
+        -0.3301
+      ],
+      "Tail": [
+        0.0,
+        2.2096,
+        -1.1486
+      ],
+      "Length": 1.1932
+    },
+    {
+      "Name": "Head",
+      "Parent": "Neck",
+      "Head": [
+        0.0,
+        2.2096,
+        -1.1486
+      ],
+      "Tail": [
+        0.0,
+        2.891,
+        -1.3923
+      ],
+      "Length": 0.7237
+    },
+    {
+      "Name": "LeftClavicle",
+      "Parent": "Chest",
+      "Head": [
+        -0.4875,
+        1.0996,
+        0.2156
+      ],
+      "Tail": [
+        -1.6252,
+        1.1852,
+        -0.3148
+      ],
+      "Length": 1.2581
+    },
+    {
+      "Name": "LeftUpperArm",
+      "Parent": "LeftClavicle",
+      "Head": [
+        -1.6252,
+        1.1852,
+        -0.3148
+      ],
+      "Tail": [
+        -1.592,
+        -1.4145,
+        -0.2704
+      ],
+      "Length": 2.6002
+    },
+    {
+      "Name": "LeftForearm",
+      "Parent": "LeftUpperArm",
+      "Head": [
+        -1.592,
+        -1.4145,
+        -0.2704
+      ],
+      "Tail": [
+        -1.828,
+        -4.0141,
+        -0.7483
+      ],
+      "Length": 2.6537
+    },
+    {
+      "Name": "LeftHand",
+      "Parent": "LeftForearm",
+      "Head": [
+        -1.828,
+        -4.0141,
+        -0.7483
+      ],
+      "Tail": [
+        -1.8816,
+        -4.6087,
+        -1.2806
+      ],
+      "Length": 0.7999
+    },
+    {
+      "Name": "LeftFingers1",
+      "Parent": "LeftHand",
+      "Head": [
+        -1.8816,
+        -4.6087,
+        -1.2806
+      ],
+      "Tail": [
+        -2.03,
+        -5.0761,
+        -1.4068
+      ],
+      "Length": 0.5063
+    },
+    {
+      "Name": "LeftFingers2",
+      "Parent": "LeftFingers1",
+      "Head": [
+        -2.03,
+        -5.0761,
+        -1.4068
+      ],
+      "Tail": [
+        -1.8168,
+        -5.4951,
+        -1.5898
+      ],
+      "Length": 0.5045
+    },
+    {
+      "Name": "LeftThigh",
+      "Parent": "Hips",
+      "Head": [
+        -1.2127,
+        -1.4188,
+        0.3874
+      ],
+      "Tail": [
+        -1.1371,
+        -3.2259,
+        0.4559
+      ],
+      "Length": 1.81
+    },
+    {
+      "Name": "LeftShin",
+      "Parent": "LeftThigh",
+      "Head": [
+        -1.1371,
+        -3.2259,
+        0.4559
+      ],
+      "Tail": [
+        -1.1904,
+        -5.0331,
+        0.8893
+      ],
+      "Length": 1.8592
+    },
+    {
+      "Name": "LeftFoot",
+      "Parent": "LeftShin",
+      "Head": [
+        -1.1904,
+        -5.0331,
+        0.8893
+      ],
+      "Tail": [
+        -1.1788,
+        -5.3447,
+        0.536
+      ],
+      "Length": 0.4712
+    },
+    {
+      "Name": "LeftToe",
+      "Parent": "LeftFoot",
+      "Head": [
+        -1.1788,
+        -5.3447,
+        0.536
+      ],
+      "Tail": [
+        -1.1717,
+        -5.4115,
+        0.3195
+      ],
+      "Length": 0.2267
+    },
+    {
+      "Name": "RightClavicle",
+      "Parent": "Chest",
+      "Head": [
+        0.4875,
+        1.0996,
+        0.2156
+      ],
+      "Tail": [
+        1.6252,
+        1.1852,
+        -0.3148
+      ],
+      "Length": 1.2581
+    },
+    {
+      "Name": "RightUpperArm",
+      "Parent": "RightClavicle",
+      "Head": [
+        1.6252,
+        1.1852,
+        -0.3148
+      ],
+      "Tail": [
+        1.592,
+        -1.4145,
+        -0.2704
+      ],
+      "Length": 2.6002
+    },
+    {
+      "Name": "RightForearm",
+      "Parent": "RightUpperArm",
+      "Head": [
+        1.592,
+        -1.4145,
+        -0.2704
+      ],
+      "Tail": [
+        1.828,
+        -4.0141,
+        -0.7483
+      ],
+      "Length": 2.6537
+    },
+    {
+      "Name": "RightHand",
+      "Parent": "RightForearm",
+      "Head": [
+        1.828,
+        -4.0141,
+        -0.7483
+      ],
+      "Tail": [
+        1.8816,
+        -4.6087,
+        -1.2806
+      ],
+      "Length": 0.7999
+    },
+    {
+      "Name": "RightFingers1",
+      "Parent": "RightHand",
+      "Head": [
+        1.8816,
+        -4.6087,
+        -1.2806
+      ],
+      "Tail": [
+        2.03,
+        -5.0761,
+        -1.4068
+      ],
+      "Length": 0.5063
+    },
+    {
+      "Name": "RightFingers2",
+      "Parent": "RightFingers1",
+      "Head": [
+        2.03,
+        -5.0761,
+        -1.4068
+      ],
+      "Tail": [
+        1.8168,
+        -5.4951,
+        -1.5898
+      ],
+      "Length": 0.5045
+    },
+    {
+      "Name": "RightThigh",
+      "Parent": "Hips",
+      "Head": [
+        1.2127,
+        -1.4188,
+        0.3874
+      ],
+      "Tail": [
+        1.1371,
+        -3.2259,
+        0.4559
+      ],
+      "Length": 1.81
+    },
+    {
+      "Name": "RightShin",
+      "Parent": "RightThigh",
+      "Head": [
+        1.1371,
+        -3.2259,
+        0.4559
+      ],
+      "Tail": [
+        1.1904,
+        -5.0331,
+        0.8893
+      ],
+      "Length": 1.8592
+    },
+    {
+      "Name": "RightFoot",
+      "Parent": "RightShin",
+      "Head": [
+        1.1904,
+        -5.0331,
+        0.8893
+      ],
+      "Tail": [
+        1.1788,
+        -5.3447,
+        0.536
+      ],
+      "Length": 0.4712
+    },
+    {
+      "Name": "RightToe",
+      "Parent": "RightFoot",
+      "Head": [
+        1.1788,
+        -5.3447,
+        0.536
+      ],
+      "Tail": [
+        1.1717,
+        -5.4115,
+        0.3195
+      ],
+      "Length": 0.2267
+    },
+    {
+      "Name": "PlateLeft",
+      "Parent": "Chest",
+      "Head": [
+        -1.1294,
+        2.2968,
+        0.0177
+      ],
+      "Tail": [
+        -1.6145,
+        2.6364,
+        0.1148
+      ],
+      "Length": 0.6
+    },
+    {
+      "Name": "PlateRight",
+      "Parent": "Chest",
+      "Head": [
+        1.1407,
+        2.2265,
+        0.0342
+      ],
+      "Tail": [
+        1.6258,
+        2.566,
+        0.1312
+      ],
+      "Length": 0.6
+    },
+    {
+      "Name": "PlateBack",
+      "Parent": "Chest",
+      "Head": [
+        0.0381,
+        2.6137,
+        0.9114
+      ],
+      "Tail": [
+        0.0381,
+        2.9224,
+        1.4259
+      ],
+      "Length": 0.6
+    }
+  ]
+}

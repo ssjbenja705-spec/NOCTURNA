@@ -484,12 +484,24 @@ def skin(kind, mesh_obj, arm, bones, labels, measures, roblox_points):
     names = [b.name for b in bones]
     group_names = {g.index: g.name for g in mesh_obj.vertex_groups}
 
+    # El torso sólo se mezcla con el brazo cerca del hombro y con el muslo cerca de
+    # la cadera: un costado que roza el brazo colgado (El Coloso) no se lo lleva.
+    arm_limit = {side: by_name[f"{side}UpperArm"].head.y - 0.3 * (by_name[f"{side}UpperArm"].head.y - by_name[f"{side}UpperArm"].tail.y)
+                 for side in ("Left", "Right")}
+    thigh_limit = {side: by_name[f"{side}Thigh"].head.y + 0.25 * (by_name[f"{side}Thigh"].head.y - by_name[f"{side}Thigh"].tail.y)
+                   for side in ("Left", "Right")}
+
     final = []
     allowed_of = []
     fallback = 0
     for index, vertex in enumerate(mesh.vertices):
         region = labels[index]
         allowed = [n for n in allowed_bones(region, names) if n in by_name]
+        if region == "Torso":
+            y = roblox_points[index].y
+            allowed = [n for n in allowed
+                       if not (n.endswith("UpperArm") and y < arm_limit[n[:-8]])
+                       and not (n.endswith("Thigh") and y > thigh_limit[n[:-5]])]
         allowed_of.append(set(allowed))
         weights = {}
         for g in vertex.groups:
@@ -758,16 +770,19 @@ def write_config(results):
     lines = [
         "-- Generado por assets/blender/rig_creatures.py: no editar a mano.",
         "-- Esqueletos de las criaturas (assets/models/rigged). Height: alto total de la",
-        "-- malla en studs; Feet: altura de los pies respecto de la raíz; Span: distancia",
-        "-- del hueso Root al Head (MonsterFactory corrige la escala del importado con",
-        "-- ella); HeadSize: largo del hueso Head; Bones: huesos que trae el FBX.",
+        "-- malla en studs; Feet: altura de los pies respecto de la raíz; Hips: dónde está",
+        "-- el hueso Hips respecto de la raíz (por si el importador descarta el hueso Root,",
+        "-- que no pesa vértices); Span: distancia de Hips a Head (MonsterFactory corrige",
+        "-- con ella la escala del importado); HeadSize: largo del hueso Head; Bones:",
+        "-- huesos que trae el FBX.",
         "return {",
     ]
     for kind in sorted(results):
         info = results[kind]
         names = ", ".join(f'"{n}"' for n in info["Bones"])
-        lines.append(f"    {kind} = {{Height = {info['Height']:.4f}, Feet = {info['Feet']:.4f}, Span = {info['Span']:.4f}, "
-                     f"HeadSize = {info['HeadSize']:.4f}, Triangles = {info['Triangles']},")
+        hips = "Vector3.new({:.4f}, {:.4f}, {:.4f})".format(*info["Hips"])
+        lines.append(f"    {kind} = {{Height = {info['Height']:.4f}, Feet = {info['Feet']:.4f}, Hips = {hips},")
+        lines.append(f"        Span = {info['Span']:.4f}, HeadSize = {info['HeadSize']:.4f}, Triangles = {info['Triangles']},")
         lines.append(f"        Bones = {{{names}}}}},")
     lines.append("}")
     with open(CONFIG, "w", encoding="utf-8", newline="\n") as handle:
@@ -785,7 +800,8 @@ def load_existing_config():
             heads = {b["Name"]: Vector(b["Head"]) for b in data["Bones"]}
             lengths = {b["Name"]: b["Length"] for b in data["Bones"]}
             results[kind] = {"Height": data["Height"], "Feet": data["Feet"], "Triangles": data["Triangles"],
-                             "Span": (heads["Head"] - heads["Root"]).length, "HeadSize": lengths["Head"],
+                             "Span": (heads["Head"] - heads["Hips"]).length, "HeadSize": lengths["Head"],
+                             "Hips": tuple(heads["Hips"]),
                              "Bones": [b["Name"] for b in data["Bones"]]}
     return results
 
@@ -888,7 +904,8 @@ def rig(kind, source):
     log(kind, f"FBX {path} | vista {preview} | respaldo por cercanía en {fallback} vértices")
     by_name = {b.name: b for b in bones}
     return {"Height": height, "Feet": feet, "Triangles": tris, "Bones": [b.name for b in bones],
-            "Span": (by_name["Head"].head - by_name["Root"].head).length,
+            "Span": (by_name["Head"].head - by_name["Hips"].head).length,
+            "Hips": tuple(by_name["Hips"].head),
             "HeadSize": (by_name["Head"].tail - by_name["Head"].head).length}
 
 
