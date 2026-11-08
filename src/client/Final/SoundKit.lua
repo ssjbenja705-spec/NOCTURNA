@@ -68,8 +68,9 @@ function SoundKit.Play(definition, position, speed, volume)
     sound.PlaybackSpeed = (definition.Speed or 1) * (speed or 1)
     sound.Volume = (definition.Volume or 1) * (volume or 1)
     if holder then
+        -- RollOff (opcional): hasta qué distancia suena al máximo.
         sound.RollOffMode = Enum.RollOffMode.InverseTapered
-        sound.RollOffMinDistance = 10
+        sound.RollOffMinDistance = definition.RollOff or 10
         sound.RollOffMaxDistance = MAX_DISTANCE
     end
     sound:Play()

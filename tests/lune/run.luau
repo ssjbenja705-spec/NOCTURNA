@@ -6325,7 +6325,7 @@ local function quietSide(Director, nav, entry, anchor, distance)
         for _, other in ipairs(Director.Plan()) do
             if other ~= entry and not done[other.Kind] then
                 local where = nav:Center(other.Cell, 0)
-                for _, step in ipairs({distance, 24}) do
+                for _, step in ipairs({distance, 24, 12}) do
                     local spot = Vector3.new(anchor.X, 0, anchor.Z) + direction * step
                     if (Vector3.new(where.X, 0, where.Z) - spot).Magnitude <= reach then
                         clear = false
@@ -6361,7 +6361,9 @@ T.Test("sustos: cada uno una vez, cerca y mirando, con esperas al azar y sin dos
         T.True(side ~= nil, "hay un lado libre para acercarse al susto " .. entry.Kind)
         placeFacing(player, anchor, 60, side)
         T.Equal(Director.Step(), nil, "lejos no se dispara")
-        placeFacing(player, anchor, 24, side)
+        -- Los de golpe se disparan al entrar a su zona; los demás, de cerca y mirando.
+        local jump = Engine.RequireShared("Logic.ScarePlan").IsJumpscare(Engine.RequireShared("Config.ScareConfig"), entry.Kind)
+        placeFacing(player, anchor, jump and 12 or 24, side)
         local before = Engine.CountRemote and (Engine.Remotes.ScareEvent or 0)
         local result = Director.Step()
         if result then
@@ -6433,6 +6435,185 @@ T.Test("sustos: no hay ninguno durante la persecución final", function()
     local Director = Engine.RequireServer("Scares.ScareDirector")
     Director.SkipWait()
     T.Equal(Director.Blocked(), "persecución", "bloqueados")
+end)
+
+-- Los jugadores recorren el mapa al azar cada `every` segundos (sin buscar los
+-- sustos) mientras corre el reloj; devuelve los segundos simulados.
+local function wander(players, seconds, every, stop)
+    local layout = gameState().Layout
+    local nav = gameState().Nav
+    local rng = Rng.new(17)
+    local spent = 0
+    while spent < seconds and not (stop and stop()) do
+        for _, player in ipairs(players) do
+            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                local cell = layout.Cells[rng:Int(1, #layout.Cells)]
+                local center = nav:Center(cell.Index, 3)
+                local angle = rng:Float() * math.pi * 2
+                Engine.RequireServer("Security.AntiCheat").Grace(player, every + 1)
+                root.CFrame = roblox.CFrame.lookAt(center, center + Vector3.new(math.cos(angle), 0, math.sin(angle)))
+            end
+        end
+        Engine.Run(every)
+        spent += every
+    end
+    return spent
+end
+
+T.Test("sustos: todos los del mapa pasan en un capítulo normal, el primero a los 20-30 s y los de golpe nunca primero", function()
+    local ScareConfig = Engine.RequireShared("Config.ScareConfig")
+    local ScarePlan = Engine.RequireShared("Logic.ScarePlan")
+    for _, setup in ipairs({{Chapter = 1, Players = 2}, {Chapter = 3, Players = 1}, {Chapter = 4, Players = 1}}) do
+        local players = puzzleMatch(setup.Chapter, setup.Players)
+        local Director = Engine.RequireServer("Scares.ScareDirector")
+        Engine.RequireServer("Monsters.MonsterService").Clear()
+        local plan = Director.Plan()
+        T.True(plan ~= nil and #plan >= 3 and #plan <= 4, "plan del capítulo " .. setup.Chapter)
+        local jumps = 0
+        for _, entry in ipairs(plan) do
+            if ScarePlan.IsJumpscare(ScareConfig, entry.Kind) then
+                jumps += 1
+            end
+        end
+        T.True(jumps >= 1, "al menos un susto de golpe por mapa")
+        local startedAt = Director.PlayTime()
+        T.True(startedAt < ScareConfig.Timing.FirstDelay, "el reloj recién empieza: " .. startedAt)
+
+        -- Cinco minutos de partida recorriendo el mapa.
+        wander(players, 300, 2, function()
+            return #Director.History() >= #plan
+        end)
+        local history = Director.History()
+        T.Equal(#history, #plan, string.format("capítulo %d: pasaron todos los sustos", setup.Chapter))
+        T.True(history[1].PlayTime >= ScareConfig.Timing.FirstDelay - 0.01 and history[1].PlayTime <= ScareConfig.Timing.FirstDue + 2,
+            "el primero a los 20-30 s: " .. history[1].PlayTime)
+        T.False(ScarePlan.IsJumpscare(ScareConfig, history[1].Kind), "no abre con uno de golpe")
+        local last = history[#history].PlayTime
+        local limit = ScareConfig.Timing.FirstDue + (#plan - 1) * ScareConfig.Timing.MaxInterval + 3
+        T.True(last <= limit, string.format("todos antes de %.0f s: %.1f", limit, last))
+        local playedJumps = 0
+        for index, item in ipairs(history) do
+            if index > 1 then
+                T.True(item.PlayTime - history[index - 1].PlayTime >= ScareConfig.Timing.MinGap - 0.01, "separados")
+                T.True(item.Kind ~= history[index - 1].Kind, "sin repetir seguidos")
+            end
+            if ScarePlan.IsJumpscare(ScareConfig, item.Kind) then
+                playedJumps += 1
+            end
+            T.True(item.Recipients >= 1, "le llegó a alguien")
+        end
+        T.True(playedJumps >= 1, "hubo un susto de golpe")
+        local sent = Engine.LastSent("ScareEvent", history[#history].Player)
+        T.True(sent ~= nil and sent[1].Kind == history[#history].Kind, "el cliente recibió el último")
+        T.NoEngineErrors(Engine)
+    end
+end)
+
+T.Test("sustos: el reloj se frena en escenas y nada pasa en escenas, capturas, persecuciones o con una criatura cerca", function()
+    local players = puzzleMatch(2, 1)
+    local player = players[1]
+    local Director = Engine.RequireServer("Scares.ScareDirector")
+    local Monsters = Engine.RequireServer("Monsters.MonsterService")
+    local EventBus = Engine.RequireServer("Core.EventBus")
+    local ScareConfig = Engine.RequireShared("Config.ScareConfig")
+    Monsters.Clear()
+    local blockedNow = false
+    local duringBlock = 0
+    EventBus.On("ScarePlayed", function()
+        if blockedNow then
+            duringBlock += 1
+        end
+    end)
+    local function blockedFor(seconds, apply, undo)
+        blockedNow = true
+        apply()
+        wander(players, seconds, 2)
+        undo()
+        blockedNow = false
+    end
+
+    -- Escena: el reloj de juego no corre.
+    local before = Director.PlayTime()
+    blockedFor(60, function()
+        Monsters.SetPaused(true, "Scene")
+    end, function()
+        Monsters.SetPaused(false, "Scene")
+    end)
+    T.True(Director.PlayTime() - before < 0.5, "en escena el reloj no corre")
+    T.Equal(#Director.History(), 0, "nada durante la escena")
+
+    -- Después llega el primero a tiempo.
+    wander(players, ScareConfig.Timing.FirstDue + 4, 2, function()
+        return #Director.History() >= 1
+    end)
+    T.Equal(#Director.History(), 1, "el primero llega después de la escena")
+
+    -- Capturado, perseguido o con una criatura al lado: aunque se pase la hora, no.
+    blockedFor(ScareConfig.Timing.MaxInterval + 20, function()
+        player:SetAttribute("Captured", true)
+    end, function()
+        player:SetAttribute("Captured", nil)
+    end)
+    blockedFor(40, function()
+        player:SetAttribute("NocturnaThreat", 0.8)
+    end, function()
+        player:SetAttribute("NocturnaThreat", 0)
+    end)
+    local spawned = Monsters.Spawn("ElColoso")
+    blockedNow = true
+    for _ = 1, 20 do
+        local root = player.Character.HumanoidRootPart
+        spawned.Controller.Position = root.Position + Vector3.new(8, 0, 0)
+        Engine.Run(2)
+    end
+    blockedNow = false
+    Monsters.Clear()
+    T.Equal(duringBlock, 0, "ningún susto mientras estaba bloqueado")
+    T.Equal(#Director.History(), 1, "el segundo esperó")
+    T.True(Director.PlayTime() >= Director.DueAt(), "ya le tocaba")
+
+    -- Libre otra vez: el atrasado sale enseguida, mudado adelante del jugador.
+    wander(players, 10, 1, function()
+        return #Director.History() >= 2
+    end)
+    T.Equal(#Director.History(), 2, "sale apenas se puede")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente: los sustos de golpe se tiran contra la cámara, con destello, y se van en menos de un segundo", function()
+    local players = puzzleMatch(1, 1, {Client = true})
+    local player = players[1]
+    local Effects = Engine.Require(Engine.ClientFolder:FindFirstChild("Scares"):FindFirstChild("ScareEffects"), "Client")
+    local root = player.Character.HumanoidRootPart.Position
+    local camera = Engine.Workspace.CurrentCamera
+    camera.CFrame = roblox.CFrame.lookAt(root + Vector3.new(0, 1.5, 0), root + Vector3.new(0, 1.5, -10))
+    for _, kind in ipairs({"FACE_LUNGE", "CREATURE_LUNGE"}) do
+        T.True(Effects.Play({Kind = kind, Position = root + Vector3.new(0, 0, -3), From = root, Seed = 1}), kind)
+        Engine.Run(0.25)
+        local model = nil
+        for _, child in ipairs(Engine.Workspace:GetChildren()) do
+            if string.find(child.Name, "NocturnaScareLunge", 1, true) then
+                model = child
+            end
+        end
+        T.True(model ~= nil, kind .. ": en pantalla")
+        local nearest = math.huge
+        for _, piece in ipairs(model:GetChildren()) do
+            if piece:IsA("BasePart") and (piece.Name == "Face" or piece.Name == "Skull") then
+                local offset = camera.CFrame:PointToObjectSpace(piece.Position)
+                nearest = math.min(nearest, -offset.Z)
+            end
+        end
+        T.True(nearest > 0.3 and nearest < 2.5, kind .. ": pegado a la cara: " .. nearest)
+        local flash = player.PlayerGui:FindFirstChild("NocturnaScareFlash")
+        T.True(flash ~= nil, kind .. ": destello")
+        Engine.Run(1)
+        T.Equal(model.Parent, nil, kind .. ": se fue")
+    end
+    Engine.Run(2)
+    T.Equal(Effects.ActiveCount(), 0, "no queda nada")
+    T.NoEngineErrors(Engine)
 end)
 
 T.Test("cliente: cada susto se dibuja, suena y se borra solo", function()

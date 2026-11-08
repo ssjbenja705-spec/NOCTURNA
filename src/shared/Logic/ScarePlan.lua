@@ -21,32 +21,83 @@ function ScarePlan.Candidates(layout)
     return result
 end
 
-local function pickKinds(rng, count, config, avoid)
-    local kinds = table.clone(config.Order)
-    for _ = 1, 40 do
-        rng:Shuffle(kinds)
-        local chosen = {}
-        for index = 1, count do
-            chosen[index] = kinds[index]
+local function isJumpscare(config, kind)
+    local info = config.Kinds[kind]
+    return info ~= nil and info.Jumpscare == true
+end
+
+ScarePlan.IsJumpscare = isJumpscare
+
+-- Cuántos sustos de golpe lleva un mapa de `count` sustos (nunca todos).
+function ScarePlan.JumpscareCount(config, count)
+    local available = 0
+    for _, kind in ipairs(config.Order) do
+        if isJumpscare(config, kind) then
+            available += 1
         end
-        local shared, personal = false, false
-        for _, kind in ipairs(chosen) do
+    end
+    local wanted = config.Jumpscares and config.Jumpscares[count] or 0
+    return math.max(0, math.min(wanted, available, count - 1))
+end
+
+-- Lugar de cada susto de golpe en el orden del mapa: el último y, si hay dos, el
+-- segundo (así se alternan con los otros y nunca abren el mapa).
+local function jumpscareSlots(count, jumps)
+    local slots = {}
+    for index = 1, jumps do
+        slots[count - (index - 1) * 2] = true
+    end
+    return slots
+end
+
+local function pickKinds(rng, count, config, avoid)
+    local jumps = ScarePlan.JumpscareCount(config, count)
+    local regular, scary = {}, {}
+    for _, kind in ipairs(config.Order) do
+        table.insert(isJumpscare(config, kind) and scary or regular, kind)
+    end
+    local need = count - jumps
+
+    local chosen = nil
+    for _ = 1, 40 do
+        rng:Shuffle(regular)
+        local pick = table.move(regular, 1, need, 1, {})
+        local shared, personal = false, jumps > 0
+        for _, kind in ipairs(pick) do
             if config.Kinds[kind].Shared then
                 shared = true
             else
                 personal = true
             end
         end
-        if shared and personal and chosen[1] ~= avoid then
-            return chosen
+        if shared and personal and pick[1] ~= avoid then
+            chosen = pick
+            break
         end
     end
-    -- Respaldo determinista: uno compartido y uno personal siempre están.
-    local fallback = {"SHADOW_CROSS", "FOOTSTEPS_BEHIND", "DOOR_SLAM", "FIGURE_BEHIND"}
-    if avoid == fallback[1] then
-        fallback[1], fallback[3] = fallback[3], fallback[1]
+    if not chosen then
+        -- Respaldo determinista: uno compartido y uno personal siempre están.
+        local fallback = {"SHADOW_CROSS", "FOOTSTEPS_BEHIND", "DOOR_SLAM", "FIGURE_BEHIND"}
+        if avoid == fallback[1] then
+            fallback[1], fallback[3] = fallback[3], fallback[1]
+        end
+        chosen = table.move(fallback, 1, need, 1, {})
     end
-    return table.move(fallback, 1, count, 1, {})
+
+    rng:Shuffle(scary)
+    local slots = jumpscareSlots(count, jumps)
+    local result = {}
+    local nextRegular, nextJump = 1, 1
+    for position = 1, count do
+        if slots[position] then
+            result[position] = scary[nextJump]
+            nextJump += 1
+        else
+            result[position] = chosen[nextRegular]
+            nextRegular += 1
+        end
+    end
+    return result
 end
 
 local function pickCells(layout, rng, count, spacing)
@@ -101,6 +152,18 @@ function ScarePlan.Validate(plan, layout, config)
     local candidates = {}
     for _, index in ipairs(ScarePlan.Candidates(layout)) do
         candidates[index] = true
+    end
+    if isJumpscare(config, plan[1].Kind) then
+        return false, "abre con un susto de golpe"
+    end
+    local jumps = 0
+    for _, entry in ipairs(plan) do
+        if isJumpscare(config, entry.Kind) then
+            jumps += 1
+        end
+    end
+    if jumps ~= ScarePlan.JumpscareCount(config, #plan) then
+        return false, "sustos de golpe " .. jumps
     end
     for position, entry in ipairs(plan) do
         if config.Kinds[entry.Kind] == nil then
