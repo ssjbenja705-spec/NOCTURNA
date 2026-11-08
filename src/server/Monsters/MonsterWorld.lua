@@ -7,6 +7,7 @@ local GameConfig = require(Shared.Config.GameConfig)
 local Remotes = require(Shared.Modules.RemoteHelper)
 
 local NoiseService = require(script.Parent.Parent.AI.NoiseService)
+local CaptureService = require(script.Parent.Parent.Capture.CaptureService)
 local EventBus = require(script.Parent.Parent.Core.EventBus)
 local GameState = require(script.Parent.Parent.Core.GameState)
 local DamageService = require(script.Parent.Parent.Data.DamageService)
@@ -63,7 +64,9 @@ function MonsterWorld:Players()
         local root = character and character:FindFirstChild("HumanoidRootPart")
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 
-        if root and humanoid and humanoid.Health > 0 then
+        -- Quien está agarrado no existe para las demás criaturas: nadie más lo
+        -- persigue ni lo ataca mientras forcejea.
+        if root and humanoid and humanoid.Health > 0 and not CaptureService.IsCaptured(player) then
             local position = root.Position
             table.insert(snapshots, {
                 Player = player,
@@ -170,7 +173,14 @@ function MonsterWorld:Encounter(monster, snapshot)
     EventBus.Emit("MonsterEncountered", snapshot.Player, monster.Kind)
 end
 
+-- El zarpazo conectó. Con OnHit (MonsterService) se convierte en captura; el
+-- daño directo de antes queda sólo si la captura no es posible.
 function MonsterWorld:Damage(monster, snapshot, amount)
+    if self.OnHit and self.OnHit(monster, snapshot, amount) then
+        self.Cache = nil
+        return
+    end
+
     local player = snapshot.Player
     local now = os.clock()
     if now - (self.LastHit[player] or 0) < HIT_GRACE then

@@ -41,7 +41,8 @@ function InteractionService.CanInteract(player, prompt)
     if not root or not humanoid or humanoid.Health <= 0 then
         return false
     end
-    if player:GetAttribute("Hidden") == true then
+    -- Escondido o agarrado por una criatura: no se usa nada del mundo.
+    if player:GetAttribute("Hidden") == true or player:GetAttribute("Captured") == true then
         return false
     end
 

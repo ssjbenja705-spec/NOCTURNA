@@ -8,6 +8,7 @@ local MonsterConfig = require(Shared.Config.MonsterConfig)
 
 local MonsterController = require(script.Parent.Parent.AI.MonsterController)
 local Behaviors = script.Parent.Parent.AI.Behaviors
+local CaptureService = require(script.Parent.Parent.Capture.CaptureService)
 local GameState = require(script.Parent.Parent.Core.GameState)
 local MonsterFactory = require(script.Parent.MonsterFactory)
 local MonsterWorld = require(script.Parent.MonsterWorld)
@@ -77,13 +78,39 @@ local function spawnCell()
     return best
 end
 
+local function entryOf(controller)
+    for _, entry in ipairs(active) do
+        if entry.Controller == controller then
+            return entry
+        end
+    end
+    return nil
+end
+
+-- El zarpazo que conecta ya no daña directo: arranca la captura. Si la captura
+-- no corresponde (víctima recién escapada, escena que la protege, criatura
+-- ocupada) no hay daño; sólo si no se puede capturar por otro motivo se aplica
+-- el golpe de siempre.
+local function onHit(controller, snapshot, amount)
+    local result = CaptureService.TryCapture(entryOf(controller), snapshot.Player, amount)
+    return result ~= "Invalid"
+end
+
+local function getWorld()
+    if not world then
+        world = MonsterWorld.new()
+        world.OnHit = onHit
+    end
+    return world
+end
+
 function MonsterService.Spawn(kind)
     local settings = MonsterConfig[kind]
     if not settings or not GameState.Nav then
         return nil
     end
 
-    world = world or MonsterWorld.new()
+    world = getWorld()
     world:BeginTick()
 
     -- Si algo falla al armarla, no queda un cuerpo quieto en el mapa ni se
@@ -155,6 +182,8 @@ function MonsterService.IsPaused(source)
 end
 
 function MonsterService.Clear()
+    -- Primero se suelta a quien estuviera agarrado: nadie queda anclado.
+    CaptureService.ReleaseAll()
     for _, entry in ipairs(active) do
         entry.Model:Destroy()
     end
@@ -214,7 +243,8 @@ function MonsterService.Publish(entry)
     local attack = controller.Attack
 
     publishValue(entry, "MoveSpeed", math.floor(controller.ActualSpeed * 2 + 0.5) / 2)
-    publishValue(entry, "State", controller:PublicState())
+    -- Durante una captura, el aturdimiento y la recuperación manda CaptureService.
+    publishValue(entry, "State", entry.StateOverride or controller:PublicState())
     publishValue(entry, "BehaviorState", controller.State)
     publishValue(entry, "AttackPhase", attack and attack.Phase or "")
     publishValue(entry, "Rage", controller.Rage == true)
@@ -245,7 +275,10 @@ end
 
 local function tickEntry(entry, deltaTime)
     local controller = entry.Controller
-    controller:Tick(deltaTime)
+    -- Retenida (agarrando, aturdida o recuperándose): no piensa, no persigue ni ataca.
+    if not entry.CaptureHold then
+        controller:Tick(deltaTime)
+    end
     entry.Root.CFrame = controller:GetCFrame()
     MonsterService.Publish(entry)
 end
@@ -276,6 +309,7 @@ local function tick(deltaTime)
         for position = #broken, 1, -1 do
             local entry = table.remove(active, broken[position])
             warn("[NOCTURNA] Se retira " .. entry.Model.Name .. " por errores repetidos.")
+            CaptureService.ForgetEntry(entry)
             entry.Model:Destroy()
         end
     end

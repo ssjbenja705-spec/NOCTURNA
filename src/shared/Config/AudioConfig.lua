@@ -54,5 +54,16 @@ return {
         WaterDrop = {Id = WATER, Volume = 0.25, Speed = 1.8, Reverb = true},
         Breath = {Id = SWIM, Volume = 0.45, Speed = 0.6},
         Land = {Id = JUMP, Volume = 0.3, Speed = 0.5},
+        -- Captura y forcejeo (sonidos de la biblioteca de Roblox deformados; sin
+        -- voces grabadas ni sonidos propios).
+        CaptureGrab = {Id = EXPLOSION, Volume = 0.9, Speed = 0.75, Distort = 0.6, Reverb = true},
+        StruggleEffort = {Id = GET_UP, Volume = 0.55, Speed = 1.7},
+        StruggleMiss = {Id = OUCH, Volume = 0.55, Speed = 1.15},
+        StruggleTick = {Id = CLICK, Volume = 0.6, Speed = 1.6},
+        WetBreath = {Id = SWIM, Volume = 0.8, Speed = 0.4, Spatial = true, Reverb = true, Distort = 0.35},
+        Drool = {Id = WATER, Volume = 0.45, Speed = 0.55, Spatial = true},
+        CaptureSqueeze = {Id = STEP, Volume = 0.9, Speed = 0.25, Spatial = true, Distort = 0.5},
+        CaptureHit = {Id = LAND, Volume = 1, Speed = 1.35, Distort = 0.4},
+        CaptureDevour = {Id = OUCH, Volume = 1, Speed = 0.32, Distort = 0.8, Reverb = true},
     },
 }

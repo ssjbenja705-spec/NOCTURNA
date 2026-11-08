@@ -13,6 +13,7 @@ return {
         "AdminAction",
         "MapRequest",
         "PuzzleAction",
+        "CaptureInput",
     },
     ServerToClient = {
         "GameState",
@@ -40,5 +41,6 @@ return {
         "MapUpdate",
         "PuzzleUpdate",
         "Cinematic",
+        "CaptureUpdate",
     },
 }

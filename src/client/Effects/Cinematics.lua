@@ -119,7 +119,9 @@ function Cinematics.Play(data)
         return
     end
     local humanoid = humanoidOf()
-    if not humanoid or humanoid.Health <= 0 or player:GetAttribute("Hidden") == true then
+    -- Agarrado por una criatura: la cámara es de la captura, no de la escena.
+    if not humanoid or humanoid.Health <= 0 or player:GetAttribute("Hidden") == true
+        or player:GetAttribute("Captured") == true then
         return
     end
     local camera = workspace.CurrentCamera

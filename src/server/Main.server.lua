@@ -22,6 +22,7 @@ local SERVICES = {
     script.Parent.World.MapService,
     script.Parent.World.InteractionService,
     script.Parent.World.HidingService,
+    script.Parent.Capture.CaptureService,
     script.Parent.Monsters.MonsterService,
     script.Parent.Story.StoryService,
     script.Parent.Story.EndingService,
