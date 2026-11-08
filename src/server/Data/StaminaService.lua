@@ -40,6 +40,10 @@ local function updatePlayer(player, deltaTime)
     StaminaModel.Step(state, deltaTime, humanoid.MoveDirection.Magnitude > 0.05, CONFIG)
     local frozen = player:GetAttribute("Hidden") == true
     local speed = frozen and 0 or StaminaModel.Speed(state, state.Crouching, CONFIG)
+    -- Un tropezón (persecución final) frena por un momento, sin tocar el AIRE.
+    if state.StaggerUntil and os.clock() < state.StaggerUntil then
+        speed *= state.StaggerFactor
+    end
     if humanoid.WalkSpeed ~= speed then
         humanoid.WalkSpeed = speed
     end
@@ -57,6 +61,23 @@ local function updatePlayer(player, deltaTime)
     if player:GetAttribute("IsSprinting") ~= state.Sprinting then
         player:SetAttribute("IsSprinting", state.Sprinting)
     end
+end
+
+-- Tropezón de la persecución final: durante duration segundos corre a factor de
+-- su velocidad normal. Lo pide el servidor, nunca el cliente.
+function StaminaService.Stagger(player, duration, factor)
+    local state = states[player]
+    if not state or typeof(duration) ~= "number" or typeof(factor) ~= "number" then
+        return false
+    end
+    state.StaggerUntil = os.clock() + math.clamp(duration, 0, 5)
+    state.StaggerFactor = math.clamp(factor, 0.1, 1)
+    return true
+end
+
+function StaminaService.IsStaggered(player)
+    local state = states[player]
+    return state ~= nil and state.StaggerUntil ~= nil and os.clock() < state.StaggerUntil
 end
 
 function StaminaService.Start()

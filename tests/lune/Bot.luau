@@ -491,8 +491,98 @@ function Bot.SolvePuzzle(Engine, player, update)
     end
 end
 
+-- Persecución final -------------------------------------------------------------
+-- Lo que sabe un jugador de la persecución: el último "Start" que le llegó, si ya
+-- se puede correr, qué compuertas se rompieron y qué derrumbes se anunciaron.
+local CHASE_WINDOW = 4000
+local CHASE_STEP = 7.4
+
+function Bot.ChaseView(Engine)
+    local sent = Engine.Sent
+    local view = {Running = false, Doors = {}, Debris = {}}
+    for index = #sent, math.max(1, #sent - CHASE_WINDOW), -1 do
+        local entry = sent[index]
+        if entry.Name == "ChaseState" and entry.Player == nil then
+            local data = entry.Args[1]
+            local event = data and data.Event
+            if event == "Stop" or event == "Arrive" or event == "Finish" then
+                return nil
+            elseif event == "Run" or event == "Tick" then
+                view.Running = true
+            elseif event == "Door" then
+                view.Doors[data.Id] = true
+            elseif event == "Debris" then
+                view.Debris[data.Id] = data.Side
+            elseif event == "Start" then
+                view.Start = data
+                view.Running = view.Running or data.Phase == "Run"
+                for id in pairs(data.Doors or {}) do
+                    view.Doors[id] = true
+                end
+                return view
+            end
+        end
+    end
+    return nil
+end
+
+-- Corre un paso (0,4 s a ritmo de carrera) con cada jugador vivo de la galería:
+-- salta, se agacha y embiste en la ventana justa y se corre de los derrumbes.
+function Bot.RunChase(Engine, view)
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    local origin = config.Arena.Origin
+    local settings = config.Obstacles
+    local Vector3 = Engine.Roblox.Vector3
+    for _, player in ipairs(Engine.Services.Players:GetPlayers()) do
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if humanoid and humanoid.Health > 0 and root then
+            local s = root.Position.Z - origin.Z
+            local lateral = root.Position.X - origin.X
+            local inside = math.abs(lateral) <= config.Arena.Width / 2 + 4 and s >= config.Arena.BackS - 10
+            if inside and s < config.Arena.FinishS + 6 then
+                local target = s + CHASE_STEP
+                lateral = 0
+                for _, obstacle in ipairs(view.Start.Obstacles) do
+                    local distance = obstacle.S - s
+                    if obstacle.Kind == "Debris" and distance > -6 and distance < 40 then
+                        local Plan = Engine.RequireShared("Logic.ChasePlan")
+                        lateral = Plan.SafeLateral(obstacle.Side or 0, config.Arena.Width)
+                    end
+                    if distance > 0 and distance <= CHASE_STEP + settings.ActionReach then
+                        if obstacle.Kind == "Door" and not view.Doors[obstacle.Id] then
+                            if distance <= settings.DoorReach then
+                                Bot.Fire(Engine, player, "ChaseAction", "Jump")
+                                view.Doors[obstacle.Id] = true
+                            else
+                                target = math.min(target, obstacle.S - 3)
+                            end
+                        elseif obstacle.Kind == "Vault" or obstacle.Kind == "Slide" then
+                            if distance <= settings.ActionReach - 1 then
+                                Bot.Fire(Engine, player, "ChaseAction", config.Actions[obstacle.Kind])
+                            else
+                                target = math.min(target, obstacle.S - settings.ActionReach + 2)
+                            end
+                        end
+                    end
+                end
+                Bot.MoveTo(Engine, player, Vector3.new(origin.X + lateral, 3, origin.Z + math.max(target, s)))
+            end
+        end
+    end
+end
+
 -- Un paso de juego para el bot. Devuelve el identificador del objetivo actual.
 function Bot.Act(Engine, player)
+    local chase = Bot.ChaseView(Engine)
+    if chase then
+        if chase.Running then
+            Bot.RunChase(Engine, chase)
+        end
+        return "FINAL_CHASE"
+    end
+
     local args = Engine.LastSent("ObjectiveUpdate", player)
     local update = args and args[1]
     if not update or update.Finished or not update.Waypoints then

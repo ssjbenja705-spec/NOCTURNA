@@ -61,6 +61,8 @@ local MODULES = {
     {"Lobby", "LobbyAmbience"},
     {"Effects", "Cinematics"},
     {"Effects", "FlashlightVisuals"},
+    {"Final", "FinalChaseClient"},
+    {"Scares", "ScareEffects"},
 }
 
 for _, path in ipairs(MODULES) do

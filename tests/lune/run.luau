@@ -296,6 +296,10 @@ T.Test("cada objetivo apunta a algo que existe en su mapa", function()
         if spec.DocumentGroup then
             targets[spec.DocumentGroup] = "Read"
         end
+        -- La persecución final se completa al cruzar la compuerta del Núcleo.
+        if chapter.FinalChase then
+            targets[chapter.FinalChase.Id] = "Activate"
+        end
 
         for _, objective in ipairs(chapter.Objectives) do
             T.Equal(targets[objective.Target], objective.Type, objective.Id .. " -> " .. objective.Target)
@@ -4821,6 +4825,498 @@ T.Test("criaturas: la mirada se publica con pasos más largos y no más de cinco
     controller.LookTarget = nil
     MonsterService.Publish(entry)
     T.Equal(model:GetAttribute("LookTarget"), nil, "dejar de mirar sale enseguida")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Suite("Persecución final")
+
+local function chaseService()
+    return Engine.RequireServer("Final.FinalChaseService")
+end
+
+local function chaseMatch(playerCount, options)
+    local players = puzzleMatch(5, playerCount, options)
+    skipTo("C5_ESCAPE")
+    return players
+end
+
+local function waitChasePhase(phase, timeout)
+    return Engine.RunUntil(function()
+        return chaseService().Phase() == phase
+    end, timeout or 30)
+end
+
+local function lastChaseEvent(event, player)
+    for index = #Engine.Sent, 1, -1 do
+        local entry = Engine.Sent[index]
+        if entry.Name == "ChaseState" and (player == nil or entry.Player == nil or entry.Player == player) then
+            local data = entry.Args[1]
+            if data and data.Event == event then
+                return data, index
+            end
+        end
+    end
+    return nil
+end
+
+local function obstacleOf(kind, nth)
+    local found = 0
+    for _, entry in ipairs(chaseService().State().Obstacles) do
+        if entry.Kind == kind then
+            found += 1
+            if found == (nth or 1) then
+                return entry
+            end
+        end
+    end
+    return nil
+end
+
+-- Lleva al jugador a s dentro de la galería, dando por resuelto lo que queda atrás
+-- (como si lo hubiera pasado bien) para probar un obstáculo por vez.
+local function placeInChase(player, s, lateral)
+    local state = chaseService().State()
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    local entry = state.Players[player]
+    if entry then
+        for _, obstacle in ipairs(state.Obstacles) do
+            if obstacle.S < s then
+                entry.Passed[obstacle.Id] = true
+                if obstacle.Kind == "Door" then
+                    state.DoorsOpen[obstacle.Id] = true
+                end
+            end
+        end
+        entry.LastS = s
+    end
+    local origin = config.Arena.Origin
+    Bot.MoveTo(Engine, player, Vector3.new(origin.X + (lateral or 0), 3, origin.Z + s))
+end
+
+local function healthOf(player)
+    return player.Character:FindFirstChildOfClass("Humanoid").Health
+end
+
+T.Test("persecución: 2000 secuencias de obstáculos válidas, que presentan cada tipo y se aprietan", function()
+    local ChasePlan = Engine.RequireShared("Logic.ChasePlan")
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    for seed = 1, 2000 do
+        local list = ChasePlan.Generate(Rng.new(seed), config)
+        local valid, reason = ChasePlan.Validate(list, config)
+        T.True(valid, "semilla " .. seed .. ": " .. tostring(reason))
+        T.True(#list >= 10, "obstáculos suficientes: " .. #list)
+        for index, kind in ipairs(config.Obstacles.Intro) do
+            T.Equal(list[index].Kind, kind, "presentación " .. index)
+        end
+        local early = list[2].S - list[1].S
+        local late = list[#list].S - list[#list - 1].S
+        T.True(late < early, "más juntos al final")
+        for _, entry in ipairs(list) do
+            if entry.Kind == "Debris" then
+                T.True(entry.Side == -1 or entry.Side == 0 or entry.Side == 1, "lado del derrumbe")
+            end
+        end
+    end
+end)
+
+T.Test("persecución: el elástico mantiene a la criatura detrás, entre sus límites, y castiga caminar", function()
+    local ChasePlan = Engine.RequireShared("Logic.ChasePlan")
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    local creature = config.Creature
+    local dt = 0.1
+
+    -- Ritmos posibles: correr, alternar con el AIRE, frenar de golpe, quedarse quieto.
+    local profiles = {
+        function() return 19 end,
+        function(t) return (t % 6) < 2.3 and 19 or 11 end,
+        function(t) return (t % 9) < 1.2 and 0 or 17 end,
+        function(t) return t > 10 and 0 or 19 end,
+    }
+    for _, speedAt in ipairs(profiles) do
+        local s = config.Arena.StartS
+        local state = ChasePlan.NewCreature(config, s)
+        for step = 1, 600 do
+            local t = step * dt
+            s = math.min(config.Arena.FinishS, s + speedAt(t) * dt)
+            ChasePlan.StepCreature(state, s, dt, config, 1)
+            local gap = s - state.S
+            T.True(gap >= creature.MinGap - 1e-6 and gap <= creature.MaxGap + 1e-6, string.format("distancia %.2f fuera de límites", gap))
+            T.True(state.Speed <= creature.MaxSpeed + 1e-6, "velocidad máxima")
+            if ChasePlan.Caught(state, s, config) then
+                state.Recoil = creature.RecoilTime
+            end
+        end
+    end
+
+    -- Corriendo, nunca la alcanza; caminando al final de la galería, sí.
+    local function minGap(speed, fromS)
+        local s = fromS
+        local state = ChasePlan.NewCreature(config, s)
+        state.S = s - 20
+        state.Speed = 15
+        local minimum = math.huge
+        for _ = 1, 200 do
+            s += speed * dt
+            ChasePlan.StepCreature(state, s, dt, config, 1)
+            minimum = math.min(minimum, s - state.S)
+        end
+        return minimum
+    end
+    T.True(minGap(19, 20) > creature.CatchDistance, "corriendo se escapa")
+    T.True(minGap(11, 380) <= creature.CatchDistance, "caminando al final te alcanza")
+end)
+
+T.Test("persecución: arranca al abrirse el cuarto de Alma, no antes, y lleva al grupo a la galería", function()
+    local players = puzzleMatch(5, 2)
+    T.Equal(chaseService().Phase(), nil, "sin persecución al empezar")
+    skipTo("C5_DOOR")
+    Engine.Run(2)
+    T.Equal(chaseService().Phase(), nil, "todavía no")
+
+    skipTo("C5_ESCAPE")
+    T.True(chaseService().IsActive(), "se activa al completar C5_DOOR")
+    T.True(waitChasePhase("Intro", 10), "transición")
+    T.True(lastChaseEvent("Intro") ~= nil, "con fundido y textos")
+    T.True(Engine.Workspace:FindFirstChild("NOCTURNA_CHASE") ~= nil, "galería construida")
+    T.True(waitChasePhase("Run", 15), "empieza la carrera")
+    T.True(lastChaseEvent("Reveal") ~= nil, "la criatura irrumpe")
+
+    local arena = chaseService().State().Arena
+    for _, player in ipairs(players) do
+        T.True(arena:Contains(player.Character.HumanoidRootPart.Position), "jugador en la galería")
+    end
+    T.True(arena:Contains(gameState().Checkpoint.Position), "reaparece en la galería")
+    T.Equal(gameState().Tracker:Current().Id, "C5_ESCAPE", "objetivo de la persecución")
+    T.Equal(#Engine.RequireServer("Monsters.MonsterService").Active(), 0, "las criaturas del mapa se retiran")
+    local start = lastChaseEvent("Start")
+    T.True(#start.Obstacles >= 10, "obstáculos enviados al cliente")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("persecución: saltar, agacharse y embestir son obligatorios; sin la acción se tropieza", function()
+    local players = chaseMatch(1)
+    local player = players[1]
+    T.True(waitChasePhase("Run", 20), "carrera")
+    local Stamina = Engine.RequireServer("Data.StaminaService")
+
+    -- Salto sin acción: tropieza, pierde vida y se frena.
+    local vault = obstacleOf("Vault")
+    placeInChase(player, vault.S - 6)
+    Engine.Run(0.2)
+    local before = healthOf(player)
+    Bot.MoveTo(Engine, player, Vector3.new(-900, 3, vault.S + 3))
+    Engine.Run(0.6)
+    T.True(healthOf(player) < before, "tropezón con daño")
+    T.True(Stamina.IsStaggered(player), "frenado")
+    local act = lastChaseEvent("Act")
+    T.Equal(act.Kind, "Stumble", "pose de tropezón")
+
+    -- Viga con la acción equivocada a destiempo y después la correcta: pasa limpio.
+    local slide = obstacleOf("Slide")
+    placeInChase(player, slide.S - 30)
+    Engine.Run(0.2)
+    T.False(chaseService().Action(player, "Duck"), "lejos no vale")
+    placeInChase(player, slide.S - 6)
+    Engine.Run(0.1)
+    T.False(chaseService().Action(player, "Jump"), "saltar no sirve para una viga")
+    T.True(chaseService().Action(player, "Duck"), "agacharse sí")
+    before = healthOf(player)
+    Bot.MoveTo(Engine, player, Vector3.new(-900, 3, slide.S + 3))
+    Engine.Run(0.6)
+    T.Equal(healthOf(player), before, "sin daño")
+
+    -- Derrumbe: quien queda en la franja recibe el golpe; al costado, no.
+    local debris = obstacleOf("Debris")
+    placeInChase(player, debris.S - 30, 0)
+    Engine.Run(0.1)
+    local ChasePlan = Engine.RequireShared("Logic.ChasePlan")
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    local inside = debris.Side == 0 and 0 or debris.Side * 10
+    T.True(ChasePlan.InDebrisZone(debris.Side, inside, config.Arena.Width), "punto dentro de la franja")
+    Bot.MoveTo(Engine, player, Vector3.new(-900 + inside, 3, debris.S - 1))
+    Engine.Run(0.2)
+    T.True(lastChaseEvent("Debris") ~= nil, "aviso del derrumbe")
+    before = healthOf(player)
+    Engine.Run(config.Obstacles.DebrisWarn + 0.3)
+    T.True(healthOf(player) < before, "lo aplastó el derrumbe")
+
+    -- Compuerta: frena hasta que alguien la embiste desde cerca.
+    local door = obstacleOf("Door")
+    placeInChase(player, door.S - 20)
+    Engine.Run(0.1)
+    T.False(chaseService().Action(player, "Jump"), "de lejos no se rompe")
+    Bot.MoveTo(Engine, player, Vector3.new(-900, 3, door.S + 4))
+    Engine.Run(0.2)
+    local s = player.Character.HumanoidRootPart.Position.Z
+    T.True(s < door.S, "la compuerta cerrada no deja pasar")
+    placeInChase(player, door.S - 5)
+    Engine.Run(0.1)
+    T.True(chaseService().Action(player, "Jump"), "embestida")
+    T.True(chaseService().State().Arena:IsDoorOpen(door.Id), "rota para todos")
+    T.True(lastChaseEvent("Door") ~= nil, "aviso a los clientes")
+    Bot.MoveTo(Engine, player, Vector3.new(-900, 3, door.S + 4))
+    Engine.Run(0.2)
+    T.True(player.Character.HumanoidRootPart.Position.Z > door.S, "ahora se pasa")
+
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("persecución: la criatura alcanza a quien se queda quieto, con el daño del juego y sin pasarlo", function()
+    local players = chaseMatch(1)
+    local player = players[1]
+    T.True(waitChasePhase("Run", 20), "carrera")
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    local state = chaseService().State()
+    local caught = Engine.RunUntil(function()
+        local gap = player.Character.HumanoidRootPart.Position.Z - config.Arena.Origin.Z - state.Creature.S
+        T.True(gap >= config.Creature.MinGap - 0.01, "nunca lo pasa")
+        return healthOf(player) < 100
+    end, 20)
+    T.True(caught, "lo alcanza")
+    T.True(lastChaseEvent("Catch") ~= nil, "aviso de captura")
+    T.Equal(Engine.LastSent("MonsterEffect", player)[1], "Jumpscare", "susto del golpe")
+    T.True(healthOf(player) <= 100 - config.Creature.Damage + 1, "daño de la criatura")
+    T.True(state.Creature.Recoil > 0, "ruge y se frena")
+    local hp = healthOf(player)
+    Engine.Run(config.Creature.CatchCooldown * 0.5)
+    T.Equal(healthOf(player), hp, "no golpea dos veces seguidas")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("persecución: llegar a la compuerta del Núcleo lleva al cuarto de Alma y a los finales", function()
+    local players = chaseMatch(2)
+    T.True(waitChasePhase("Run", 20), "carrera")
+    local tracker = gameState().Tracker
+    local maxParts, maxSegments = 0, 0
+    for _ = 1, 400 do
+        if tracker:IsDone("C5_ESCAPE") then
+            break
+        end
+        Bot.Act(Engine, players[1])
+        Engine.Run(0.4)
+        local state = chaseService().State()
+        if state and state.Arena and state.Arena.Folder.Parent then
+            maxParts = math.max(maxParts, state.Arena:PartCount())
+            maxSegments = math.max(maxSegments, state.Arena:SegmentCount())
+        end
+    end
+    T.True(tracker:IsDone("C5_ESCAPE"), "persecución completada")
+    T.True(maxSegments <= 8, "pocos tramos vivos: " .. maxSegments)
+    T.True(maxParts <= 500, "presupuesto de celular: " .. maxParts)
+    for _, player in ipairs(players) do
+        T.True(healthOf(player) > 0, "el bot llega con vida")
+        local cell = gameState().Nav:CellAt(player.Character.HumanoidRootPart.Position)
+        T.Equal(cell, gameState().Layout.Exit, "en el cuarto de Alma")
+    end
+    Engine.Run(5)
+    T.True(Engine.Workspace:FindFirstChild("NOCTURNA_CHASE") == nil, "la galería se borra")
+    T.Equal(chaseService().Phase(), nil, "persecución terminada")
+
+    -- Sigue la historia: encontrarla, tomarle la mano y votar el final.
+    local steps = playChapter(players, 5)
+    T.True(steps < 3000, "capítulo terminado")
+    T.True(waitForPhase("Ending", 60), "decisión final")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("persecución: si cae todo el grupo se repite sólo la persecución", function()
+    local players = chaseMatch(1)
+    local player = players[1]
+    T.True(waitChasePhase("Run", 20), "carrera")
+    gameState().Lives = 0
+    player.Character:FindFirstChildOfClass("Humanoid").Health = 0
+    Engine.Run(1)
+    T.Equal(gameState().Phase, "Failed", "fallido")
+    T.True(Engine.RunUntil(function()
+        return gameState().Phase == "Playing"
+    end, GameConfig.Match.FailureAutoRetry + 5), "reintento")
+    T.Equal(gameState().Chapter, 5, "mismo capítulo")
+    T.Equal(gameState().Tracker:Current().Id, "C5_ESCAPE", "no se pierde el capítulo")
+    T.True(gameState().Lives > 0, "reintentos repuestos")
+    T.True(waitChasePhase("Run", 15), "vuelve a correr")
+    T.True(chaseService().State().Arena:Contains(player.Character.HumanoidRootPart.Position), "desde la largada")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente: en el celular aparece el botón de acción y en PC Espacio y C actúan sin poner sigilo", function()
+    for _, touch in ipairs({true, false}) do
+        local options = touch and {Client = true, Touch = true, Viewport = roblox.Vector2.new(812, 375)} or {Client = true}
+        local players = chaseMatch(1, options)
+        local player = players[1]
+        T.True(waitChasePhase("Run", 20), "carrera")
+        Engine.Run(0.5)
+        T.True(Engine.Workspace:FindFirstChild("ElOrganismo") ~= nil, "criatura dibujada en el cliente")
+        local Final = Engine.Require(Engine.ClientFolder:FindFirstChild("Final"):FindFirstChild("FinalChaseClient"), "Client")
+        T.True(Final.IsActive(), "persecución en el cliente")
+
+        local vault = obstacleOf("Vault")
+        placeInChase(player, vault.S - 6)
+        Engine.Run(0.3)
+        local controls = player:FindFirstChild("PlayerGui"):FindFirstChild("NocturnaChaseControls"):FindFirstChild("Root")
+        if touch then
+            local button = controls:FindFirstChild("ChaseAction")
+            T.True(button ~= nil and button.Visible, "botón visible cerca del obstáculo")
+            T.Equal(button.Text, "SALTAR", "dice qué hacer")
+            T.True(button.Size.X.Offset >= 44, "tamaño táctil")
+            Engine.GuiInput(button, "Activated")
+        else
+            T.True(controls:FindFirstChild("Hint").Visible, "indicación en pantalla")
+            Engine.Input("InputBegan", {KeyCode = roblox.Enum.KeyCode.Space})
+        end
+        Engine.Run(0.1)
+        local act = lastChaseEvent("Act")
+        T.True(act ~= nil and act.Obstacle == vault.Id, "pidió saltar ese obstáculo")
+        T.True(chaseService().State().Players[player].Tokens[vault.Id] ~= nil, "el servidor lo aceptó")
+
+        if not touch then
+            local slide = obstacleOf("Slide")
+            placeInChase(player, slide.S - 6)
+            Engine.Run(0.2)
+            Engine.Input("InputBegan", {KeyCode = roblox.Enum.KeyCode.C})
+            Engine.Run(0.2)
+            T.False(player:GetAttribute("IsCrouching") == true, "C no pone en sigilo")
+            T.True(chaseService().State().Players[player].Tokens[slide.Id] ~= nil, "C se agacha")
+        end
+        T.NoEngineErrors(Engine)
+    end
+end)
+
+T.Suite("Sustos al azar")
+
+T.Test("sustos: 3 o 4 por mapa, en celdas válidas y separadas, sin tipos repetidos", function()
+    bootServer(1)
+    local World = Engine.RequireServer("World.WorldService")
+    local ScarePlan = Engine.RequireShared("Logic.ScarePlan")
+    local ScareConfig = Engine.RequireShared("Config.ScareConfig")
+    for chapter = 1, 5 do
+        local avoid = nil
+        for seed = 1, 120 do
+            local plan = World.PlanChapter(chapter, seed * 17)
+            local scares = ScarePlan.Generate(plan.Layout, Rng.new(seed), ScareConfig, avoid)
+            local valid, reason = ScarePlan.Validate(scares, plan.Layout, ScareConfig)
+            T.True(valid, string.format("capítulo %d semilla %d: %s", chapter, seed, tostring(reason)))
+            local shared, personal = false, false
+            for _, entry in ipairs(scares) do
+                if entry.Shared then
+                    shared = true
+                else
+                    personal = true
+                end
+            end
+            T.True(shared and personal, "compartidos y personales")
+            T.True(scares[1].Kind ~= avoid, "no abre con el mismo del mapa anterior")
+            avoid = scares[#scares].Kind
+        end
+    end
+end)
+
+local function placeFacing(player, target, distance)
+    local away = Vector3.new(distance, 0, 0)
+    local position = Vector3.new(target.X, 3, target.Z) + away
+    Engine.RequireServer("Security.AntiCheat").Grace(player, 3)
+    player.Character.HumanoidRootPart.CFrame = roblox.CFrame.lookAt(position, Vector3.new(target.X, 3, target.Z))
+end
+
+T.Test("sustos: cada uno una vez, cerca y mirando, con esperas al azar y sin dos iguales seguidos", function()
+    local players = puzzleMatch(2, 1)
+    local player = players[1]
+    local Director = Engine.RequireServer("Scares.ScareDirector")
+    local plan = Director.Plan()
+    T.True(plan ~= nil and #plan >= 3 and #plan <= 4, "plan del mapa")
+    T.Equal(Director.Blocked(), "espera", "nada al empezar el capítulo")
+
+    local nav = gameState().Nav
+    local fired = 0
+    for _, entry in ipairs(plan) do
+        Director.SkipWait()
+        local anchor = nav:Center(entry.Cell, 0)
+        placeFacing(player, anchor, 60)
+        T.Equal(Director.Step(), nil, "lejos no se dispara")
+        placeFacing(player, anchor, 24)
+        local before = Engine.CountRemote and (Engine.Remotes.ScareEvent or 0)
+        local result = Director.Step()
+        if result then
+            fired += 1
+            T.True((Engine.Remotes.ScareEvent or 0) > before, "llegó al cliente")
+            T.Equal(Engine.LastSent("ScareEvent", player)[1].Kind, result.Kind, "tipo enviado")
+            T.Equal(Director.Blocked(), "espera", "espera hasta el próximo")
+            T.Equal(Director.Step(), nil, "no hay dos juntos")
+        end
+    end
+    T.True(fired >= 3, "se dispararon todos los que podían: " .. fired)
+    local history = Director.History()
+    for index = 2, #history do
+        T.True(history[index].Kind ~= history[index - 1].Kind, "sin repetir seguidos")
+    end
+    Director.SkipWait()
+    T.Equal(Director.Step(), nil, "cada uno una sola vez")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("sustos: nunca durante escenas, golpes, la persecución o con una criatura cerca, y sin ruido para la IA", function()
+    local players = puzzleMatch(3, 1)
+    local player = players[1]
+    local Director = Engine.RequireServer("Scares.ScareDirector")
+    local Monsters = Engine.RequireServer("Monsters.MonsterService")
+    local EventBus = Engine.RequireServer("Core.EventBus")
+    local Noise = Engine.RequireServer("AI.NoiseService")
+    local entry = Director.Plan()[1]
+    local anchor = gameState().Nav:Center(entry.Cell, 0)
+    placeFacing(player, anchor, 24)
+
+    Director.SkipWait()
+    Monsters.SetPaused(true, "Scene")
+    T.Equal(Director.Blocked(), "escena", "cinemática")
+    T.Equal(Director.Step(), nil, "nada durante la escena")
+    Monsters.SetPaused(false, "Scene")
+
+    EventBus.Emit("PlayerHit", player, "ElColoso")
+    T.Equal(Director.Blocked(), "respiro", "después de un golpe")
+    Director.SkipWait()
+
+    player:SetAttribute("NocturnaThreat", 0.8)
+    T.Equal(Director.Step(), nil, "perseguido no")
+    player:SetAttribute("NocturnaThreat", 0)
+
+    local spawned = Monsters.Spawn("ElColoso")
+    spawned.Controller.Position = player.Character.HumanoidRootPart.Position + Vector3.new(6, 0, 0)
+    T.Equal(Director.Step(), nil, "con una criatura al lado no")
+    local target, state = spawned.Controller.Target, spawned.Controller.State
+    Monsters.Clear()
+
+    player:SetAttribute("Captured", true)
+    T.Equal(Director.Step(), nil, "capturado no")
+    player:SetAttribute("Captured", nil)
+
+    local noisesBefore = #Noise.Recent()
+    local fired = Director.Step()
+    T.True(fired ~= nil, "en calma, sí")
+    T.Equal(#Noise.Recent(), noisesBefore, "no hace ruido para las criaturas")
+    T.True(target == spawned.Controller.Target and state == spawned.Controller.State, "no tocó a la criatura")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("sustos: no hay ninguno durante la persecución final", function()
+    chaseMatch(1)
+    T.True(waitChasePhase("Run", 20), "carrera")
+    local Director = Engine.RequireServer("Scares.ScareDirector")
+    Director.SkipWait()
+    T.Equal(Director.Blocked(), "persecución", "bloqueados")
+end)
+
+T.Test("cliente: cada susto se dibuja, suena y se borra solo", function()
+    local players = puzzleMatch(1, 1, {Client = true})
+    local player = players[1]
+    local Effects = Engine.Require(Engine.ClientFolder:FindFirstChild("Scares"):FindFirstChild("ScareEffects"), "Client")
+    local ScareConfig = Engine.RequireShared("Config.ScareConfig")
+    local root = player.Character.HumanoidRootPart.Position
+    for _, kind in ipairs(ScareConfig.Order) do
+        T.True(Effects.Play({Kind = kind, Position = root + Vector3.new(0, 0, -24), From = root, Seed = 1}), kind)
+        Engine.Run(0.3)
+    end
+    T.True(Effects.ActiveCount() > 0, "hay figuras en pantalla")
+    Engine.Run(20)
+    T.Equal(Effects.ActiveCount(), 0, "no queda nada")
     T.NoEngineErrors(Engine)
 end)
 

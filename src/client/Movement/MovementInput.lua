@@ -36,6 +36,15 @@ function MovementInput.ToggleCrouch()
     return crouching
 end
 
+-- Acción contextual (persecución final): mientras hay un manejador, Espacio y C
+-- (o A y B en el mando) pueden ser saltar y agacharse en vez de sigilo. El
+-- manejador devuelve true si usó la tecla.
+local actionHandler = nil
+
+function MovementInput.SetActionHandler(handler)
+    actionHandler = handler
+end
+
 function MovementInput.Start()
     UserInputService.InputBegan:Connect(function(input, processed)
         if processed then
@@ -43,6 +52,9 @@ function MovementInput.Start()
         end
 
         local key = input.KeyCode
+        if actionHandler and actionHandler(key) then
+            return
+        end
         if key == Enum.KeyCode.LeftShift or key == Enum.KeyCode.ButtonL3 then
             MovementInput.SetSprinting(true)
         elseif key == Enum.KeyCode.LeftControl or key == Enum.KeyCode.C or key == Enum.KeyCode.ButtonR3 then
