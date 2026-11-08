@@ -13,6 +13,7 @@ return {
         "AdminAction",
         "MapRequest",
         "PuzzleAction",
+        "CameraLook",
     },
     ServerToClient = {
         "GameState",

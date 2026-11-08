@@ -127,6 +127,54 @@ local function newRoot(parent, name, height)
     return model, root
 end
 
+-- Rodilla o codo: si el modelo trae la parte baja de una extremidad cortada
+-- (<Pieza><n>Lower, por ejemplo Leg1Lower), se cuelga del extremo de la parte de
+-- arriba con su propia articulación y el cliente la dobla (dos huesos). Los cortes
+-- actuales son de una sola pieza por extremidad, así que hoy no se usa.
+local function attachLower(model, upper, name, length, place)
+    local _, set = modelSet(model)
+    if not set then
+        return nil
+    end
+    local index = nextIndex(model, name) - 1
+    local template = findMesh(set, name .. index .. "Lower")
+    if not template then
+        return nil
+    end
+    local lower = template:Clone()
+    for _, child in ipairs(lower:GetChildren()) do
+        if not child:IsA("SurfaceAppearance") then
+            child:Destroy()
+        end
+    end
+    local shared = set:FindFirstChildWhichIsA("SurfaceAppearance")
+    if shared and not lower:FindFirstChildWhichIsA("SurfaceAppearance") then
+        shared:Clone().Parent = lower
+    end
+    lower.Name = name .. "Lower"
+    lower.Anchored = false
+    lower.Massless = true
+    lower.CanCollide = false
+    lower.CanTouch = false
+    lower.CanQuery = false
+    lower.CastShadow = false
+
+    -- La rodilla está en el borde de abajo de la caja de la parte de arriba.
+    local knee = place:Inverse() * CFrame.new(0, -length / 2, 0)
+    local hang = CFrame.new(0, lower.Size.Y / 2, 0)
+    lower.CFrame = upper.CFrame * knee * hang:Inverse()
+    lower.Parent = model
+
+    local joint = Instance.new("Motor6D")
+    joint.Name = name .. "LowerJoint"
+    joint.Part0 = upper
+    joint.Part1 = lower
+    joint.C0 = knee
+    joint.C1 = hang
+    joint.Parent = lower
+    return lower
+end
+
 local function limb(model, root, name, size, offset, color, material, swing)
     local part, ownLook, turnAround, fit = newPart(model, name)
     if fit then
@@ -164,9 +212,52 @@ local function limb(model, root, name, size, offset, color, material, swing)
         joint:SetAttribute("SwingAmount", swing.Amount)
         joint:SetAttribute("SwingPhase", swing.Phase or 0)
         joint:SetAttribute("SwingAxis", swing.Axis or "X")
+        attachLower(model, part, name, (fit and fit.Box or size).Y, place)
     end
 
     return part
+end
+
+-- Pieza propia (no cortada) que el modelo puede traer aparte, como una mandíbula
+-- articulada o una lengua: ServerStorage.NocturnaModels.<Criatura>.<Nombre>.
+local function dedicatedTemplate(model, name)
+    local _, set = modelSet(model)
+    return set and findMesh(set, name) or nil
+end
+
+-- Agrega una pieza propia unida a la raíz con su tamaño real. `hinge` es el
+-- punto de giro relativo al centro de la pieza (por ejemplo, arriba y atrás).
+local function dedicatedPart(model, root, template, name, offset, hinge)
+    local _, set = modelSet(model)
+    local part = template:Clone()
+    for _, child in ipairs(part:GetChildren()) do
+        if not child:IsA("SurfaceAppearance") then
+            child:Destroy()
+        end
+    end
+    local shared = set and set:FindFirstChildWhichIsA("SurfaceAppearance")
+    if shared and not part:FindFirstChildWhichIsA("SurfaceAppearance") then
+        shared:Clone().Parent = part
+    end
+    part.Name = name
+    part.Anchored = false
+    part.Massless = true
+    part.CanCollide = false
+    part.CanTouch = false
+    part.CanQuery = false
+    part.CastShadow = false
+    part.CFrame = root.CFrame * offset
+    part.Parent = model
+
+    local pivot = hinge or CFrame.identity
+    local joint = Instance.new("Motor6D")
+    joint.Name = name .. "Joint"
+    joint.Part0 = root
+    joint.Part1 = part
+    joint.C0 = offset * pivot
+    joint.C1 = pivot
+    joint.Parent = part
+    return part, joint
 end
 
 local function eye(model, root, offset, color)
@@ -190,11 +281,33 @@ function BUILDERS.ElOyente(model, root)
     end
 end
 
+-- Boca: el modelo realista trae un parche cortado (Jaw1) que apenas se puede
+-- entreabrir. Si en NocturnaModels/ElImitador hay una mandíbula propia ("Jaw") o
+-- una lengua ("Tongue"), se usan solas: la mandíbula gira desde arriba y atrás
+-- (JawHinge: el cliente la abre del todo) y la lengua sale de la boca al atacar.
+local function imitadorMouth(model, root)
+    local cuts = CreatureMeshes.ElImitador
+    local mouth = cuts and cuts.Jaw1 and cuts.Jaw1.Offset or CFrame.new(0, 2.2, -0.65)
+    local jaw = dedicatedTemplate(model, "Jaw")
+    if jaw then
+        local size = jaw.Size
+        local _, joint = dedicatedPart(model, root, jaw, "Jaw", mouth, CFrame.new(0, size.Y / 2, size.Z / 2))
+        joint:SetAttribute("JawHinge", true)
+    else
+        limb(model, root, "Jaw", Vector3.new(0.8, 1.4, 0.2), CFrame.new(0, 2.2, -0.65), Color3.fromRGB(190, 30, 40), Enum.Material.Neon, {Amount = 0.25})
+    end
+    local tongue = dedicatedTemplate(model, "Tongue")
+    if tongue then
+        -- Guardada dentro de la boca: el cliente la empuja hacia afuera.
+        dedicatedPart(model, root, tongue, "Tongue", mouth * CFrame.new(0, 0, tongue.Size.Z * 0.5))
+    end
+end
+
 function BUILDERS.ElImitador(model, root)
     local void = Color3.fromRGB(10, 10, 12)
     limb(model, root, "Torso", Vector3.new(2, 2.6, 1), CFrame.new(0, 0.6, 0), void, Enum.Material.Fabric)
     limb(model, root, "Head", Vector3.new(1.2, 1.4, 1.2), CFrame.new(0, 2.7, 0), void, Enum.Material.SmoothPlastic)
-    limb(model, root, "Jaw", Vector3.new(0.8, 1.4, 0.2), CFrame.new(0, 2.2, -0.65), Color3.fromRGB(190, 30, 40), Enum.Material.Neon, {Amount = 0.25})
+    imitadorMouth(model, root)
 
     for _, side in ipairs({-1, 1}) do
         limb(model, root, "Arm", Vector3.new(0.7, 3.2, 0.7), CFrame.new(side * 1.4, 0.3, 0), void, Enum.Material.Fabric, {Amount = 0.6, Phase = side})
@@ -207,8 +320,8 @@ local function buildMannequinBody(model, root)
     limb(model, root, "Torso", Vector3.new(2, 2.6, 1), CFrame.new(0, 0.6, 0), body, Enum.Material.SmoothPlastic)
     limb(model, root, "Head", Vector3.new(1.3, 1.5, 1.3), CFrame.new(0, 2.8, 0), body, Enum.Material.SmoothPlastic)
     for _, side in ipairs({-1, 1}) do
-        limb(model, root, "Arm", Vector3.new(0.7, 3, 0.7), CFrame.new(side * 1.4, 0.4, 0), body, Enum.Material.SmoothPlastic)
-        limb(model, root, "Leg", Vector3.new(0.8, 3, 0.8), CFrame.new(side * 0.5, -2.1, 0), body, Enum.Material.SmoothPlastic)
+        limb(model, root, "Arm", Vector3.new(0.7, 3, 0.7), CFrame.new(side * 1.4, 0.4, 0), body, Enum.Material.SmoothPlastic, {Amount = 0.3, Phase = side})
+        limb(model, root, "Leg", Vector3.new(0.8, 3, 0.8), CFrame.new(side * 0.5, -2.1, 0), body, Enum.Material.SmoothPlastic, {Amount = 0.4, Phase = -side})
     end
 end
 

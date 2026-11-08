@@ -18,6 +18,7 @@ local SERVICES = {
     script.Parent.Data.FlashlightService,
     script.Parent.Inventory.InventoryService,
     script.Parent.AI.NoiseService,
+    script.Parent.AI.ViewService,
     script.Parent.World.WorldService,
     script.Parent.World.MapService,
     script.Parent.World.InteractionService,
