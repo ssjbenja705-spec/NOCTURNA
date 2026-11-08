@@ -7,7 +7,7 @@
 -- huesos que trae el FBX.
 return {
     ElColoso = {Height = 9.0000, Feet = -5.5000, Hips = Vector3.new(0.0000, -1.1619, 0.3874),
-        Span = 3.7049, HeadSize = 0.7237, Triangles = 17460,
+        Span = 3.7049, HeadSize = 0.7237, Triangles = 17375,
         Bones = {"Root", "Hips", "Spine1", "Spine2", "Chest", "Neck", "Head", "LeftClavicle", "LeftUpperArm", "LeftForearm", "LeftHand", "LeftFingers1", "LeftFingers2", "LeftThigh", "LeftShin", "LeftFoot", "LeftToe", "RightClavicle", "RightUpperArm", "RightForearm", "RightHand", "RightFingers1", "RightFingers2", "RightThigh", "RightShin", "RightFoot", "RightToe", "PlateLeft", "PlateRight", "PlateBack"}},
     ElImitador = {Height = 7.2000, Feet = -3.2000, Hips = Vector3.new(0.0000, 0.9025, 0.1884),
         Span = 2.4756, HeadSize = 0.7473, Triangles = 17459,

@@ -7,7 +7,7 @@ articulaciones de verdad.
 
 | Archivo | Qué es |
 |---|---|
-| `<Criatura>.fbx` | Malla con piel + esqueleto en pose de descanso, texturas adentro (1024 px). Para importar en Studio. |
+| `<Criatura>.fbx` | Malla con piel + esqueleto en pose de descanso, color y normal adentro (1024 px). Para importar en Studio. |
 | `<Criatura>.json` | Huesos: nombre, padre, cabeza, cola y largo (studs, relativos a la raíz, frente -Z). |
 | `../previews/<Criatura>_rig.png` | Descanso, pose doblada (rodilla y codo) y los huesos a través de la piel. |
 | `src/server/Monsters/CreatureRigs.lua` | Medidas que usa el juego (alto, cadera, distancia cadera-cabeza, huesos). |
@@ -36,7 +36,9 @@ blender --background --factory-startup --python assets/blender/rig_creatures.py 
 4. Arma el esqueleto, lo pesa con **pesos automáticos** de Blender y limpia: cada
    vértice sólo depende de huesos de su región o vecinos; donde el cálculo
    automático no da nada usa el hueso más cercano; suaviza las uniones y deja
-   **4 huesos por vértice como máximo** (límite de Roblox).
+   **4 huesos por vértice como máximo** (límite de Roblox). En El Coloso el
+   brazo que cuelga viene fundido al muslo: esas caras (85) se separan para que
+   al levantar el brazo no se estire una "tela".
 5. Exporta el FBX (Y arriba, escala 1, sin huesos hoja, texturas adentro), el
    JSON, la vista previa y `CreatureRigs.lua`.
 
@@ -59,7 +61,7 @@ Todos tienen `Root` (en la raíz de la criatura, sin vértices), `Hips`, `Spine1
 | El Imitador | 28 | 17.459 | 7,2 |
 | El Quieto | 27 | 17.459 | 7,2 |
 | El Trepador | 29 | 17.459 | 7,0 |
-| El Coloso | 30 | 17.460 | 9,0 |
+| El Coloso | 30 | 17.375 | 9,0 |
 
 ## Importar en Studio (una vez por criatura)
 
@@ -77,9 +79,11 @@ Todos tienen `Root` (en la raíz de la criatura, sin vértices), `Hips`, `Spine1
    piezas, que queda de respaldo). Adentro tiene que haber una MeshPart con los
    huesos (`Bone`) colgando de ella o de una parte raíz. Si el importador agregó
    un `Humanoid` o un `AnimationController`, no molesta (el juego los quita).
-4. Texturas: si la MeshPart quedó sin color, no hace falta nada: el juego le
-   copia la `SurfaceAppearance` de `NocturnaModels/ElOyente` (mismas UV). Si
-   querés ponerla a mano, usá los mapas de `assets/models/ai_textures/ElOyente/`.
+4. Texturas: el FBX trae color y normal. Para que tenga también rugosidad y
+   metal (como las piezas), borrá la `SurfaceAppearance` que haya creado el
+   importador: el juego le copia la de `NocturnaModels/ElOyente` (mismas UV,
+   los cuatro mapas). Si querés ponerla a mano, usá los mapas de
+   `assets/models/ai_textures/ElOyente/`.
 5. Para que Rojo lo incluya: clic derecho → **Save to File** →
    `assets/models/rbxm/ElOyenteRig.rbxmx`.
 6. Repetí con `ElImitador`, `ElQuieto`, `ElTrepador` y `ElColoso`

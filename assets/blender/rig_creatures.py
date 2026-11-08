@@ -68,6 +68,10 @@ ANKLE_WINDOW = {"default": (0.05, 0.11), "ElTrepador": (0.08, 0.2), "ElColoso": 
 # Criaturas con patas dobladas en reposo: la rodilla y el codo se buscan donde la
 # extremidad se aparta de la recta (no en la mitad).
 BENT = {"ElTrepador"}
+# Criaturas con los brazos fundidos al cuerpo debajo del codo (El Coloso: el brazo
+# colgado pegado al muslo). Ahí se separan esas caras y el torso no toma pesos del
+# brazo; en el resto la unión es limpia y no se toca.
+GLUED_ARMS = {"ElColoso"}
 
 
 def log(kind, text):
@@ -484,10 +488,9 @@ def skin(kind, mesh_obj, arm, bones, labels, measures, roblox_points):
     names = [b.name for b in bones]
     group_names = {g.index: g.name for g in mesh_obj.vertex_groups}
 
-    # El torso sólo se mezcla con el brazo cerca del hombro y con el muslo cerca de
-    # la cadera: un costado que roza el brazo colgado (El Coloso) no se lo lleva.
-    arm_limit = {side: by_name[f"{side}UpperArm"].head.y - 0.3 * (by_name[f"{side}UpperArm"].head.y - by_name[f"{side}UpperArm"].tail.y)
-                 for side in ("Left", "Right")}
+    # El torso sólo se mezcla con el brazo por encima del codo y con el muslo cerca
+    # de la cadera: un costado que roza el brazo colgado (El Coloso) no se lo lleva.
+    arm_limit = {side: by_name[f"{side}UpperArm"].tail.y for side in ("Left", "Right")}
     thigh_limit = {side: by_name[f"{side}Thigh"].head.y + 0.25 * (by_name[f"{side}Thigh"].head.y - by_name[f"{side}Thigh"].tail.y)
                    for side in ("Left", "Right")}
 
@@ -497,7 +500,7 @@ def skin(kind, mesh_obj, arm, bones, labels, measures, roblox_points):
     for index, vertex in enumerate(mesh.vertices):
         region = labels[index]
         allowed = [n for n in allowed_bones(region, names) if n in by_name]
-        if region == "Torso":
+        if region == "Torso" and kind in GLUED_ARMS:
             y = roblox_points[index].y
             allowed = [n for n in allowed
                        if not (n.endswith("UpperArm") and y < arm_limit[n[:-8]])
@@ -851,6 +854,41 @@ def smooth_weights(final, links, allowed_of, rounds=1, keep=0.5):
     return final
 
 
+def unglue_arms(obj, labels, bones):
+    """Meshy a veces funde el brazo que cuelga con el costado o el muslo: caras que
+    van de un vértice del brazo a uno del cuerpo debajo del codo. Al levantar el
+    brazo esas caras se estirarían como una tela; se quitan (quedan tapadas por el
+    brazo en reposo)."""
+    import bmesh
+    by_name = {b.name: b for b in bones}
+    limit = {}
+    for side in ("Left", "Right"):
+        # Sólo debajo del codo: la axila es una unión de verdad y no se toca.
+        limit[f"Arm{side}"] = by_name[f"{side}UpperArm"].tail.y
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    doomed = []
+    for face in bm.faces:
+        regions = {labels[v.index] for v in face.verts}
+        arms = [r for r in regions if r.startswith("Arm")]
+        if not arms or len(regions) == 1:
+            continue
+        others = [r for r in regions if not r.startswith("Arm")]
+        if not others or len(arms) > 1:
+            continue
+        if max(v.co.y for v in face.verts) < limit[arms[0]]:
+            doomed.append(face)
+    if doomed:
+        bmesh.ops.delete(bm, geom=doomed, context="FACES_ONLY")
+        loose = [v for v in bm.verts if not v.link_faces]
+        bmesh.ops.delete(bm, geom=loose, context="VERTS")
+        bm.to_mesh(obj.data)
+        obj.data.update()
+    bm.free()
+    return len(doomed)
+
+
 def rig(kind, source):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     boxes = prep.boxes_for(kind)
@@ -885,6 +923,11 @@ def rig(kind, source):
             raise RuntimeError(f"{kind}: región {needed} casi vacía")
 
     bones, measures = build_skeleton(kind, regions)
+    cut = unglue_arms(obj, labels, bones) if kind in GLUED_ARMS else 0
+    if cut:
+        labels, _ = classify(obj.data, boxes)
+        log(kind, f"brazo pegado al cuerpo: {cut} caras separadas")
+        tris = prep.triangles(obj.data)
     lo, hi = prep.bounds(v.co for v in obj.data.vertices)
     height, feet = hi.y - lo.y, lo.y
 
