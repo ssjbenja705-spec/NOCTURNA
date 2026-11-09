@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.7490196078431373,
+        0.7058823529411765,
+        0.6274509803921569
+      ]
+    },
+    "NocturnaTexture": true
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Wood",
+    "ColorMap": "rbxassetid://129555526954530",
+    "MaterialPattern": "Regular",
+    "NormalMap": "rbxassetid://103604085558918",
+    "RoughnessMap": "rbxassetid://78005751941068",
+    "StudsPerTile": 4
+  }
+}

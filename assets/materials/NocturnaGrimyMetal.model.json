@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.7568627450980392,
+        0.7607843137254902,
+        0.7568627450980392
+      ]
+    },
+    "NocturnaTexture": true
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Metal",
+    "ColorMap": "rbxassetid://102184257351092",
+    "MaterialPattern": "Organic",
+    "MetalnessMap": "rbxassetid://72481891725341",
+    "NormalMap": "rbxassetid://97139330641258",
+    "RoughnessMap": "rbxassetid://97859927358231",
+    "StudsPerTile": 4
+  }
+}

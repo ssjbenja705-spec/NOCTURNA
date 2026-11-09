@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.7019607843137254,
+        0.6941176470588235,
+        0.6705882352941176
+      ]
+    },
+    "NocturnaTexture": true
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "CorrodedMetal",
+    "ColorMap": "rbxassetid://74259547594346",
+    "MaterialPattern": "Regular",
+    "MetalnessMap": "rbxassetid://100682214566235",
+    "NormalMap": "rbxassetid://102804596588842",
+    "RoughnessMap": "rbxassetid://129626375772633",
+    "StudsPerTile": 6
+  }
+}

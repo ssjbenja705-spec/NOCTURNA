@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.5764705882352941,
+        0.5019607843137255,
+        0.4196078431372549
+      ]
+    },
+    "NocturnaTexture": true,
+    "NocturnaTint": {
+      "Color3": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Fabric",
+    "ColorMap": "rbxassetid://119287965015417",
+    "MaterialPattern": "Regular",
+    "NormalMap": "rbxassetid://140660690026426",
+    "RoughnessMap": "rbxassetid://94406534323600",
+    "StudsPerTile": 6
+  }
+}

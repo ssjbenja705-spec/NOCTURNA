@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.8156862745098039,
+        0.7803921568627451,
+        0.6862745098039216
+      ]
+    },
+    "NocturnaTexture": true
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Cardboard",
+    "ColorMap": "rbxassetid://106178313079830",
+    "MaterialPattern": "Organic",
+    "NormalMap": "rbxassetid://90250730320676",
+    "RoughnessMap": "rbxassetid://103371930648136",
+    "StudsPerTile": 2
+  }
+}

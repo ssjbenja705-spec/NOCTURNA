@@ -45,6 +45,7 @@
     },
     "MaterialService": {
       "$className": "MaterialService",
+      "$path": "assets/materials",
       "$ignoreUnknownInstances": true,
       "$properties": {
         "Use2022Materials": true

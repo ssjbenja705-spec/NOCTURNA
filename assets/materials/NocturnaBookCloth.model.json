@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.6745098039215687,
+        0.6274509803921569,
+        0.5647058823529412
+      ]
+    },
+    "NocturnaTexture": true
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Leather",
+    "ColorMap": "rbxassetid://94476153760511",
+    "MaterialPattern": "Organic",
+    "NormalMap": "rbxassetid://135972455748559",
+    "RoughnessMap": "rbxassetid://96894773398065",
+    "StudsPerTile": 2
+  }
+}

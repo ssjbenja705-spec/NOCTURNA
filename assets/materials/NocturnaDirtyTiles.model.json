@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.5725490196078431,
+        0.5607843137254902,
+        0.5098039215686274
+      ]
+    },
+    "NocturnaTexture": true,
+    "NocturnaTint": {
+      "Color3": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "CeramicTiles",
+    "ColorMap": "rbxassetid://108909992635695",
+    "MaterialPattern": "Regular",
+    "NormalMap": "rbxassetid://107893304959124",
+    "RoughnessMap": "rbxassetid://71131875048737",
+    "StudsPerTile": 6
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.30980392156862746,
+        0.3137254901960784,
+        0.3176470588235294
+      ]
+    },
+    "NocturnaTexture": true,
+    "NocturnaTint": {
+      "Color3": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "DiamondPlate",
+    "ColorMap": "rbxassetid://89158576000002",
+    "MaterialPattern": "Regular",
+    "MetalnessMap": "rbxassetid://73378791712108",
+    "NormalMap": "rbxassetid://107764431844756",
+    "RoughnessMap": "rbxassetid://104473178254774",
+    "StudsPerTile": 6
+  }
+}

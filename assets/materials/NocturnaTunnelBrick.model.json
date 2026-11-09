@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "NocturnaMean": {
+      "Color3": [
+        0.30980392156862746,
+        0.2196078431372549,
+        0.1803921568627451
+      ]
+    },
+    "NocturnaTexture": true,
+    "NocturnaTint": {
+      "Color3": [
+        1,
+        1,
+        1
+      ]
+    }
+  },
+  "className": "MaterialVariant",
+  "properties": {
+    "BaseMaterial": "Brick",
+    "ColorMap": "rbxassetid://86592556816786",
+    "MaterialPattern": "Regular",
+    "NormalMap": "rbxassetid://108756295237978",
+    "RoughnessMap": "rbxassetid://127632798226887",
+    "StudsPerTile": 8
+  }
+}

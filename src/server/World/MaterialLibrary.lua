@@ -45,8 +45,15 @@ function MaterialLibrary.Ensure(assets)
         local existing = MaterialService:FindFirstChild(name)
         local ours = existing and existing:IsA("MaterialVariant") and existing:GetAttribute(MaterialLibrary.OWNED) == true
         if TextureAssets.Url(entry.Color) then
-            if existing and not ours then
-                -- Una variante hecha a mano en Studio con el mismo nombre manda.
+            if existing and existing:IsA("MaterialVariant") then
+                -- Ya viene en el lugar (Rojo la arma desde assets/materials, generada
+                -- con tools/gen_materials.luau) o hecha a mano en Studio: se usa tal
+                -- cual. Un script del juego no puede escribir BaseMaterial en vivo
+                -- ("lacking capability Plugin"), así que sólo se le ponen atributos.
+                if ours then
+                    existing:SetAttribute(MaterialLibrary.TINT, entry.Tint)
+                    existing:SetAttribute(MaterialLibrary.MEAN, entry.Mean)
+                end
                 count += 1
             else
                 local variant = existing or Instance.new("MaterialVariant")
