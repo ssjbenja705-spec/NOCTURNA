@@ -17,8 +17,11 @@
 --   Mood:        identidad de la luz: chance de que una sala tenga la lámpara tenue,
 --                rota o titilante, haz de luz en el polvo, polvo flotando y baliza.
 --   Surfaces:    nombres de MaterialVariant con texturas PBR propias (ver
---                assets/textures/README.md). Si no están en MaterialService, se usan
---                los materiales de Roblox de arriba sin cambios.
+--                assets/textures/README.md y Config/TextureAssets). Wall, Floor y
+--                Ceiling son las de la sala; Wood, Metal, Rust, Plate, Fabric,
+--                Leather, Paper y Glass, las de la utilería, muebles y puertas según
+--                su material (TextureAssets.PropMaterials). Si la variante no existe
+--                (imágenes sin subir), se usan los materiales de Roblox sin cambios.
 --   DoorStyle:   puertas comunes del capítulo (DoorModels): cortina, oficina, esclusa,
 --                bóveda o casa, con sus materiales y su forma de abrir.
 return {
@@ -83,7 +86,12 @@ return {
             Emergency = 0.35,
             DustColor = Color3.fromRGB(205, 186, 156),
         },
-        Surfaces = {Wall = "NocturnaTunnelBrick", Floor = "NocturnaWetConcrete", Ceiling = "NocturnaStainedConcrete"},
+        Surfaces = {
+            Wall = "NocturnaTunnelBrick", Floor = "NocturnaWetConcrete", Ceiling = "NocturnaStainedConcrete",
+            -- Utilería y puertas de cortina: madera podrida, chapa oxidada.
+            Wood = "NocturnaRottenWood", Metal = "NocturnaGrimyMetal", Rust = "NocturnaRustedSheet", Plate = "NocturnaWornPlate",
+            Fabric = "NocturnaWornFabric", Leather = "NocturnaBookCloth", Paper = "NocturnaAgedPaper", Glass = "NocturnaDirtyGlass",
+        },
         Lighting = {
             Exposure = 0.35,
             DiffuseScale = 0.25,
@@ -161,7 +169,12 @@ return {
             Emergency = 0.2,
             DustColor = Color3.fromRGB(196, 214, 204),
         },
-        Surfaces = {Wall = "NocturnaPeelingPlaster", Floor = "NocturnaDirtyTiles", Ceiling = "NocturnaStainedPlaster"},
+        Surfaces = {
+            Wall = "NocturnaPeelingPlaster", Floor = "NocturnaDirtyTiles", Ceiling = "NocturnaStainedPlaster",
+            -- Escritorios y puertas de oficina de madera gastada, archivos de chapa, papeles viejos.
+            Wood = "NocturnaRottenWood", Metal = "NocturnaGrimyMetal", Rust = "NocturnaRustedSheet", Plate = "NocturnaWornPlate",
+            Fabric = "NocturnaWornFabric", Leather = "NocturnaBookCloth", Paper = "NocturnaAgedPaper", Glass = "NocturnaDirtyGlass",
+        },
         Lighting = {
             Exposure = 0.3,
             DiffuseScale = 0.3,
@@ -235,7 +248,12 @@ return {
             Emergency = 0.15,
             DustColor = Color3.fromRGB(214, 150, 140),
         },
-        Surfaces = {Wall = "NocturnaFleshWall", Floor = "NocturnaStainedSlate", Ceiling = "NocturnaFleshCeiling"},
+        Surfaces = {
+            Wall = "NocturnaFleshWall", Floor = "NocturnaStainedSlate", Ceiling = "NocturnaFleshCeiling",
+            -- Laboratorio: esclusas de metal, camillas de tela manchada, vidrios de tanques sucios.
+            Wood = "NocturnaRottenWood", Metal = "NocturnaGrimyMetal", Rust = "NocturnaRustedSheet", Plate = "NocturnaWornPlate",
+            Fabric = "NocturnaWornFabric", Leather = "NocturnaBookCloth", Paper = "NocturnaAgedPaper", Glass = "NocturnaDirtyGlass",
+        },
         Lighting = {
             Exposure = 0.3,
             DiffuseScale = 0.2,
@@ -312,7 +330,12 @@ return {
             Emergency = 0.3,
             DustColor = Color3.fromRGB(176, 192, 220),
         },
-        Surfaces = {Wall = "NocturnaScratchedSteel", Floor = "NocturnaWornPlate", Ceiling = "NocturnaStainedConcrete"},
+        Surfaces = {
+            Wall = "NocturnaScratchedSteel", Floor = "NocturnaWornPlate", Ceiling = "NocturnaStainedConcrete",
+            -- Archivo: estanterías y puertas de bóveda de chapa, carpetas y lomos de libros.
+            Wood = "NocturnaRottenWood", Metal = "NocturnaGrimyMetal", Rust = "NocturnaRustedSheet", Plate = "NocturnaWornPlate",
+            Fabric = "NocturnaWornFabric", Leather = "NocturnaBookCloth", Paper = "NocturnaAgedPaper", Glass = "NocturnaDirtyGlass",
+        },
         Lighting = {
             Exposure = 0.35,
             DiffuseScale = 0.25,
@@ -390,7 +413,12 @@ return {
             Emergency = 0,
             DustColor = Color3.fromRGB(255, 226, 180),
         },
-        Surfaces = {Wall = "NocturnaTornWallpaper", Floor = "NocturnaScuffedOak", Ceiling = "NocturnaStainedPlaster"},
+        Surfaces = {
+            Wall = "NocturnaTornWallpaper", Floor = "NocturnaScuffedOak", Ceiling = "NocturnaStainedPlaster",
+            -- La casa: muebles y puertas de madera, sillones de tela, libros y fotos viejas.
+            Wood = "NocturnaRottenWood", Metal = "NocturnaGrimyMetal", Rust = "NocturnaRustedSheet", Plate = "NocturnaWornPlate",
+            Fabric = "NocturnaWornFabric", Leather = "NocturnaBookCloth", Paper = "NocturnaAgedPaper", Glass = "NocturnaDirtyGlass",
+        },
         Lighting = {
             Exposure = 0.3,
             DiffuseScale = 0.3,

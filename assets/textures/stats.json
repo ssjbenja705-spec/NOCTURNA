@@ -1,0 +1,202 @@
+{
+  "NocturnaAgedPaper": {
+    "Mean": [
+      208,
+      199,
+      175
+    ],
+    "Roughness": 0.9,
+    "Metalness": 0.0,
+    "Seam": 0.609
+  },
+  "NocturnaBookCloth": {
+    "Mean": [
+      172,
+      160,
+      144
+    ],
+    "Roughness": 0.55,
+    "Metalness": 0.0,
+    "Seam": 0.953
+  },
+  "NocturnaDirtyGlass": {
+    "Mean": [
+      233,
+      233,
+      229
+    ],
+    "Roughness": 0.112,
+    "Metalness": 0.0,
+    "Seam": 2.009
+  },
+  "NocturnaDirtyTiles": {
+    "Mean": [
+      146,
+      143,
+      130
+    ],
+    "Roughness": 0.355,
+    "Metalness": 0.0,
+    "Seam": 0.34
+  },
+  "NocturnaFleshCeiling": {
+    "Mean": [
+      85,
+      34,
+      38
+    ],
+    "Roughness": 0.258,
+    "Metalness": 0.0,
+    "Seam": 1.287
+  },
+  "NocturnaFleshWall": {
+    "Mean": [
+      101,
+      62,
+      53
+    ],
+    "Roughness": 0.202,
+    "Metalness": 0.0,
+    "Seam": 1.113
+  },
+  "NocturnaGrimyMetal": {
+    "Mean": [
+      193,
+      194,
+      193
+    ],
+    "Roughness": 0.446,
+    "Metalness": 0.515,
+    "Seam": 1.044
+  },
+  "NocturnaPeelingPlaster": {
+    "Mean": [
+      128,
+      140,
+      121
+    ],
+    "Roughness": 0.646,
+    "Metalness": 0.0,
+    "Seam": 1.299
+  },
+  "NocturnaRottenWood": {
+    "Mean": [
+      191,
+      180,
+      160
+    ],
+    "Roughness": 0.724,
+    "Metalness": 0.0,
+    "Seam": 2.475
+  },
+  "NocturnaRustedSheet": {
+    "Mean": [
+      179,
+      177,
+      171
+    ],
+    "Roughness": 0.528,
+    "Metalness": 0.238,
+    "Seam": 2.194
+  },
+  "NocturnaScratchedSteel": {
+    "Mean": [
+      71,
+      76,
+      82
+    ],
+    "Roughness": 0.542,
+    "Metalness": 0.32,
+    "Seam": 1.258
+  },
+  "NocturnaScuffedOak": {
+    "Mean": [
+      111,
+      81,
+      51
+    ],
+    "Roughness": 0.534,
+    "Metalness": 0.0,
+    "Seam": 0.877
+  },
+  "NocturnaStainedConcrete": {
+    "Mean": [
+      104,
+      100,
+      92
+    ],
+    "Roughness": 0.891,
+    "Metalness": 0.0,
+    "Seam": 1.0
+  },
+  "NocturnaStainedPlaster": {
+    "Mean": [
+      171,
+      163,
+      145
+    ],
+    "Roughness": 0.926,
+    "Metalness": 0.0,
+    "Seam": 1.19
+  },
+  "NocturnaStainedSlate": {
+    "Mean": [
+      51,
+      53,
+      46
+    ],
+    "Roughness": 0.479,
+    "Metalness": 0.0,
+    "Seam": 0.427
+  },
+  "NocturnaTornWallpaper": {
+    "Mean": [
+      147,
+      128,
+      107
+    ],
+    "Roughness": 0.83,
+    "Metalness": 0.0,
+    "Seam": 1.099
+  },
+  "NocturnaTunnelBrick": {
+    "Mean": [
+      79,
+      56,
+      46
+    ],
+    "Roughness": 0.801,
+    "Metalness": 0.0,
+    "Seam": 0.752
+  },
+  "NocturnaWetConcrete": {
+    "Mean": [
+      89,
+      87,
+      81
+    ],
+    "Roughness": 0.657,
+    "Metalness": 0.0,
+    "Seam": 1.477
+  },
+  "NocturnaWornFabric": {
+    "Mean": [
+      177,
+      169,
+      157
+    ],
+    "Roughness": 0.95,
+    "Metalness": 0.0,
+    "Seam": 1.238
+  },
+  "NocturnaWornPlate": {
+    "Mean": [
+      79,
+      80,
+      81
+    ],
+    "Roughness": 0.732,
+    "Metalness": 0.635,
+    "Seam": 1.662
+  }
+}

@@ -1,11 +1,14 @@
 -- Los sustos al azar, tal como los ve y oye cada jugador: una sombra que cruza al
 -- fondo, una silueta que desaparece, un portazo, algo que se cae, una luz que
 -- parpadea y muestra a alguien, una cara en una ventana, una figura a tu espalda,
--- pasos detrás tuyo, una silueta en lo oscuro. Todo es local y se borra solo:
--- no hay nada que la IA pueda ver ni que choque.
+-- pasos detrás tuyo, una silueta en lo oscuro, y dos sustos de golpe: una cara
+-- pálida o una criatura que se tiran contra la cámara a pantalla completa con
+-- estallido, destello y sacudón. Todo es local y se borra solo: no hay nada que
+-- la IA pueda ver ni que choque.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local ScareConfig = require(Shared.Config.ScareConfig)
@@ -16,8 +19,11 @@ local SoundKit = require(script.Parent.Parent.Final.SoundKit)
 
 local player = Players.LocalPlayer
 local AUDIO = ScareConfig.Audio
-local SHADOW = Color3.fromRGB(8, 7, 8)
+local SHADOW = Color3.fromRGB(12, 10, 12)
 local PALE = Color3.fromRGB(196, 190, 178)
+-- Susto de golpe: cuánto dura en pantalla y desde/hasta qué distancia se tira.
+local LUNGE_TIME = 0.62
+local LUNGE_REACH = 0.14
 
 local ScareEffects = {}
 local active = {}
@@ -143,7 +149,159 @@ local function waitUntil(seconds, condition)
     return false
 end
 
+-- Destello a pantalla completa que se apaga solo (encima de todo, sin bloquear
+-- toques: es sólo un Frame sin botones).
+local function screenFlash(color, opacity, duration)
+    local playerGui = player:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then
+        return
+    end
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "NocturnaScareFlash"
+    gui.IgnoreGuiInset = true
+    gui.ResetOnSpawn = false
+    gui.DisplayOrder = 60
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.fromScale(1, 1)
+    frame.BorderSizePixel = 0
+    frame.BackgroundColor3 = color
+    frame.BackgroundTransparency = 1 - opacity
+    frame.Parent = gui
+    gui.Parent = playerGui
+    table.insert(active, gui)
+    TweenService:Create(frame, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
+    task.delay(duration + 0.05, function()
+        remove(gui)
+    end)
+end
+
+-- Luz pegada adelante de lo que se tira encima: en un pasillo a oscuras, sin esto
+-- sería una mancha negra.
+local function faceLight(holder, color, brightness)
+    local lamp = part(holder, "ScareLight", Vector3.new(0.2, 0.2, 0.2), color, Enum.Material.SmoothPlastic)
+    lamp.Transparency = 1
+    local light = Instance.new("PointLight")
+    light.Color = color
+    light.Brightness = brightness
+    light.Range = 6
+    light.Shadows = false
+    light.Parent = lamp
+    return lamp
+end
+
+-- El susto de golpe: `pieces` es una lista {pieza, desplazamiento} armada con el
+-- frente hacia -Z. Aparece a `from` studs delante de la cámara, se tira hasta
+-- `to` en LUNGE_REACH segundos y tiembla pegada a la cara hasta LUNGE_TIME, con
+-- estallido, grito, destello, viñeta roja, sacudón y golpe de cámara.
+local lungeCount = 0
+local function lunge(holder, pieces, from, to, flashColor)
+    holder.Parent = workspace
+    table.insert(active, holder)
+    lungeCount += 1
+    local bindName = "NocturnaScareLunge" .. lungeCount
+    local started = os.clock()
+    local side = (lungeCount % 2 == 0) and 1 or -1
+
+    SoundKit.Play(AUDIO.Jumpscare)
+    SoundKit.Play(AUDIO.Shriek)
+    task.delay(0.05, function()
+        SoundKit.Play(AUDIO.Screech)
+    end)
+    screenFlash(Color3.new(1, 1, 1), 0.85, 0.22)
+    screenFlash(flashColor, 0.5, 0.9)
+    FirstPerson.Shake(7, 0.8)
+    if FirstPerson.Impulse then
+        FirstPerson.Impulse(1.5, side)
+    end
+
+    local function update()
+        local t = os.clock() - started
+        if t > LUNGE_TIME or holder.Parent == nil then
+            return false
+        end
+        local camera = workspace.CurrentCamera
+        if not camera then
+            return false
+        end
+        local approach = 1 - (1 - math.clamp(t / LUNGE_REACH, 0, 1)) ^ 3
+        local distance = from + (to - from) * approach
+        local jitter = Vector3.new(math.sin(t * 93) * 0.05, math.cos(t * 71) * 0.04 - 0.15, -distance)
+        local frame = camera.CFrame * CFrame.new(jitter) * CFrame.Angles(0, math.pi, math.sin(t * 37) * 0.07)
+        for _, entry in ipairs(pieces) do
+            entry[1].CFrame = frame * entry[2]
+        end
+        return true
+    end
+
+    update()
+    local bound = pcall(function()
+        RunService:BindToRenderStep(bindName, Enum.RenderPriority.Camera.Value + 5, function()
+            update()
+        end)
+    end)
+    waitUntil(LUNGE_TIME + 0.05, function()
+        if not bound then
+            update()
+        end
+        return holder.Parent == nil
+    end)
+    if bound then
+        RunService:UnbindFromRenderStep(bindName)
+    end
+    remove(holder)
+    -- El eco del golpe: un golpe sordo y el corazón que sigue.
+    SoundKit.Play(AUDIO.Thud)
+end
+
 local SCARES = {}
+
+function SCARES.FACE_LUNGE()
+    local holder = Instance.new("Model")
+    holder.Name = "NocturnaScareLungeFace"
+    local skin = Color3.fromRGB(205, 198, 184)
+    local pieces = {
+        {part(holder, "Hair", Vector3.new(1.9, 2.3, 1.3), Color3.fromRGB(10, 9, 9), Enum.Material.Fabric, Enum.PartType.Ball), CFrame.new(0, 0.25, 0.35)},
+        {part(holder, "Face", Vector3.new(1.5, 1.95, 1.3), skin, Enum.Material.SmoothPlastic, Enum.PartType.Ball), CFrame.new()},
+        {part(holder, "Mouth", Vector3.new(0.42, 0.95, 0.3), Color3.new(0, 0, 0), Enum.Material.SmoothPlastic, Enum.PartType.Ball), CFrame.new(0, -0.48, -0.55)},
+        {faceLight(holder, Color3.fromRGB(230, 225, 215), 4), CFrame.new(0, 0.1, -1.6)},
+    }
+    for _, sideX in ipairs({-1, 1}) do
+        table.insert(pieces, {part(holder, "Socket", Vector3.new(0.46, 0.56, 0.3), Color3.new(0, 0, 0), Enum.Material.SmoothPlastic, Enum.PartType.Ball), CFrame.new(sideX * 0.31, 0.22, -0.55)})
+        table.insert(pieces, {part(holder, "Pupil", Vector3.new(0.09, 0.09, 0.05), Color3.fromRGB(240, 236, 220), Enum.Material.Neon, Enum.PartType.Ball), CFrame.new(sideX * 0.29, 0.2, -0.71)})
+        -- Venas oscuras que bajan de los ojos.
+        table.insert(pieces, {part(holder, "Vein", Vector3.new(0.05, 0.5, 0.05), Color3.fromRGB(70, 40, 50)), CFrame.new(sideX * 0.33, -0.12, -0.62) * CFrame.Angles(0, 0, sideX * 0.15)})
+    end
+    lunge(holder, pieces, 7, 0.95, Color3.fromRGB(90, 0, 0))
+end
+
+function SCARES.CREATURE_LUNGE()
+    local holder = Instance.new("Model")
+    holder.Name = "NocturnaScareLungeCreature"
+    local hide = Color3.fromRGB(38, 26, 26)
+    local bone = Color3.fromRGB(214, 204, 182)
+    local pieces = {
+        {part(holder, "Skull", Vector3.new(1.7, 1.4, 1.9), hide, Enum.Material.Slate, Enum.PartType.Ball), CFrame.new(0, 0.3, 0.1)},
+        {part(holder, "Brow", Vector3.new(1.5, 0.35, 0.6), Color3.fromRGB(26, 18, 18), Enum.Material.Slate), CFrame.new(0, 0.55, -0.7) * CFrame.Angles(-0.25, 0, 0)},
+        {part(holder, "UpperJaw", Vector3.new(1.3, 0.32, 1), hide, Enum.Material.Slate), CFrame.new(0, -0.15, -0.55)},
+        {part(holder, "LowerJaw", Vector3.new(1.15, 0.28, 1.1), hide, Enum.Material.Slate), CFrame.new(0, -1.05, -0.45) * CFrame.Angles(0.55, 0, 0)},
+        {part(holder, "Throat", Vector3.new(1, 0.85, 0.2), Color3.fromRGB(60, 6, 10), Enum.Material.SmoothPlastic), CFrame.new(0, -0.6, -0.3)},
+        {faceLight(holder, Color3.fromRGB(255, 70, 50), 5), CFrame.new(0, 0, -1.8)},
+    }
+    for _, sideX in ipairs({-1, 1}) do
+        table.insert(pieces, {part(holder, "Eye", Vector3.new(0.22, 0.16, 0.1), Color3.fromRGB(255, 40, 30), Enum.Material.Neon, Enum.PartType.Ball), CFrame.new(sideX * 0.38, 0.32, -0.95)})
+        -- Brazos que entran desde abajo a los costados, con garras hacia la cámara.
+        local arm = CFrame.new(sideX * 1.25, -0.95, 0.1) * CFrame.Angles(0.7, sideX * 0.3, 0)
+        table.insert(pieces, {part(holder, "Arm", Vector3.new(0.32, 0.32, 1.8), hide, Enum.Material.Slate), arm})
+        for finger = -1, 1 do
+            table.insert(pieces, {part(holder, "Claw", Vector3.new(0.07, 0.07, 0.6), bone, Enum.Material.SmoothPlastic), arm * CFrame.new(finger * 0.12, 0, -1.1) * CFrame.Angles(0.2, finger * 0.2, 0)})
+        end
+    end
+    for tooth = -2, 2 do
+        table.insert(pieces, {part(holder, "Tooth", Vector3.new(0.1, 0.3, 0.1), bone, Enum.Material.SmoothPlastic), CFrame.new(tooth * 0.22, -0.4, -1.0)})
+        table.insert(pieces, {part(holder, "Tooth", Vector3.new(0.1, 0.26, 0.1), bone, Enum.Material.SmoothPlastic), CFrame.new(tooth * 0.2, -0.82, -0.9)})
+    end
+    lunge(holder, pieces, 9, 1.05, Color3.fromRGB(110, 10, 0))
+end
 
 function SCARES.SHADOW_CROSS(data)
     local center = visiblePoint(data.Position)
@@ -151,12 +309,13 @@ function SCARES.SHADOW_CROSS(data)
     local forward = Vector3.new(center.X - from.X, 0, center.Z - from.Z)
     forward = forward.Magnitude > 0.01 and forward.Unit or Vector3.new(0, 0, 1)
     local side = Vector3.new(-forward.Z, 0, forward.X)
-    local model, place = figure(false)
+    local model, place = figure(true)
     local started = os.clock()
-    local duration = 0.75
-    for step = 0, 2 do
-        task.delay(step * 0.22, function()
-            SoundKit.Play(AUDIO.Step, center, 1.5)
+    local duration = 1.05
+    SoundKit.Play(AUDIO.Sting, nil, 1.2, 0.6)
+    for step = 0, 3 do
+        task.delay(step * 0.24, function()
+            SoundKit.Play(AUDIO.Step, center, 1.4)
         end)
     end
     while os.clock() - started < duration and model.Parent do
@@ -194,9 +353,10 @@ function SCARES.DOOR_SLAM(data)
     if not data.Slammed then
         SoundKit.Play(AUDIO.Slam, data.Position)
     end
-    FirstPerson.Shake(1.6, 0.5)
+    SoundKit.Play(AUDIO.Thud, nil, 1.1, 0.7)
+    FirstPerson.Shake(3.5, 0.6)
     task.wait(0.4)
-    SoundKit.Play(AUDIO.Whisper, data.Position, 0.9, 0.6)
+    SoundKit.Play(AUDIO.Whisper, data.Position, 0.9, 1)
 end
 
 function SCARES.OBJECT_FALL(data)
@@ -218,8 +378,9 @@ function SCARES.OBJECT_FALL(data)
         box.CFrame = CFrame.new(spot.X, 0.6, spot.Z) * CFrame.Angles(0.3, 1.1, 0)
     end
     SoundKit.Play(AUDIO.Fall, spot)
-    SoundKit.Play(AUDIO.Clatter, spot, 1.1, 0.7)
-    FirstPerson.Shake(0.8, 0.3)
+    SoundKit.Play(AUDIO.Clatter, spot, 1.1, 1)
+    SoundKit.Play(AUDIO.Sting, nil, 1.2, 0.5)
+    FirstPerson.Shake(2.5, 0.4)
     task.wait(8)
     remove(holder)
 end
@@ -291,6 +452,10 @@ function SCARES.WINDOW_FACE(data)
         local alpha = (os.clock() - started) / 1.6
         -- Se asoma, mira, y se corre de golpe.
         local slide = alpha < 0.75 and 0 or (alpha - 0.75) / 0.25 * 2.5
+        if alpha >= 0.75 and not data.Stung then
+            data.Stung = true
+            SoundKit.Play(AUDIO.Sting, nil, 1.1, 0.7)
+        end
         local tilt = 0.25 + math.sin(alpha * 9) * 0.03
         local current = frame * CFrame.new(slide, 0, 0) * CFrame.Angles(0, 0, tilt)
         head.CFrame = current
@@ -323,13 +488,24 @@ function SCARES.FIGURE_BEHIND()
     local model, place = figure(true)
     place(spot, rootPosition())
     SoundKit.Play(AUDIO.Breath, spot + Vector3.new(0, 5, 0))
-    local seen = waitUntil(4, function()
+    task.delay(1.2, function()
+        if model.Parent then
+            SoundKit.Play(AUDIO.Whisper, spot + Vector3.new(0, 5, 0), 0.9)
+        end
+    end)
+    local seen = waitUntil(5, function()
         return looking(spot + Vector3.new(0, 5, 0), 0.55)
     end)
     if seen then
         task.wait(0.12)
         SoundKit.Play(AUDIO.Sting)
-        FirstPerson.Shake(2.5, 0.4)
+        SoundKit.Play(AUDIO.Shriek, nil, 1.3, 0.6)
+        screenFlash(Color3.fromRGB(80, 0, 0), 0.35, 0.6)
+        FirstPerson.Shake(4.5, 0.5)
+    else
+        -- No se dio vuelta: igual siente el aliento en la nuca.
+        SoundKit.Play(AUDIO.Breath, nil, 0.9, 1.2)
+        FirstPerson.Shake(1.2, 0.4)
     end
     remove(model)
 end
@@ -341,14 +517,17 @@ function SCARES.FOOTSTEPS_BEHIND()
         if not spot then
             return
         end
-        -- Si se da vuelta, los pasos se cortan: no hay nadie.
+        -- Si se da vuelta, los pasos se cortan de golpe: no hay nadie.
         if looking(spot + Vector3.new(0, 3, 0), 0.4) then
+            SoundKit.Play(AUDIO.Sting, nil, 1.3, 0.5)
             return
         end
-        SoundKit.Play(AUDIO.Step, spot + Vector3.new(0, 1, 0), 0.9 + step * 0.02, 0.6 + step * 0.08)
-        task.wait(0.52)
+        SoundKit.Play(AUDIO.Step, spot + Vector3.new(0, 1, 0), 0.9 + step * 0.02, 0.8 + step * 0.1)
+        task.wait(0.48)
     end
-    SoundKit.Play(AUDIO.Whisper, nil, 1, 0.5)
+    SoundKit.Play(AUDIO.Whisper, nil, 1, 1)
+    SoundKit.Play(AUDIO.Breath, nil, 0.9, 1)
+    FirstPerson.Shake(1.5, 0.4)
 end
 
 function SCARES.DARK_SILHOUETTE(data)
@@ -363,6 +542,10 @@ function SCARES.DARK_SILHOUETTE(data)
         -- La linterna encima la hace desaparecer.
         return player:GetAttribute("FlashlightEnabled") == true and looking(spot + Vector3.new(0, 4, 0), 0.94)
     end)
+    if model.Parent then
+        SoundKit.Play(AUDIO.Whisper, spot + Vector3.new(0, 4, 0), 0.8)
+        SoundKit.Play(AUDIO.Sting, nil, 1.15, 0.6)
+    end
     remove(model)
 end
 

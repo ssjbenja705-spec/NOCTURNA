@@ -58,6 +58,7 @@ local MODULES = {
     {"Effects", "AudioController"},
     {"Effects", "HorrorEffects"},
     {"Effects", "MonsterAnimator"},
+    {"Effects", "ColosoFootsteps"},
     {"Effects", "CaptureAnimator"},
     {"UI", "StruggleUI"},
     {"Effects", "ViewReporter"},

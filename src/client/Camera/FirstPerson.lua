@@ -176,9 +176,11 @@ local function applyShake(camera)
         shakeStrength = 0
     end
 
+    -- Con potencia 1 la mirada baja ~4° y la cámara ~0,3 studs: se siente cada
+    -- pisada sin marear (antes eran ~1,4°, casi invisible).
     local pitch, roll, drop = FirstPerson.ImpulseOffset(now)
     if pitch ~= 0 or roll ~= 0 then
-        local impact = CFrame.new(0, -drop * 0.12, 0) * CFrame.Angles(-pitch * 0.035, 0, roll * 0.012)
+        local impact = CFrame.new(0, -drop * 0.32, 0) * CFrame.Angles(-pitch * 0.075, 0, roll * 0.028)
         rotation = rotation and rotation * impact or impact
     end
 

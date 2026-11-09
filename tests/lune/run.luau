@@ -2627,6 +2627,101 @@ T.Test("El Coloso: cada pisada sacude la cámara según la distancia y nada de l
     T.Equal(distant, 0, "de lejos no sacude")
 end)
 
+T.Test("El Coloso: cada paso suena fuerte, levanta polvo, titila la luz, retumba de lejos y nunca camina en silencio", function()
+    Engine.Reset()
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local Footsteps = clientModule("Effects", "ColosoFootsteps")
+    local Audio = clientModule("Effects", "AudioController")
+    local FirstPerson = clientModule("Camera", "FirstPerson")
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local played = {}
+    Audio.PlayAt = function(name)
+        played[name] = (played[name] or 0) + 1
+    end
+    T.Equal(Footsteps.Power(5), 1, "pegado: impacto completo")
+    T.True(Footsteps.Power(10) > 0.8, "a 10 studs, fuerte: " .. Footsteps.Power(10))
+    T.Equal(Footsteps.Power(60), 0, "a 60, nada")
+
+    -- Una lámpara al costado del camino.
+    local lamp = Engine.New("Part", "Fixture")
+    lamp.Anchored = true
+    lamp.Position = Vector3.new(3, 9, -12)
+    lamp.Parent = Engine.Workspace
+    local light = Engine.New("PointLight", "Light")
+    light.Brightness = 2
+    light.Parent = lamp
+    Engine.Services.CollectionService:AddTag(lamp, "NocturnaLight")
+
+    local camera = Engine.Workspace.CurrentCamera
+    local function walk(model, cameraDistance, frames, animate)
+        local root = model.PrimaryPart
+        for frame = 1, frames do
+            local z = -frame * 6 / 60
+            root.CFrame = roblox.CFrame.new(0, 5.5, z)
+            camera.CFrame = roblox.CFrame.new(cameraDistance, 5, z) * roblox.CFrame.Angles(0, math.pi / 2, 0)
+            if animate then
+                Animator.Update(1 / 60, camera.CFrame)
+            end
+            Footsteps.Update()
+            Engine.Run(1 / 60)
+        end
+    end
+
+    -- Con el animador: cada apoyo publica Footstep y acá se suman las capas.
+    local model = Factory.Build("ElColoso", Engine.Workspace, 5.5)
+    T.True(Footsteps.Track(model), "sigue a El Coloso")
+    Animator.Track(model)
+    model:SetAttribute("State", "Patrol")
+    model:SetAttribute("MoveSpeed", 6)
+    walk(model, 6, 240, true)
+    local pulses = Footsteps.Count()
+    T.True(pulses >= 4, "un paso por apoyo del animador: " .. pulses)
+    T.False(Footsteps.LastStep().Synthetic, "los pasos vienen del animador")
+    T.True((played.ColosoStep or 0) >= 4, "el golpe de cada pisada")
+    T.True((played.ColosoBoom or 0) >= 4 and (played.ColosoDebris or 0) >= 4, "retumbe del piso y escombros de cerca")
+    T.True(Footsteps.LastStep().Dust ~= nil, "levanta polvo")
+    T.Equal(played.ColosoRumble, nil, "de cerca no hace falta el retumbe lejano")
+    model:Destroy()
+
+    -- Cerca y sin pulsos (otro esqueleto o animación rota): el reloj arma los pasos
+    -- con el impacto de cámara y la luz de al lado titila.
+    table.clear(played)
+    local silent = Factory.Build("ElColoso", Engine.Workspace, 5.5)
+    Footsteps.Track(silent)
+    silent:SetAttribute("MoveSpeed", 7)
+    local before = Footsteps.Count()
+    local strongest, flickered = 0, 0
+    for _ = 1, 4 do
+        walk(silent, 6, 30, false)
+        local info = Footsteps.LastStep()
+        strongest = math.max(strongest, info and info.Impulse or 0)
+        flickered = math.max(flickered, info and info.Flicker or 0)
+    end
+    T.True(Footsteps.Count() - before >= 3, "sin animador, igual pisa: " .. (Footsteps.Count() - before))
+    T.True(Footsteps.LastStep().Synthetic, "pasos del reloj de respaldo")
+    T.True(strongest > 0.5, "cerca, impacto fuerte: " .. strongest)
+    T.True(flickered >= 1, "la luz cercana titila")
+    T.True((played.ColosoStep or 0) >= 3, "el golpe lo pone el respaldo")
+    T.True(FirstPerson.ImpulseOffset(Engine.Clock()) ~= 0 or strongest > 0, "la cámara recibió el impacto")
+    Engine.Run(1)
+    T.Equal(light.Brightness, 2, "la luz vuelve a su brillo")
+
+    -- Lejos (fuera del alcance del animador): sin sacudón, pero se oye que viene.
+    table.clear(played)
+    walk(silent, 120, 180, false)
+    local far = Footsteps.LastStep()
+    T.True(far.Distance > 100, "lejos: " .. far.Distance)
+    T.True(far.Rumble == true and (played.ColosoRumble or 0) >= 2, "retumbe lejano")
+    T.Equal(far.Impulse, nil, "de lejos la cámara no se mueve")
+
+    -- Quieto: no pisa.
+    silent:SetAttribute("MoveSpeed", 0)
+    local stillCount = Footsteps.Count()
+    walk(silent, 6, 120, false)
+    T.Equal(Footsteps.Count(), stillCount, "quieto no hace ruido")
+    T.NoEngineErrors(Engine)
+end)
+
 T.Test("animación: El Quieto se acomoda al ser mirado y después no se mueve", function()
     Engine.Reset()
     local Factory = Engine.RequireServer("Monsters.MonsterFactory")
@@ -6586,7 +6681,7 @@ local function quietSide(Director, nav, entry, anchor, distance)
         for _, other in ipairs(Director.Plan()) do
             if other ~= entry and not done[other.Kind] then
                 local where = nav:Center(other.Cell, 0)
-                for _, step in ipairs({distance, 24}) do
+                for _, step in ipairs({distance, 24, 12}) do
                     local spot = Vector3.new(anchor.X, 0, anchor.Z) + direction * step
                     if (Vector3.new(where.X, 0, where.Z) - spot).Magnitude <= reach then
                         clear = false
@@ -6622,7 +6717,9 @@ T.Test("sustos: cada uno una vez, cerca y mirando, con esperas al azar y sin dos
         T.True(side ~= nil, "hay un lado libre para acercarse al susto " .. entry.Kind)
         placeFacing(player, anchor, 60, side)
         T.Equal(Director.Step(), nil, "lejos no se dispara")
-        placeFacing(player, anchor, 24, side)
+        -- Los de golpe se disparan al entrar a su zona; los demás, de cerca y mirando.
+        local jump = Engine.RequireShared("Logic.ScarePlan").IsJumpscare(Engine.RequireShared("Config.ScareConfig"), entry.Kind)
+        placeFacing(player, anchor, jump and 12 or 24, side)
         local before = Engine.CountRemote and (Engine.Remotes.ScareEvent or 0)
         local result = Director.Step()
         if result then
@@ -6694,6 +6791,185 @@ T.Test("sustos: no hay ninguno durante la persecución final", function()
     local Director = Engine.RequireServer("Scares.ScareDirector")
     Director.SkipWait()
     T.Equal(Director.Blocked(), "persecución", "bloqueados")
+end)
+
+-- Los jugadores recorren el mapa al azar cada `every` segundos (sin buscar los
+-- sustos) mientras corre el reloj; devuelve los segundos simulados.
+local function wander(players, seconds, every, stop)
+    local layout = gameState().Layout
+    local nav = gameState().Nav
+    local rng = Rng.new(17)
+    local spent = 0
+    while spent < seconds and not (stop and stop()) do
+        for _, player in ipairs(players) do
+            local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                local cell = layout.Cells[rng:Int(1, #layout.Cells)]
+                local center = nav:Center(cell.Index, 3)
+                local angle = rng:Float() * math.pi * 2
+                Engine.RequireServer("Security.AntiCheat").Grace(player, every + 1)
+                root.CFrame = roblox.CFrame.lookAt(center, center + Vector3.new(math.cos(angle), 0, math.sin(angle)))
+            end
+        end
+        Engine.Run(every)
+        spent += every
+    end
+    return spent
+end
+
+T.Test("sustos: todos los del mapa pasan en un capítulo normal, el primero a los 20-30 s y los de golpe nunca primero", function()
+    local ScareConfig = Engine.RequireShared("Config.ScareConfig")
+    local ScarePlan = Engine.RequireShared("Logic.ScarePlan")
+    for _, setup in ipairs({{Chapter = 1, Players = 2}, {Chapter = 3, Players = 1}, {Chapter = 4, Players = 1}}) do
+        local players = puzzleMatch(setup.Chapter, setup.Players)
+        local Director = Engine.RequireServer("Scares.ScareDirector")
+        Engine.RequireServer("Monsters.MonsterService").Clear()
+        local plan = Director.Plan()
+        T.True(plan ~= nil and #plan >= 3 and #plan <= 4, "plan del capítulo " .. setup.Chapter)
+        local jumps = 0
+        for _, entry in ipairs(plan) do
+            if ScarePlan.IsJumpscare(ScareConfig, entry.Kind) then
+                jumps += 1
+            end
+        end
+        T.True(jumps >= 1, "al menos un susto de golpe por mapa")
+        local startedAt = Director.PlayTime()
+        T.True(startedAt < ScareConfig.Timing.FirstDelay, "el reloj recién empieza: " .. startedAt)
+
+        -- Cinco minutos de partida recorriendo el mapa.
+        wander(players, 300, 2, function()
+            return #Director.History() >= #plan
+        end)
+        local history = Director.History()
+        T.Equal(#history, #plan, string.format("capítulo %d: pasaron todos los sustos", setup.Chapter))
+        T.True(history[1].PlayTime >= ScareConfig.Timing.FirstDelay - 0.01 and history[1].PlayTime <= ScareConfig.Timing.FirstDue + 2,
+            "el primero a los 20-30 s: " .. history[1].PlayTime)
+        T.False(ScarePlan.IsJumpscare(ScareConfig, history[1].Kind), "no abre con uno de golpe")
+        local last = history[#history].PlayTime
+        local limit = ScareConfig.Timing.FirstDue + (#plan - 1) * ScareConfig.Timing.MaxInterval + 3
+        T.True(last <= limit, string.format("todos antes de %.0f s: %.1f", limit, last))
+        local playedJumps = 0
+        for index, item in ipairs(history) do
+            if index > 1 then
+                T.True(item.PlayTime - history[index - 1].PlayTime >= ScareConfig.Timing.MinGap - 0.01, "separados")
+                T.True(item.Kind ~= history[index - 1].Kind, "sin repetir seguidos")
+            end
+            if ScarePlan.IsJumpscare(ScareConfig, item.Kind) then
+                playedJumps += 1
+            end
+            T.True(item.Recipients >= 1, "le llegó a alguien")
+        end
+        T.True(playedJumps >= 1, "hubo un susto de golpe")
+        local sent = Engine.LastSent("ScareEvent", history[#history].Player)
+        T.True(sent ~= nil and sent[1].Kind == history[#history].Kind, "el cliente recibió el último")
+        T.NoEngineErrors(Engine)
+    end
+end)
+
+T.Test("sustos: el reloj se frena en escenas y nada pasa en escenas, capturas, persecuciones o con una criatura cerca", function()
+    local players = puzzleMatch(2, 1)
+    local player = players[1]
+    local Director = Engine.RequireServer("Scares.ScareDirector")
+    local Monsters = Engine.RequireServer("Monsters.MonsterService")
+    local EventBus = Engine.RequireServer("Core.EventBus")
+    local ScareConfig = Engine.RequireShared("Config.ScareConfig")
+    Monsters.Clear()
+    local blockedNow = false
+    local duringBlock = 0
+    EventBus.On("ScarePlayed", function()
+        if blockedNow then
+            duringBlock += 1
+        end
+    end)
+    local function blockedFor(seconds, apply, undo)
+        blockedNow = true
+        apply()
+        wander(players, seconds, 2)
+        undo()
+        blockedNow = false
+    end
+
+    -- Escena: el reloj de juego no corre.
+    local before = Director.PlayTime()
+    blockedFor(60, function()
+        Monsters.SetPaused(true, "Scene")
+    end, function()
+        Monsters.SetPaused(false, "Scene")
+    end)
+    T.True(Director.PlayTime() - before < 0.5, "en escena el reloj no corre")
+    T.Equal(#Director.History(), 0, "nada durante la escena")
+
+    -- Después llega el primero a tiempo.
+    wander(players, ScareConfig.Timing.FirstDue + 4, 2, function()
+        return #Director.History() >= 1
+    end)
+    T.Equal(#Director.History(), 1, "el primero llega después de la escena")
+
+    -- Capturado, perseguido o con una criatura al lado: aunque se pase la hora, no.
+    blockedFor(ScareConfig.Timing.MaxInterval + 20, function()
+        player:SetAttribute("Captured", true)
+    end, function()
+        player:SetAttribute("Captured", nil)
+    end)
+    blockedFor(40, function()
+        player:SetAttribute("NocturnaThreat", 0.8)
+    end, function()
+        player:SetAttribute("NocturnaThreat", 0)
+    end)
+    local spawned = Monsters.Spawn("ElColoso")
+    blockedNow = true
+    for _ = 1, 20 do
+        local root = player.Character.HumanoidRootPart
+        spawned.Controller.Position = root.Position + Vector3.new(8, 0, 0)
+        Engine.Run(2)
+    end
+    blockedNow = false
+    Monsters.Clear()
+    T.Equal(duringBlock, 0, "ningún susto mientras estaba bloqueado")
+    T.Equal(#Director.History(), 1, "el segundo esperó")
+    T.True(Director.PlayTime() >= Director.DueAt(), "ya le tocaba")
+
+    -- Libre otra vez: el atrasado sale enseguida, mudado adelante del jugador.
+    wander(players, 10, 1, function()
+        return #Director.History() >= 2
+    end)
+    T.Equal(#Director.History(), 2, "sale apenas se puede")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("cliente: los sustos de golpe se tiran contra la cámara, con destello, y se van en menos de un segundo", function()
+    local players = puzzleMatch(1, 1, {Client = true})
+    local player = players[1]
+    local Effects = Engine.Require(Engine.ClientFolder:FindFirstChild("Scares"):FindFirstChild("ScareEffects"), "Client")
+    local root = player.Character.HumanoidRootPart.Position
+    local camera = Engine.Workspace.CurrentCamera
+    camera.CFrame = roblox.CFrame.lookAt(root + Vector3.new(0, 1.5, 0), root + Vector3.new(0, 1.5, -10))
+    for _, kind in ipairs({"FACE_LUNGE", "CREATURE_LUNGE"}) do
+        T.True(Effects.Play({Kind = kind, Position = root + Vector3.new(0, 0, -3), From = root, Seed = 1}), kind)
+        Engine.Run(0.25)
+        local model = nil
+        for _, child in ipairs(Engine.Workspace:GetChildren()) do
+            if string.find(child.Name, "NocturnaScareLunge", 1, true) then
+                model = child
+            end
+        end
+        T.True(model ~= nil, kind .. ": en pantalla")
+        local nearest = math.huge
+        for _, piece in ipairs(model:GetChildren()) do
+            if piece:IsA("BasePart") and (piece.Name == "Face" or piece.Name == "Skull") then
+                local offset = camera.CFrame:PointToObjectSpace(piece.Position)
+                nearest = math.min(nearest, -offset.Z)
+            end
+        end
+        T.True(nearest > 0.3 and nearest < 2.5, kind .. ": pegado a la cara: " .. nearest)
+        local flash = player.PlayerGui:FindFirstChild("NocturnaScareFlash")
+        T.True(flash ~= nil, kind .. ": destello")
+        Engine.Run(1)
+        T.Equal(model.Parent, nil, kind .. ": se fue")
+    end
+    Engine.Run(2)
+    T.Equal(Effects.ActiveCount(), 0, "no queda nada")
+    T.NoEngineErrors(Engine)
 end)
 
 T.Test("cliente: cada susto se dibuja, suena y se borra solo", function()

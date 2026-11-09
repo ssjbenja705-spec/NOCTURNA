@@ -7,6 +7,10 @@
 -- assets/models/props/README.md.
 local ServerStorage = game:GetService("ServerStorage")
 
+local Shared = game:GetService("ReplicatedStorage").Shared
+local TextureAssets = require(Shared.Config.TextureAssets)
+local MaterialLibrary = require(script.Parent.MaterialLibrary)
+
 local PropKit = {}
 
 PropKit.FOLDER = "NocturnaProps"
@@ -116,11 +120,13 @@ function PropKit.Material(name)
     return cached
 end
 
--- Gancho de texturas PBR -----------------------------------------------------------
--- No hay texturas propias subidas a Roblox: todo usa los materiales que trae el
--- motor. Si alguien sube los mapas (ver assets/textures/README.md) y crea en
--- MaterialService un MaterialVariant con el nombre que pide ThemeConfig.Surfaces,
--- las paredes, pisos y techos lo usan solos, sin tocar código.
+-- Texturas PBR propias -------------------------------------------------------------
+-- Las horneadas en Blender (assets/textures) se suben a Roblox y sus números se
+-- pegan en TextureAssets; MaterialLibrary crea los MaterialVariant al cargar cada
+-- capítulo. Paredes, pisos y techos usan la variante de ThemeConfig.Surfaces
+-- (Wall/Floor/Ceiling) y la utilería y las puertas la que corresponde a su material
+-- (PropKit.SurfaceProps). Sin números (0) todo sigue con los materiales de Roblox.
+-- Una variante hecha a mano en Studio con el mismo nombre también se usa.
 local variantCache = {}
 
 local function findVariant(name)
@@ -145,13 +151,29 @@ local function findVariant(name)
     return found or nil
 end
 
--- Vuelve a buscar los MaterialVariant (al cargar cada capítulo).
+-- Crea las variantes que ya tienen imágenes y vuelve a buscarlas (al cargar cada
+-- capítulo).
 function PropKit.RefreshSurfaces()
+    local ok, err = pcall(MaterialLibrary.Ensure)
+    if not ok then
+        warn("[NOCTURNA] No se pudieron crear las texturas propias: " .. tostring(err))
+    end
     table.clear(variantCache)
+end
+
+local function luminance(color)
+    return color.R * 0.299 + color.G * 0.587 + color.B * 0.114
+end
+
+local function useVariant(part, variant)
+    part.Material = variant.BaseMaterial
+    part.MaterialVariant = variant.Name
 end
 
 -- Aplica la textura PBR de `key` (Wall, Floor, Ceiling...) del tema si existe.
 -- El material base pasa a ser el del MaterialVariant para que Roblox lo acepte.
+-- Las texturas propias ya traen su color: la pieza toma el tono de la variante
+-- (Tint), con la misma variación de brillo que tenía respecto del color del tema.
 -- Devuelve true si la usó.
 function PropKit.Surface(part, theme, key)
     local surfaces = theme and theme.Surfaces
@@ -159,9 +181,87 @@ function PropKit.Surface(part, theme, key)
     if not variant then
         return false
     end
-    part.Material = variant.BaseMaterial
-    part.MaterialVariant = variant.Name
+    useVariant(part, variant)
+    local tint = variant:GetAttribute(MaterialLibrary.TINT)
+    if typeof(tint) == "Color3" then
+        local base = theme[key]
+        local factor = 1
+        if typeof(base) == "Color3" and luminance(base) > 0.01 then
+            factor = math.clamp(luminance(part.Color) / luminance(base), 0.85, 1.15)
+        end
+        part.Color = PropKit.Shade(tint, factor)
+    end
     return true
+end
+
+-- Una pieza teñida: el color de la pieza dividido por el color medio de la textura
+-- (Roblox multiplica los dos), así el mueble conserva su tono y su brillo.
+local function compensate(part, variant)
+    local mean = variant:GetAttribute(MaterialLibrary.MEAN)
+    if typeof(mean) ~= "Color3" then
+        return
+    end
+    local color = part.Color
+    part.Color = Color3.new(
+        math.clamp(color.R / math.max(mean.R, 0.2), 0, 1),
+        math.clamp(color.G / math.max(mean.G, 0.2), 0, 1),
+        math.clamp(color.B / math.max(mean.B, 0.2), 0, 1)
+    )
+end
+
+-- Lo que no lleva textura de utilería: luces, sangre y daños (son geometría con su
+-- propio color), mallas con textura propia y piezas invisibles.
+local SKIP_FOLDERS = {Weathering = true}
+
+local function skipped(part, root)
+    if part.MaterialVariant ~= "" or part.Transparency >= 0.95 then
+        return true
+    end
+    if part:IsA("MeshPart") and (part.TextureID ~= "" or part:FindFirstChildOfClass("SurfaceAppearance")) then
+        return true
+    end
+    local parent = part.Parent
+    while parent and parent ~= root do
+        if SKIP_FOLDERS[parent.Name] then
+            return true
+        end
+        parent = parent.Parent
+    end
+    return false
+end
+
+-- Utilería, muebles, puertas y escondites: cada pieza toma la variante que el tema
+-- asigna a su material (TextureAssets.PropMaterials → ThemeConfig.Surfaces).
+-- Devuelve cuántas piezas cambió.
+function PropKit.SurfaceProps(root, theme)
+    local surfaces = theme and theme.Surfaces
+    if not root or not surfaces then
+        return 0
+    end
+    local byMaterial = {}
+    local any = false
+    for materialName, key in pairs(TextureAssets.PropMaterials) do
+        local variant = findVariant(surfaces[key])
+        if variant then
+            byMaterial[materialName] = variant
+            any = true
+        end
+    end
+    if not any then
+        return 0
+    end
+    local count = 0
+    for _, part in ipairs(root:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local variant = byMaterial[part.Material.Name]
+            if variant and not skipped(part, root) then
+                useVariant(part, variant)
+                compensate(part, variant)
+                count += 1
+            end
+        end
+    end
+    return count
 end
 
 function PropKit.Shade(color, factor)

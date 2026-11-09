@@ -48,7 +48,13 @@ return {
         QuietoScrape = {Id = STEP, Volume = 0.9, Speed = 0.35, Spatial = true, Reverb = true},
         TrepadorSkitter = {Id = STEP, Volume = 0.9, Speed = 2.1, Spatial = true, Reverb = true},
         TrepadorDrop = {Id = LAND, Volume = 1, Speed = 0.7, Spatial = true},
-        ColosoStep = {Id = EXPLOSION, Volume = 0.8, Speed = 0.25, Spatial = true, Reverb = true},
+        -- Pisada de El Coloso en capas (ColosoFootsteps): el golpe (audible también
+        -- en parlantes de celular: no tan grave), el retumbe del piso de cerca, el
+        -- crujido de escombros y el retumbe lejano que avisa que viene.
+        ColosoStep = {Id = EXPLOSION, Volume = 2.2, Speed = 0.45, Spatial = true, Reverb = true, RollOff = 18, MaxDistance = 130},
+        ColosoBoom = {Id = LAND, Volume = 2.6, Speed = 0.32, Spatial = true, Reverb = true, RollOff = 14, MaxDistance = 80},
+        ColosoDebris = {Id = STEP, Volume = 1.2, Speed = 0.55, Spatial = true, Distort = 0.3, RollOff = 10, MaxDistance = 50},
+        ColosoRumble = {Id = EXPLOSION, Volume = 2, Speed = 0.2, Spatial = true, Reverb = true, RollOff = 45, MaxDistance = 220},
         ColosoRoar = {Id = FALLING, Volume = 1, Speed = 0.3, Spatial = true, Distort = 0.8, Reverb = true},
         Collapse = {Id = EXPLOSION, Volume = 1, Speed = 0.55, Spatial = true, Reverb = true},
         WaterDrop = {Id = WATER, Volume = 0.25, Speed = 1.8, Reverb = true},

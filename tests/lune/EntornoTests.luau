@@ -311,6 +311,148 @@ return function(ctx)
         T.NoEngineErrors(Engine)
     end)
 
+    T.Test("Entorno: texturas propias horneadas: cada PNG existe y TextureAssets las lista todas", function()
+        local TextureAssets = Engine.RequireShared("Config.TextureAssets")
+        local upload = ctx.fs.readFile("assets/textures/UPLOAD.md")
+        local names = {}
+        for name, entry in pairs(TextureAssets.Variants) do
+            table.insert(names, name)
+            T.True(roblox.Enum.Material[entry.BaseMaterial] ~= nil, name .. ": BaseMaterial válido")
+            T.True(entry.StudsPerTile >= 1 and entry.StudsPerTile <= 32, name .. ": StudsPerTile")
+            T.True(typeof(entry.Mean) == "Color3", name .. ": color medio")
+            for _, map in ipairs(TextureAssets.Maps) do
+                T.Equal(entry[map.Key], 0, name .. "." .. map.Key .. " empieza en 0")
+                local file = name .. map.Suffix
+                local path = "assets/textures/" .. name .. "/" .. file
+                if ctx.fs.isFile(path) then
+                    local data = ctx.fs.readFile(path)
+                    T.Equal(string.sub(data, 2, 4), "PNG", file .. " es PNG")
+                    -- IHDR: ancho y alto de 1024, 8 bits.
+                    T.Equal(string.unpack(">I4", data, 17), 1024, file .. " ancho")
+                    T.Equal(string.unpack(">I4", data, 21), 1024, file .. " alto")
+                    T.Equal(string.byte(data, 25), 8, file .. " 8 bits")
+                    T.True(string.find(upload, file, 1, true) ~= nil, "UPLOAD.md lista " .. file)
+                    T.True(string.find(upload, name .. "." .. map.Key, 1, true) ~= nil, "UPLOAD.md dice dónde pegar " .. file)
+                else
+                    T.True(map.Key == "Metalness", "falta " .. path)
+                end
+            end
+        end
+        T.True(#names >= 16, "variantes: " .. #names)
+        for index = 1, 5 do
+            for key, name in pairs(themeOf(index).Surfaces) do
+                T.True(TextureAssets.Variants[name] ~= nil, "capítulo " .. index .. " " .. key .. " usa una textura horneada: " .. name)
+            end
+            for _, key in pairs(TextureAssets.PropMaterials) do
+                T.True(themeOf(index).Surfaces[key] ~= nil, "capítulo " .. index .. " tiene textura de utilería " .. key)
+            end
+        end
+        T.True(ctx.fs.isFile("assets/textures/preview.png"), "hoja de muestra")
+    end)
+
+    T.Test("Entorno: con los números de las imágenes, las texturas propias visten salas, muebles y puertas (y en 0 no cambia nada)", function()
+        bootServer(1)
+        Engine.Run(0.5)
+        local TextureAssets = Engine.RequireShared("Config.TextureAssets")
+        local Library = Engine.RequireServer("World.MaterialLibrary")
+        local MaterialService = Engine.Services.MaterialService
+
+        -- Todo en 0: no se crea nada y ninguna pieza usa variante.
+        local _, plain = loadChapter(1, 77)
+        T.Equal(#Library.Created(), 0, "sin imágenes no hay variantes")
+        for _, part in ipairs(plain:GetDescendants()) do
+            if part:IsA("BasePart") then
+                T.Equal(part.MaterialVariant, "", "sin texturas: " .. part:GetFullName())
+            end
+        end
+
+        -- Números falsos para todos los mapas, como si ya estuvieran subidos.
+        local names = {}
+        for name in pairs(TextureAssets.Variants) do
+            table.insert(names, name)
+        end
+        table.sort(names)
+        for index, name in ipairs(names) do
+            local entry = TextureAssets.Variants[name]
+            entry.Color = 9000 + index * 10
+            entry.Normal = 9001 + index * 10
+            entry.Roughness = 9002 + index * 10
+            entry.Metalness = name == "NocturnaScratchedSteel" and 9003 + index * 10 or 0
+        end
+
+        for chapter = 1, 5 do
+            local theme = themeOf(chapter)
+            local _, map = loadChapter(chapter, 400 + chapter)
+            T.Equal(#Library.Created(), #names, "capítulo " .. chapter .. ": una variante por fila")
+            for index, name in ipairs(names) do
+                local variant = MaterialService:FindFirstChild(name)
+                local entry = TextureAssets.Variants[name]
+                T.True(variant ~= nil and variant:IsA("MaterialVariant"), "variante " .. name)
+                T.Equal(variant.ColorMap, "rbxassetid://" .. (9000 + index * 10), name .. " ColorMap")
+                T.Equal(variant.NormalMap, "rbxassetid://" .. (9001 + index * 10), name .. " NormalMap")
+                T.Equal(variant.RoughnessMap, "rbxassetid://" .. (9002 + index * 10), name .. " RoughnessMap")
+                T.Equal(variant.BaseMaterial, roblox.Enum.Material[entry.BaseMaterial], name .. " BaseMaterial")
+                T.Equal(variant.StudsPerTile, entry.StudsPerTile, name .. " StudsPerTile")
+            end
+            T.Equal(MaterialService:FindFirstChild("NocturnaScratchedSteel").MetalnessMap, "rbxassetid://" .. (9003 + table.find(names, "NocturnaScratchedSteel") * 10), "metal")
+
+            -- Salas: paredes, pisos y techos con la variante del capítulo, en su tono.
+            local counts = {Wall = {0, 0}, Floor = {0, 0}, Ceiling = {0, 0}}
+            for _, part in ipairs(map:FindFirstChild("Sectors"):GetDescendants()) do
+                local count = part:IsA("BasePart") and part.Parent and part.Parent.Parent and part.Parent.Parent.Name == "Sectors" and counts[part.Name]
+                if count then
+                    count[1] += 1
+                    if part.MaterialVariant == theme.Surfaces[part.Name] then
+                        count[2] += 1
+                        local variant = MaterialService:FindFirstChild(part.MaterialVariant)
+                        T.Equal(part.Material, variant.BaseMaterial, "material base de " .. part.Name)
+                        T.True(part.Color.R > 0.8 and part.Color.G > 0.8, "la textura trae su color: " .. part.Name)
+                    end
+                end
+            end
+            for key, count in pairs(counts) do
+                T.True(count[1] > 0 and count[2] == count[1], string.format("capítulo %d %s con textura (%d de %d)", chapter, key, count[2], count[1]))
+            end
+
+            -- Utilería y puertas: cada material de la lista lleva su variante.
+            local byKey = {}
+            local untouched = 0
+            for _, part in ipairs(map:GetDescendants()) do
+                if part:IsA("BasePart") and part.Transparency < 0.95 then
+                    local inWeathering = part:FindFirstAncestor("Weathering") ~= nil
+                    for name, key in pairs(TextureAssets.PropMaterials) do
+                        local variantName = theme.Surfaces[key]
+                        if part.MaterialVariant == variantName and not counts[part.Name] then
+                            byKey[key] = (byKey[key] or 0) + 1
+                        end
+                        if part.Material.Name == name and part.MaterialVariant == "" and not inWeathering then
+                            untouched += 1
+                        end
+                    end
+                end
+            end
+            T.Equal(untouched, 0, "capítulo " .. chapter .. ": ninguna pieza de utilería quedó sin su textura")
+            T.True((byKey.Metal or 0) > 0, "capítulo " .. chapter .. ": metal con textura")
+            T.True((byKey.Wood or 0) + (byKey.Fabric or 0) > 0, "capítulo " .. chapter .. ": madera o tela con textura")
+
+            local doors = map:FindFirstChild("Doors", true)
+            T.True(doors ~= nil, "puertas del capítulo")
+            local textured = 0
+            for _, part in ipairs(doors:GetDescendants()) do
+                if part:IsA("BasePart") and part.MaterialVariant ~= "" and string.find(part:GetFullName(), "_Leaves", 1, true) then
+                    textured += 1
+                end
+            end
+            T.True(textured > 0, "capítulo " .. chapter .. ": las puertas usan la textura de su material")
+        end
+
+        -- Volver un número a 0 borra la variante en la próxima carga.
+        TextureAssets.Variants.NocturnaTunnelBrick.Color = 0
+        loadChapter(1, 77)
+        T.Equal(MaterialService:FindFirstChild("NocturnaTunnelBrick"), nil, "sin imagen se borra la variante")
+        T.NoEngineErrors(Engine)
+    end)
+
     T.Test("Entorno: las puertas de cada capítulo tienen su estilo, se abren, y nunca encierran a nadie al cerrar", function()
         local players = bootServer(1)
         Engine.Run(0.5)
