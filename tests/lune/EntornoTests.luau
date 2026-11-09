@@ -289,9 +289,37 @@ return function(ctx)
         end
     end)
 
+    -- Las imágenes ya están subidas (TextureAssets tiene sus números): para probar
+    -- el caso "sin texturas" se vacían en la copia de esta prueba.
+    local savedIds = {}
+    local function zeroTextures()
+        local TextureAssets = Engine.RequireShared("Config.TextureAssets")
+        for name, entry in pairs(TextureAssets.Variants) do
+            for _, map in ipairs(TextureAssets.Maps) do
+                local key = name .. "." .. map.Key
+                if savedIds[key] == nil then
+                    savedIds[key] = entry[map.Key]
+                end
+                entry[map.Key] = 0
+            end
+        end
+    end
+    local function restoreTextures()
+        local TextureAssets = Engine.RequireShared("Config.TextureAssets")
+        for name, entry in pairs(TextureAssets.Variants) do
+            for _, map in ipairs(TextureAssets.Maps) do
+                local saved = savedIds[name .. "." .. map.Key]
+                if saved ~= nil then
+                    entry[map.Key] = saved
+                end
+            end
+        end
+    end
+
     T.Test("Entorno: con un MaterialVariant en MaterialService las paredes lo usan solas", function()
         bootServer(1)
         Engine.Run(0.5)
+        zeroTextures()
         local variant = Engine.New("MaterialVariant", "NocturnaTunnelBrick")
         variant.BaseMaterial = roblox.Enum.Material.Brick
         variant.Parent = Engine.Services.MaterialService
@@ -312,6 +340,7 @@ return function(ctx)
     end)
 
     T.Test("Entorno: texturas propias horneadas: cada PNG existe y TextureAssets las lista todas", function()
+        restoreTextures()
         local TextureAssets = Engine.RequireShared("Config.TextureAssets")
         local upload = ctx.fs.readFile("assets/textures/UPLOAD.md")
         local names = {}
@@ -321,10 +350,11 @@ return function(ctx)
             T.True(entry.StudsPerTile >= 1 and entry.StudsPerTile <= 32, name .. ": StudsPerTile")
             T.True(typeof(entry.Mean) == "Color3", name .. ": color medio")
             for _, map in ipairs(TextureAssets.Maps) do
-                T.Equal(entry[map.Key], 0, name .. "." .. map.Key .. " empieza en 0")
                 local file = name .. map.Suffix
                 local path = "assets/textures/" .. name .. "/" .. file
                 if ctx.fs.isFile(path) then
+                    -- Cada imagen horneada ya está subida a Roblox con su número.
+                    T.True(entry[map.Key] > 0, name .. "." .. map.Key .. " tiene su número de Roblox")
                     local data = ctx.fs.readFile(path)
                     T.Equal(string.sub(data, 2, 4), "PNG", file .. " es PNG")
                     -- IHDR: ancho y alto de 1024, 8 bits.
@@ -335,6 +365,7 @@ return function(ctx)
                     T.True(string.find(upload, name .. "." .. map.Key, 1, true) ~= nil, "UPLOAD.md dice dónde pegar " .. file)
                 else
                     T.True(map.Key == "Metalness", "falta " .. path)
+                    T.Equal(entry[map.Key], 0, name .. "." .. map.Key .. " sin imagen queda en 0")
                 end
             end
         end
@@ -356,6 +387,7 @@ return function(ctx)
         local TextureAssets = Engine.RequireShared("Config.TextureAssets")
         local Library = Engine.RequireServer("World.MaterialLibrary")
         local MaterialService = Engine.Services.MaterialService
+        zeroTextures()
 
         -- Todo en 0: no se crea nada y ninguna pieza usa variante.
         local _, plain = loadChapter(1, 77)
