@@ -412,7 +412,9 @@ local function drainVictim(capture, now)
         return
     end
     if capture.Phase == "Grab" or capture.Phase == "Struggle" then
-        hurt(capture, CaptureConfig.StruggleDrainPerSecond * math.max(0, now - last))
+        local difficulty = CaptureConfig.Difficulty[GameState.Difficulty]
+        local rate = difficulty and difficulty.DrainPerSecond or CaptureConfig.StruggleDrainPerSecond
+        hurt(capture, rate * math.max(0, now - last))
     end
 end
 

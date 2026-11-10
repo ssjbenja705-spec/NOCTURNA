@@ -81,6 +81,7 @@ local function broadcastParty()
             Health = humanoid and math.ceil(humanoid.Health) or 0,
             Down = down[player] ~= nil,
             Hidden = player:GetAttribute("Hidden") == true,
+            Captured = player:GetAttribute("Captured") == true,
         })
     end
     Remotes.FireAll("PartyUpdate", members)

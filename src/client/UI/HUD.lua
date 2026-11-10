@@ -402,9 +402,12 @@ local function buildParty()
             local member = members[index]
             row.Visible = member ~= nil
             if member then
-                local state = member.Down and "caído" or (member.Hidden and "escondido" or ("vida " .. tostring(member.Health)))
+                local state = member.Down and "caído"
+                    or (member.Captured and "¡atrapado!")
+                    or (member.Hidden and "escondido" or ("vida " .. tostring(member.Health)))
                 row.Text = member.Name .. "  ·  " .. state
-                row.TextColor3 = member.Down and Colors.Danger or (member.Hidden and Colors.Radio or Colors.TextDim)
+                row.TextColor3 = (member.Down or member.Captured) and Colors.Danger
+                    or (member.Hidden and Colors.Radio or Colors.TextDim)
             end
         end
     end)

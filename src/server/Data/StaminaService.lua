@@ -44,6 +44,9 @@ local function updatePlayer(player, deltaTime)
     if state.StaggerUntil and os.clock() < state.StaggerUntil then
         speed *= state.StaggerFactor
     end
+    if not frozen and state.BoostUntil and os.clock() < state.BoostUntil then
+        speed *= state.BoostFactor
+    end
     if humanoid.WalkSpeed ~= speed then
         humanoid.WalkSpeed = speed
     end
@@ -72,6 +75,21 @@ function StaminaService.Stagger(player, duration, factor)
     end
     state.StaggerUntil = os.clock() + math.clamp(duration, 0, 5)
     state.StaggerFactor = math.clamp(factor, 0.1, 1)
+    return true
+end
+
+-- Adrenalina: aire lleno y durante duration segundos corre a factor de su velocidad.
+function StaminaService.Adrenaline(player, duration, factor)
+    local state = states[player]
+    if not state then
+        return false
+    end
+    state.Stamina = CONFIG.MaxStamina
+    state.Exhausted = false
+    state.Rest = 0
+    state.BoostUntil = os.clock() + math.clamp(duration or CONFIG.AdrenalineTime, 0, 5)
+    state.BoostFactor = math.clamp(factor or CONFIG.AdrenalineFactor, 1, 1.25)
+    player:SetAttribute("Stamina", CONFIG.MaxStamina)
     return true
 end
 
@@ -104,6 +122,9 @@ function StaminaService.Start()
     end)
 
     EventBus.On("CharacterReady", StaminaService.Reset)
+    EventBus.On("PlayerEscaped", function(player)
+        StaminaService.Adrenaline(player, CONFIG.AdrenalineTime, CONFIG.AdrenalineFactor)
+    end)
 
     Players.PlayerAdded:Connect(setupPlayer)
     Players.PlayerRemoving:Connect(function(player)
