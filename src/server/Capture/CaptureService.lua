@@ -145,6 +145,9 @@ local function payload(capture, event, extra)
         Phase = capture.Phase,
         GrabTime = capture.Profile.GrabTime,
     }
+    if capture.Helped then
+        data.HelperName = capture.Helped.DisplayName
+    end
     if session then
         local now = os.clock()
         data.Sequence = session.Sequence
@@ -368,9 +371,46 @@ local function hurt(capture, amount)
 end
 CaptureService._Hurt = hurt
 
+-- Compañero libre y vivo cerca de la criatura que agarró a la víctima.
+local function nearbyHelper(capture)
+    local origin = capture.Entry.Root and capture.Entry.Root.Position
+    if not origin then
+        return nil
+    end
+    for _, other in ipairs(Players:GetPlayers()) do
+        local character = other ~= capture.Player and not captures[other] and other.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if root and humanoid and humanoid.Health > 0 and (root.Position - origin).Magnitude <= CaptureConfig.HelpRange then
+            return other
+        end
+    end
+    return nil
+end
+
+-- Mientras un compañero está cerca no drena; la primera vez suma tiempo al plazo.
+local function checkHelp(capture)
+    if capture.Phase ~= "Struggle" then
+        capture.HelperNear = nil
+        return
+    end
+    local helper = nearbyHelper(capture)
+    capture.HelperNear = helper
+    if helper and not capture.Helped then
+        capture.Helped = helper
+        capture.Session.Deadline += CaptureConfig.HelpTime
+        broadcast(capture, "Progress", {JustHelped = true})
+        EventBus.Emit("PlayerHelped", helper, capture.Player)
+    end
+end
+CaptureService._CheckHelp = checkHelp
+
 local function drainVictim(capture, now)
     local last = capture.LastDrain or now
     capture.LastDrain = now
+    if capture.HelperNear then
+        return
+    end
     if capture.Phase == "Grab" or capture.Phase == "Struggle" then
         hurt(capture, CaptureConfig.StruggleDrainPerSecond * math.max(0, now - last))
     end
@@ -400,6 +440,7 @@ local function updateCapture(capture, now)
         return
     end
 
+    checkHelp(capture)
     holdVictim(capture, now)
     if capture.Phase == "Grab" then
         if now - capture.PhaseStart >= capture.Profile.GrabTime then

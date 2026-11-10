@@ -374,6 +374,10 @@ local function onVictimUpdate(data)
         bindKeys(true)
     elseif event == "Progress" then
         sync(data)
+        if data.JustHelped and type(data.HelperName) == "string" then
+            ui.Hint.Text = "¡" .. data.HelperName .. " vino a ayudarte! Ganaste tiempo"
+            AudioController.Play("ObjectiveDone")
+        end
     elseif event == "Escaped" then
         current.LocalIndex = current.Sequence and #current.Sequence or 0
         renderChips()
@@ -400,7 +404,9 @@ local function onTeammateUpdate(data)
     local mine = bannerToken
     banner.Fill.Size = UDim2.fromScale(math.clamp(tonumber(data.Progress) or 0, 0, 1), 1)
     if event == "Begin" or event == "Struggle" or event == "Progress" then
-        banner.Text.Text = "¡" .. name .. " está atrapado por " .. creatureName(data.Kind) .. "!"
+        banner.Text.Text = type(data.HelperName) == "string"
+            and (data.HelperName .. " está ayudando a " .. name .. ".")
+            or ("¡" .. name .. " está atrapado por " .. creatureName(data.Kind) .. "! Acercate para ayudar")
         banner.Text.TextColor3 = Colors.Danger
         banner.Frame.Visible = true
         local monster = data.Monster

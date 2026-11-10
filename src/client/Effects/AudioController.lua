@@ -137,6 +137,15 @@ end
 
 local function updateBody(deltaTime)
     local threat = player:GetAttribute("NocturnaThreat") or 0
+    -- Con poca vida el corazón late aunque no haya nada cerca.
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health > 0 and humanoid.MaxHealth > 0 then
+        local ratio = humanoid.Health / humanoid.MaxHealth
+        if ratio <= 0.35 then
+            threat = math.max(threat, 0.3 + (0.35 - ratio) * 1.5)
+        end
+    end
     if threat >= 0.3 then
         heartClock += deltaTime
         if heartClock >= 1.1 - threat * 0.6 then
