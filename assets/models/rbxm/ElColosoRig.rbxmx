@@ -1,0 +1,3585 @@
+<roblox version="4">
+  <Item class="Model" referent="0">
+    <Properties>
+      <string name="Name">ElColosoRig</string>
+      <BinaryString name="AttributesSerialize">AQAAAA4AAABSQlhfUmVpbXBvcnRJZAIkAAAANTdiNDM3ODQtMTA4OS00MjNkLThhOGQtZTJmZGYzMjQ5NDNi</BinaryString>
+      <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+      <token name="LevelOfDetail">0</token>
+      <CoordinateFrame name="ModelMeshCFrame">
+        <X>0</X>
+        <Y>0</Y>
+        <Z>0</Z>
+        <R00>1</R00>
+        <R01>0</R01>
+        <R02>0</R02>
+        <R10>0</R10>
+        <R11>1</R11>
+        <R12>0</R12>
+        <R20>0</R20>
+        <R21>0</R21>
+        <R22>1</R22>
+      </CoordinateFrame>
+      <SharedString name="ModelMeshData">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+      <Vector3 name="ModelMeshSize">
+        <X>0</X>
+        <Y>0</Y>
+        <Z>0</Z>
+      </Vector3>
+      <token name="ModelStreamingMode">0</token>
+      <bool name="NeedsPivotMigration">false</bool>
+      <Ref name="PrimaryPart">1</Ref>
+      <bool name="DefinesCapabilities">false</bool>
+      <float name="ScaleFactor">1</float>
+      <BinaryString name="SerializedOverrides">
+      </BinaryString>
+      <SharedString name="SlimHash">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+      <int64 name="SourceAssetId">121657384117906</int64>
+      <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+      <OptionalCoordinateFrame name="WorldPivotData">
+        <CFrame>
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CFrame>
+      </OptionalCoordinateFrame>
+    </Properties>
+    <Item class="MeshPart" referent="1">
+      <Properties>
+        <string name="Name">ElColosoBody</string>
+        <SharedString name="AeroMeshData">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+        <bool name="Anchored">false</bool>
+        <BinaryString name="AttributesSerialize"></BinaryString>
+        <bool name="AudioCanCollide">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">0</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>0</X>
+          <Y>-179.961</Y>
+          <Z>-99.951256</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">true</bool>
+        <bool name="CanQuery">true</bool>
+        <bool name="CanTouch">true</bool>
+        <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+        <bool name="CastShadow">true</bool>
+        <string name="CollisionGroup">Default</string>
+        <int name="CollisionGroupId">0</int>
+        <Color3uint8 name="Color3uint8">10724005</Color3uint8>
+        <PhysicalProperties name="CustomPhysicalProperties">
+          <CustomPhysics>false</CustomPhysics>
+        </PhysicalProperties>
+        <bool name="DoubleSided">false</bool>
+        <bool name="EnableFluidForces">true</bool>
+        <token name="FluidFidelityInternal">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <bool name="HasJointOffset">false</bool>
+        <bool name="HasSkinnedMesh">true</bool>
+        <bool name="InertiaMigrated">false</bool>
+        <Vector3 name="InitialSize">
+          <X>448.9296</X>
+          <Y>899.99994</Y>
+          <Z>368.2189</Z>
+        </Vector3>
+        <Vector3 name="JointOffset">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <bool name="Massless">false</bool>
+        <token name="Material">256</token>
+        <string name="MaterialVariantSerialized"></string>
+        <Content name="MeshContent">
+          <uri>rbxassetid://113207538307617</uri>
+        </Content>
+        <SharedString name="PhysicalConfigData">8LLTb7gGfyD+k9BUcuguQg==</SharedString>
+        <BinaryString name="PhysicsData">
+        </BinaryString>
+        <CoordinateFrame name="PivotOffset">
+          <X>0</X>
+          <Y>100.00003</Y>
+          <Z>0.000045776367</Z>
+          <R00>1</R00>
+          <R01>-0.000000000000000000000019952025</R01>
+          <R02>-0.00000000000000024492934</R02>
+          <R10>-0.00000000000000024492934</R10>
+          <R11>-0.00000016292067</R11>
+          <R12>-1</R12>
+          <R20>-0.000000000000000000000019952028</R20>
+          <R21>1</R21>
+          <R22>-0.00000016292067</R22>
+        </CoordinateFrame>
+        <float name="Reflectance">0</float>
+        <token name="RenderFidelity">0</token>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <int name="RootPriority">0</int>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <bool name="DefinesCapabilities">false</bool>
+        <BinaryString name="SerializedOverrides">
+        </BinaryString>
+        <Vector3 name="size">
+          <X>448.9296</X>
+          <Y>899.99994</Y>
+          <Z>368.2189</Z>
+        </Vector3>
+        <int64 name="SourceAssetId">-1</int64>
+        <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+        <Content name="TextureContent">
+          <null>
+          </null>
+        </Content>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">0</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="UnscaledCofm">
+          <X>0.29074022</X>
+          <Y>111.618195</Y>
+          <Z>15.3167515</Z>
+        </Vector3>
+        <Vector3 name="UnscaledVolInertiaDiags">
+          <X>1096559700000</X>
+          <Y>356709470000</Y>
+          <Z>1242330800000</Z>
+        </Vector3>
+        <Vector3 name="UnscaledVolInertiaOffDiags">
+          <X>1084678700</X>
+          <Y>122989180</Y>
+          <Z>-39477367000</Z>
+        </Vector3>
+        <float name="UnscaledVolume">22679084</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <int name="VertexCount">15655</int>
+      </Properties>
+      <Item class="SurfaceAppearance" referent="2">
+        <Properties>
+          <string name="Name">SurfaceAppearance</string>
+          <token name="AlphaMode">0</token>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <Color3 name="Color">
+            <R>1</R>
+            <G>1</G>
+            <B>1</B>
+          </Color3>
+          <Content name="ColorMapContent">
+            <uri>rbxassetid://99813635753565</uri>
+          </Content>
+          <Content name="EmissiveMaskContent">
+            <null>
+            </null>
+          </Content>
+          <float name="EmissiveStrength">1</float>
+          <Color3 name="EmissiveTint">
+            <R>1</R>
+            <G>1</G>
+            <B>1</B>
+          </Color3>
+          <Content name="MetalnessMapContent">
+            <null>
+            </null>
+          </Content>
+          <Content name="NormalMapContent">
+            <uri>rbxassetid://137601445231651</uri>
+          </Content>
+          <token name="ResampleMode">0</token>
+          <Content name="RoughnessMapContent">
+            <null>
+            </null>
+          </Content>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <int name="SurfaceSlot">-1</int>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <ContentId name="TexturePack">
+            <url>rbxassetid://84013753562991</url>
+          </ContentId>
+        </Properties>
+      </Item>
+      <Item class="Bone" referent="3">
+        <Properties>
+          <string name="Name">Root</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <CoordinateFrame name="CFrame">
+            <X>0</X>
+            <Y>100.00003</Y>
+            <Z>0.000045776367</Z>
+            <R00>1</R00>
+            <R01>0.00000000000000012246467</R01>
+            <R02>-0.0000000000000001224647</R02>
+            <R10>-0.0000000000000001224647</R10>
+            <R11>1</R11>
+            <R12>-0.00000016292067</R12>
+            <R20>0.00000000000000012246467</R20>
+            <R21>0.00000016292067</R21>
+            <R22>1</R22>
+          </CoordinateFrame>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <bool name="Visible">false</bool>
+        </Properties>
+        <Item class="Bone" referent="4">
+          <Properties>
+            <string name="Name">Hips</string>
+            <BinaryString name="AttributesSerialize"></BinaryString>
+            <CoordinateFrame name="CFrame">
+              <X>-0.000000000000020212054</X>
+              <Y>-116.19232</Y>
+              <Z>38.744827</Z>
+              <R00>1</R00>
+              <R01>-0.00000000000000016180338</R01>
+              <R02>0.00000003166497</R02>
+              <R10>-0.00000000038335204</R10>
+              <R11>0.99992675</R11>
+              <R12>0.012106507</R12>
+              <R20>-0.00000003166265</R20>
+              <R21>-0.012106507</R21>
+              <R22>0.99992675</R22>
+            </CoordinateFrame>
+            <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+            <bool name="DefinesCapabilities">false</bool>
+            <BinaryString name="SerializedOverrides">
+            </BinaryString>
+            <int64 name="SourceAssetId">-1</int64>
+            <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+            <bool name="Visible">false</bool>
+          </Properties>
+          <Item class="Bone" referent="5">
+            <Properties>
+              <string name="Name">Spine1</string>
+              <BinaryString name="AttributesSerialize"></BinaryString>
+              <CoordinateFrame name="CFrame">
+                <X>0.0000000000005684342</X>
+                <Y>64.15918</Y>
+                <Z>0.0000076293945</Z>
+                <R00>1</R00>
+                <R01>-0.000000018926304</R01>
+                <R02>0.000000034218335</R02>
+                <R10>0.000000035625984</R10>
+                <R11>0.8017164</R11>
+                <R12>-0.5977048</R12>
+                <R20>-0.000000016121053</R20>
+                <R21>0.5977048</R21>
+                <R22>0.8017164</R22>
+              </CoordinateFrame>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="DefinesCapabilities">false</bool>
+              <BinaryString name="SerializedOverrides">
+              </BinaryString>
+              <int64 name="SourceAssetId">-1</int64>
+              <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+              <bool name="Visible">false</bool>
+            </Properties>
+            <Item class="Bone" referent="6">
+              <Properties>
+                <string name="Name">Spine2</string>
+                <BinaryString name="AttributesSerialize"></BinaryString>
+                <CoordinateFrame name="CFrame">
+                  <X>0.00000000000045474735</X>
+                  <Y>79.31146</Y>
+                  <Z>-0.000022888184</Z>
+                  <R00>1</R00>
+                  <R01>0.000000058789</R01>
+                  <R02>0.00000016898687</R02>
+                  <R10>-0.00000017636694</R10>
+                  <R11>0.16487229</R11>
+                  <R12>0.986315</R12>
+                  <R20>0.00000003012321</R20>
+                  <R21>-0.986315</R21>
+                  <R22>0.16487229</R22>
+                </CoordinateFrame>
+                <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                <bool name="DefinesCapabilities">false</bool>
+                <BinaryString name="SerializedOverrides">
+                </BinaryString>
+                <int64 name="SourceAssetId">-1</int64>
+                <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                <bool name="Visible">false</bool>
+              </Properties>
+              <Item class="Bone" referent="7">
+                <Properties>
+                  <string name="Name">Chest</string>
+                  <BinaryString name="AttributesSerialize"></BinaryString>
+                  <CoordinateFrame name="CFrame">
+                    <X>0.0000000000018189894</X>
+                    <Y>89.94387</Y>
+                    <Z>-0.000030517578</Z>
+                    <R00>1</R00>
+                    <R01>-0.0000000036874621</R01>
+                    <R02>0.000000009710487</R02>
+                    <R10>0.0000000038869246</R10>
+                    <R11>0.99978733</R11>
+                    <R12>-0.020621682</R12>
+                    <R20>-0.00000000963238</R20>
+                    <R21>0.020621682</R21>
+                    <R22>0.99978733</R22>
+                  </CoordinateFrame>
+                  <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                  <bool name="DefinesCapabilities">false</bool>
+                  <BinaryString name="SerializedOverrides">
+                  </BinaryString>
+                  <int64 name="SourceAssetId">-1</int64>
+                  <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                  <bool name="Visible">false</bool>
+                </Properties>
+                <Item class="Bone" referent="8">
+                  <Properties>
+                    <string name="Name">Neck</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>-0.0000000000018189894</X>
+                      <Y>79.54336</Y>
+                      <Z>0.0000076293945</Z>
+                      <R00>1</R00>
+                      <R01>0.000000000000017428526</R01>
+                      <R02>-0.00000012888181</R02>
+                      <R10>0.0000000000000017763568</R10>
+                      <R11>1</R11>
+                      <R12>0.00000014901158</R12>
+                      <R20>0.00000012888181</R20>
+                      <R21>-0.00000014901158</R21>
+                      <R22>1</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                  <Item class="Bone" referent="9">
+                    <Properties>
+                      <string name="Name">Head</string>
+                      <BinaryString name="AttributesSerialize"></BinaryString>
+                      <CoordinateFrame name="CFrame">
+                        <X>-0.0000000000009094947</X>
+                        <Y>119.31511</Y>
+                        <Z>0</Z>
+                        <R00>1</R00>
+                        <R01>-0.000000023901782</R01>
+                        <R02>0.00000010588808</R02>
+                        <R10>0.00000006435751</R10>
+                        <R11>0.9160758</R11>
+                        <R12>-0.40100512</R12>
+                        <R20>-0.000000087416765</R20>
+                        <R21>0.40100512</R21>
+                        <R22>0.9160758</R22>
+                      </CoordinateFrame>
+                      <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                      <bool name="DefinesCapabilities">false</bool>
+                      <BinaryString name="SerializedOverrides">
+                      </BinaryString>
+                      <int64 name="SourceAssetId">-1</int64>
+                      <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                      <bool name="Visible">false</bool>
+                    </Properties>
+                  </Item>
+                </Item>
+                <Item class="Bone" referent="10">
+                  <Properties>
+                    <string name="Name">LeftClavicle</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>-48.754566</X>
+                      <Y>24.508934</Y>
+                      <Z>23.109467</Z>
+                      <R00>0.07505317</R00>
+                      <R01>-0.90422654</R01>
+                      <R02>-0.42040634</R02>
+                      <R10>0.7255225</R10>
+                      <R11>0.33874306</R11>
+                      <R12>-0.5990578</R12>
+                      <R20>0.6840936</R20>
+                      <R21>-0.2600531</R21>
+                      <R22>0.6814605</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                  <Item class="Bone" referent="11">
+                    <Properties>
+                      <string name="Name">LeftUpperArm</string>
+                      <BinaryString name="AttributesSerialize"></BinaryString>
+                      <CoordinateFrame name="CFrame">
+                        <X>-0.000076293945</X>
+                        <Y>125.80986</Y>
+                        <Z>-0.000030517578</Z>
+                        <R00>-0.087774634</R00>
+                        <R01>-0.9959949</R01>
+                        <R02>0.017021576</R02>
+                        <R10>0.9032843</R10>
+                        <R11>-0.086785026</R11>
+                        <R12>-0.4201738</R12>
+                        <R20>0.4199682</R20>
+                        <R21>-0.021505272</R21>
+                        <R22>0.90728414</R22>
+                      </CoordinateFrame>
+                      <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                      <bool name="DefinesCapabilities">false</bool>
+                      <BinaryString name="SerializedOverrides">
+                      </BinaryString>
+                      <int64 name="SourceAssetId">-1</int64>
+                      <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                      <bool name="Visible">false</bool>
+                    </Properties>
+                    <Item class="Bone" referent="12">
+                      <Properties>
+                        <string name="Name">LeftForearm</string>
+                        <BinaryString name="AttributesSerialize"></BinaryString>
+                        <CoordinateFrame name="CFrame">
+                          <X>-0.000030517578</X>
+                          <Y>260.02454</Y>
+                          <Z>0.00004005432</Z>
+                          <R00>0.99466807</R00>
+                          <R01>0.10144207</R01>
+                          <R02>0.018571975</R02>
+                          <R10>-0.10311308</R10>
+                          <R11>0.97518635</R11>
+                          <R12>0.19590622</R12>
+                          <R20>0.0017619974</R20>
+                          <R21>-0.19677669</R21>
+                          <R22>0.98044676</R22>
+                        </CoordinateFrame>
+                        <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                        <bool name="DefinesCapabilities">false</bool>
+                        <BinaryString name="SerializedOverrides">
+                        </BinaryString>
+                        <int64 name="SourceAssetId">-1</int64>
+                        <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                        <bool name="Visible">false</bool>
+                      </Properties>
+                      <Item class="Bone" referent="13">
+                        <Properties>
+                          <string name="Name">LeftHand</string>
+                          <BinaryString name="AttributesSerialize"></BinaryString>
+                          <CoordinateFrame name="CFrame">
+                            <X>0.000061035156</X>
+                            <Y>265.37332</Y>
+                            <Z>-0.00009346008</Z>
+                            <R00>0.9999999</R00>
+                            <R01>-0.0004503712</R01>
+                            <R02>-0.00040161493</R02>
+                            <R10>0.0005935585</R10>
+                            <R11>0.854038</R11>
+                            <R12>0.5202103</R12>
+                            <R20>0.00010870664</R20>
+                            <R21>-0.52021044</R21>
+                            <R22>0.8540381</R22>
+                          </CoordinateFrame>
+                          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                          <bool name="DefinesCapabilities">false</bool>
+                          <BinaryString name="SerializedOverrides">
+                          </BinaryString>
+                          <int64 name="SourceAssetId">-1</int64>
+                          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                          <bool name="Visible">false</bool>
+                        </Properties>
+                        <Item class="Bone" referent="14">
+                          <Properties>
+                            <string name="Name">LeftFingers1</string>
+                            <BinaryString name="AttributesSerialize"></BinaryString>
+                            <CoordinateFrame name="CFrame">
+                              <X>0.000045776367</X>
+                              <Y>79.9863</Y>
+                              <Z>0</Z>
+                              <R00>0.9764462</R00>
+                              <R01>0.20895328</R01>
+                              <R02>0.053770505</R02>
+                              <R10>-0.16104248</R10>
+                              <R11>0.87167096</R11>
+                              <R12>-0.4628771</R12>
+                              <R20>-0.14358984</R20>
+                              <R21>0.44331527</R21>
+                              <R22>0.8847901</R22>
+                            </CoordinateFrame>
+                            <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                            <bool name="DefinesCapabilities">false</bool>
+                            <BinaryString name="SerializedOverrides">
+                            </BinaryString>
+                            <int64 name="SourceAssetId">-1</int64>
+                            <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                            <bool name="Visible">false</bool>
+                          </Properties>
+                          <Item class="Bone" referent="15">
+                            <Properties>
+                              <string name="Name">LeftFingers2</string>
+                              <BinaryString name="AttributesSerialize"></BinaryString>
+                              <CoordinateFrame name="CFrame">
+                                <X>-0.00010681152</X>
+                                <Y>50.634644</Y>
+                                <Z>-0.0000076293945</Z>
+                                <R00>0.7121745</R00>
+                                <R01>-0.65417385</R01>
+                                <R02>-0.25468433</R02>
+                                <R10>0.6798533</R10>
+                                <R11>0.73312753</R11>
+                                <R12>0.017988287</R12>
+                                <R20>0.17494862</R20>
+                                <R21>-0.18595879</R21>
+                                <R22>0.96685696</R22>
+                              </CoordinateFrame>
+                              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                              <bool name="DefinesCapabilities">false</bool>
+                              <BinaryString name="SerializedOverrides">
+                              </BinaryString>
+                              <int64 name="SourceAssetId">-1</int64>
+                              <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                              <bool name="Visible">false</bool>
+                            </Properties>
+                          </Item>
+                        </Item>
+                      </Item>
+                    </Item>
+                  </Item>
+                </Item>
+                <Item class="Bone" referent="16">
+                  <Properties>
+                    <string name="Name">RightClavicle</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>48.754543</X>
+                      <Y>24.508934</Y>
+                      <Z>23.109474</Z>
+                      <R00>0.07505338</R00>
+                      <R01>0.90422654</R01>
+                      <R02>0.42040616</R02>
+                      <R10>-0.72552264</R10>
+                      <R11>0.33874306</R11>
+                      <R12>-0.59905773</R12>
+                      <R20>-0.6840936</R20>
+                      <R21>-0.26005283</R21>
+                      <R22>0.6814607</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                  <Item class="Bone" referent="17">
+                    <Properties>
+                      <string name="Name">RightUpperArm</string>
+                      <BinaryString name="AttributesSerialize"></BinaryString>
+                      <CoordinateFrame name="CFrame">
+                        <X>0.0000076293945</X>
+                        <Y>125.80983</Y>
+                        <Z>0</Z>
+                        <R00>-0.08777459</R00>
+                        <R01>0.9959949</R01>
+                        <R02>-0.017021516</R02>
+                        <R10>-0.90328425</R10>
+                        <R11>-0.08678497</R11>
+                        <R12>-0.42017376</R12>
+                        <R20>-0.41996816</R20>
+                        <R21>-0.021505307</R21>
+                        <R22>0.9072841</R22>
+                      </CoordinateFrame>
+                      <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                      <bool name="DefinesCapabilities">false</bool>
+                      <BinaryString name="SerializedOverrides">
+                      </BinaryString>
+                      <int64 name="SourceAssetId">-1</int64>
+                      <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                      <bool name="Visible">false</bool>
+                    </Properties>
+                    <Item class="Bone" referent="18">
+                      <Properties>
+                        <string name="Name">RightForearm</string>
+                        <BinaryString name="AttributesSerialize"></BinaryString>
+                        <CoordinateFrame name="CFrame">
+                          <X>-0.000015258789</X>
+                          <Y>260.02463</Y>
+                          <Z>0.000024795532</Z>
+                          <R00>0.99466807</R00>
+                          <R01>-0.10144209</R01>
+                          <R02>-0.018571792</R02>
+                          <R10>0.103113055</R10>
+                          <R11>0.9751864</R11>
+                          <R12>0.1959062</R12>
+                          <R20>-0.0017621771</R20>
+                          <R21>-0.19677666</R21>
+                          <R22>0.9804468</R22>
+                        </CoordinateFrame>
+                        <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                        <bool name="DefinesCapabilities">false</bool>
+                        <BinaryString name="SerializedOverrides">
+                        </BinaryString>
+                        <int64 name="SourceAssetId">-1</int64>
+                        <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                        <bool name="Visible">false</bool>
+                      </Properties>
+                      <Item class="Bone" referent="19">
+                        <Properties>
+                          <string name="Name">RightHand</string>
+                          <BinaryString name="AttributesSerialize"></BinaryString>
+                          <CoordinateFrame name="CFrame">
+                            <X>-0.000030517578</X>
+                            <Y>265.37335</Y>
+                            <Z>-0.00004196167</Z>
+                            <R00>0.9999998</R00>
+                            <R01>0.00045033646</R01>
+                            <R02>0.0004015929</R02>
+                            <R10>-0.0005935173</R10>
+                            <R11>0.854038</R11>
+                            <R12>0.5202103</R12>
+                            <R20>-0.000108705884</R20>
+                            <R21>-0.5202105</R21>
+                            <R22>0.85403806</R22>
+                          </CoordinateFrame>
+                          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                          <bool name="DefinesCapabilities">false</bool>
+                          <BinaryString name="SerializedOverrides">
+                          </BinaryString>
+                          <int64 name="SourceAssetId">-1</int64>
+                          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                          <bool name="Visible">false</bool>
+                        </Properties>
+                        <Item class="Bone" referent="20">
+                          <Properties>
+                            <string name="Name">RightFingers1</string>
+                            <BinaryString name="AttributesSerialize"></BinaryString>
+                            <CoordinateFrame name="CFrame">
+                              <X>-0.000030517578</X>
+                              <Y>79.98633</Y>
+                              <Z>-0.000045776367</Z>
+                              <R00>0.9764462</R00>
+                              <R01>-0.20895328</R01>
+                              <R02>-0.053770468</R02>
+                              <R10>0.1610425</R10>
+                              <R11>0.8716709</R11>
+                              <R12>-0.46287718</R12>
+                              <R20>0.14358982</R20>
+                              <R21>0.44331536</R21>
+                              <R22>0.88479006</R22>
+                            </CoordinateFrame>
+                            <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                            <bool name="DefinesCapabilities">false</bool>
+                            <BinaryString name="SerializedOverrides">
+                            </BinaryString>
+                            <int64 name="SourceAssetId">-1</int64>
+                            <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                            <bool name="Visible">false</bool>
+                          </Properties>
+                          <Item class="Bone" referent="21">
+                            <Properties>
+                              <string name="Name">RightFingers2</string>
+                              <BinaryString name="AttributesSerialize"></BinaryString>
+                              <CoordinateFrame name="CFrame">
+                                <X>-0.000015258789</X>
+                                <Y>50.634583</Y>
+                                <Z>-0.0000076293945</Z>
+                                <R00>0.7121743</R00>
+                                <R01>0.6541741</R01>
+                                <R02>0.25468427</R02>
+                                <R10>-0.6798536</R10>
+                                <R11>0.7331273</R11>
+                                <R12>0.017988361</R12>
+                                <R20>-0.17494847</R20>
+                                <R21>-0.18595885</R21>
+                                <R22>0.966857</R22>
+                              </CoordinateFrame>
+                              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                              <bool name="DefinesCapabilities">false</bool>
+                              <BinaryString name="SerializedOverrides">
+                              </BinaryString>
+                              <int64 name="SourceAssetId">-1</int64>
+                              <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                              <bool name="Visible">false</bool>
+                            </Properties>
+                          </Item>
+                        </Item>
+                      </Item>
+                    </Item>
+                  </Item>
+                </Item>
+                <Item class="Bone" referent="22">
+                  <Properties>
+                    <string name="Name">PlateLeft</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>-112.94466</X>
+                      <Y>125.19216</Y>
+                      <Z>90.849655</Z>
+                      <R00>0.57346183</R00>
+                      <R01>-0.8084525</R01>
+                      <R02>0.13246194</R02>
+                      <R10>0.59605265</R10>
+                      <R11>0.30082196</R11>
+                      <R12>-0.7444646</R12>
+                      <R20>0.5620167</R20>
+                      <R21>0.5058763</R21>
+                      <R22>0.65439016</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                </Item>
+                <Item class="Bone" referent="23">
+                  <Properties>
+                    <string name="Name">PlateRight</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>114.07037</X>
+                      <Y>118.94378</Y>
+                      <Z>87.22174</Z>
+                      <R00>0.57346225</R00>
+                      <R01>0.8084522</R01>
+                      <R02>-0.13246205</R02>
+                      <R10>-0.5960526</R10>
+                      <R11>0.30082217</R11>
+                      <R12>-0.74446464</R12>
+                      <R20>-0.5620165</R20>
+                      <R21>0.50587666</R21>
+                      <R22>0.65439016</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                </Item>
+                <Item class="Bone" referent="24">
+                  <Properties>
+                    <string name="Name">PlateBack</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>3.8119476</X>
+                      <Y>86.93364</Y>
+                      <Z>177.6069</Z>
+                      <R00>1</R00>
+                      <R01>-0.00000018626457</R01>
+                      <R02>0.000000040322995</R02>
+                      <R10>-0.00000000045816928</R10>
+                      <R11>-0.21393034</R11>
+                      <R12>-0.97684896</R12>
+                      <R20>0.00000019057866</R20>
+                      <R21>0.97684896</R21>
+                      <R22>-0.21393034</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                </Item>
+              </Item>
+            </Item>
+          </Item>
+          <Item class="Bone" referent="25">
+            <Properties>
+              <string name="Name">LeftThigh</string>
+              <BinaryString name="AttributesSerialize"></BinaryString>
+              <CoordinateFrame name="CFrame">
+                <X>-121.26938</X>
+                <Y>-25.684914</Y>
+                <Z>-0.31098557</Z>
+                <R00>-0.99912673</R00>
+                <R01>0.04175463</R01>
+                <R02>-0.001578405</R02>
+                <R10>-0.041781403</R10>
+                <R11>-0.998797</R11>
+                <R12>0.02566982</R12>
+                <R20>-0.00050467235</R20>
+                <R21>0.025713347</R21>
+                <R22>0.9996694</R22>
+              </CoordinateFrame>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="DefinesCapabilities">false</bool>
+              <BinaryString name="SerializedOverrides">
+              </BinaryString>
+              <int64 name="SourceAssetId">-1</int64>
+              <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+              <bool name="Visible">false</bool>
+            </Properties>
+            <Item class="Bone" referent="26">
+              <Properties>
+                <string name="Name">LeftShin</string>
+                <BinaryString name="AttributesSerialize"></BinaryString>
+                <CoordinateFrame name="CFrame">
+                  <X>-0.000038146973</X>
+                  <Y>181.00255</Y>
+                  <Z>-0.000011444092</Z>
+                  <R00>0.997461</R00>
+                  <R01>0.0692528</R01>
+                  <R02>-0.016600188</R02>
+                  <R10>-0.07116368</R10>
+                  <R11>0.9781016</R11>
+                  <R12>-0.19558421</R12>
+                  <R20>0.0026919155</R20>
+                  <R21>0.19626896</R21>
+                  <R22>0.98054653</R22>
+                </CoordinateFrame>
+                <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                <bool name="DefinesCapabilities">false</bool>
+                <BinaryString name="SerializedOverrides">
+                </BinaryString>
+                <int64 name="SourceAssetId">-1</int64>
+                <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                <bool name="Visible">false</bool>
+              </Properties>
+              <Item class="Bone" referent="27">
+                <Properties>
+                  <string name="Name">LeftFoot</string>
+                  <BinaryString name="AttributesSerialize"></BinaryString>
+                  <CoordinateFrame name="CFrame">
+                    <X>0.000061035156</X>
+                    <Y>185.91544</Y>
+                    <Z>0.0000076293945</Z>
+                    <R00>0.99778336</R00>
+                    <R01>-0.044041466</R01>
+                    <R02>-0.049887788</R02>
+                    <R10>0.06471334</R10>
+                    <R11>0.4674076</R11>
+                    <R12>0.88167024</R12>
+                    <R20>-0.015512117</R20>
+                    <R21>-0.8829442</R21>
+                    <R22>0.4692216</R22>
+                  </CoordinateFrame>
+                  <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                  <bool name="DefinesCapabilities">false</bool>
+                  <BinaryString name="SerializedOverrides">
+                  </BinaryString>
+                  <int64 name="SourceAssetId">-1</int64>
+                  <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                  <bool name="Visible">false</bool>
+                </Properties>
+                <Item class="Bone" referent="28">
+                  <Properties>
+                    <string name="Name">LeftToe</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>-0.000030517578</X>
+                      <Y>47.12152</Y>
+                      <Z>-0.000030517578</Z>
+                      <R00>0.9987754</R00>
+                      <R01>-0.020336095</R01>
+                      <R02>0.045101386</R02>
+                      <R10>-0.000000013038516</R10>
+                      <R11>0.9116151</R11>
+                      <R12>0.4110451</R12>
+                      <R20>-0.04947415</R20>
+                      <R21>-0.41054174</R21>
+                      <R22>0.91049874</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                </Item>
+              </Item>
+            </Item>
+          </Item>
+          <Item class="Bone" referent="29">
+            <Properties>
+              <string name="Name">RightThigh</string>
+              <BinaryString name="AttributesSerialize"></BinaryString>
+              <CoordinateFrame name="CFrame">
+                <X>121.26936</X>
+                <Y>-25.684914</Y>
+                <Z>-0.31097412</Z>
+                <R00>-0.9991267</R00>
+                <R01>-0.041754622</R01>
+                <R02>0.0015782854</R02>
+                <R10>0.041781392</R10>
+                <R11>-0.99879706</R11>
+                <R12>0.025669826</R12>
+                <R20>0.0005045528</R20>
+                <R21>0.025713349</R21>
+                <R22>0.9996694</R22>
+              </CoordinateFrame>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="DefinesCapabilities">false</bool>
+              <BinaryString name="SerializedOverrides">
+              </BinaryString>
+              <int64 name="SourceAssetId">-1</int64>
+              <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+              <bool name="Visible">false</bool>
+            </Properties>
+            <Item class="Bone" referent="30">
+              <Properties>
+                <string name="Name">RightShin</string>
+                <BinaryString name="AttributesSerialize"></BinaryString>
+                <CoordinateFrame name="CFrame">
+                  <X>-0.0000076293945</X>
+                  <Y>181.00253</Y>
+                  <Z>-0.000015258789</Z>
+                  <R00>0.9974611</R00>
+                  <R01>-0.06925278</R01>
+                  <R02>0.01660025</R02>
+                  <R10>0.07116368</R10>
+                  <R11>0.97810155</R11>
+                  <R12>-0.19558421</R12>
+                  <R20>-0.002691979</R20>
+                  <R21>0.19626895</R21>
+                  <R22>0.98054653</R22>
+                </CoordinateFrame>
+                <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                <bool name="DefinesCapabilities">false</bool>
+                <BinaryString name="SerializedOverrides">
+                </BinaryString>
+                <int64 name="SourceAssetId">-1</int64>
+                <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                <bool name="Visible">false</bool>
+              </Properties>
+              <Item class="Bone" referent="31">
+                <Properties>
+                  <string name="Name">RightFoot</string>
+                  <BinaryString name="AttributesSerialize"></BinaryString>
+                  <CoordinateFrame name="CFrame">
+                    <X>-0.000030517578</X>
+                    <Y>185.91544</Y>
+                    <Z>0.000038146973</Z>
+                    <R00>0.99778336</R00>
+                    <R01>0.04404147</R01>
+                    <R02>0.049887776</R02>
+                    <R10>-0.06471333</R10>
+                    <R11>0.46740764</R11>
+                    <R12>0.88167024</R12>
+                    <R20>0.015512124</R20>
+                    <R21>-0.8829442</R21>
+                    <R22>0.46922162</R22>
+                  </CoordinateFrame>
+                  <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                  <bool name="DefinesCapabilities">false</bool>
+                  <BinaryString name="SerializedOverrides">
+                  </BinaryString>
+                  <int64 name="SourceAssetId">-1</int64>
+                  <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                  <bool name="Visible">false</bool>
+                </Properties>
+                <Item class="Bone" referent="32">
+                  <Properties>
+                    <string name="Name">RightToe</string>
+                    <BinaryString name="AttributesSerialize"></BinaryString>
+                    <CoordinateFrame name="CFrame">
+                      <X>0.000030517578</X>
+                      <Y>47.121643</Y>
+                      <Z>0</Z>
+                      <R00>0.9987754</R00>
+                      <R01>0.020336093</R01>
+                      <R02>-0.045101386</R02>
+                      <R10>0.000000018626451</R10>
+                      <R11>0.911615</R11>
+                      <R12>0.4110452</R12>
+                      <R20>0.04947415</R20>
+                      <R21>-0.41054183</R21>
+                      <R22>0.9104987</R22>
+                    </CoordinateFrame>
+                    <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+                    <bool name="DefinesCapabilities">false</bool>
+                    <BinaryString name="SerializedOverrides">
+                    </BinaryString>
+                    <int64 name="SourceAssetId">-1</int64>
+                    <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+                    <bool name="Visible">false</bool>
+                  </Properties>
+                </Item>
+              </Item>
+            </Item>
+          </Item>
+        </Item>
+      </Item>
+    </Item>
+    <Item class="Folder" referent="33">
+      <Properties>
+        <string name="Name">InitialPoses</string>
+        <BinaryString name="AttributesSerialize"></BinaryString>
+        <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+        <Color3 name="IconTint">
+          <R>0</R>
+          <G>0</G>
+          <B>0</B>
+        </Color3>
+        <bool name="DefinesCapabilities">false</bool>
+        <BinaryString name="SerializedOverrides">
+        </BinaryString>
+        <int64 name="SourceAssetId">-1</int64>
+        <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+      </Properties>
+      <Item class="CFrameValue" referent="34">
+        <Properties>
+          <string name="Name">ElColosoBody_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>1</R00>
+            <R01>-0.000000000000000000000019952025</R01>
+            <R02>-0.00000000000000024492934</R02>
+            <R10>-0.00000000000000024492934</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>-1</R12>
+            <R20>-0.000000000000000000000019952028</R20>
+            <R21>1</R21>
+            <R22>-0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="35">
+        <Properties>
+          <string name="Name">ElColosoBody_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>-1</R00>
+            <R01>-0.00000000000000012246466</R01>
+            <R02>0.00000000000000024492937</R02>
+            <R10>-0.00000000000000024492934</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>-1</R12>
+            <R20>0.00000000000000012246471</R20>
+            <R21>-1</R21>
+            <R22>0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="36">
+        <Properties>
+          <string name="Name">ElColosoBody_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>-1</R00>
+            <R01>-0.00000000000000012246466</R01>
+            <R02>0.00000000000000024492937</R02>
+            <R10>-0.00000000000000024492934</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>-1</R12>
+            <R20>0.00000000000000012246471</R20>
+            <R21>-1</R21>
+            <R22>0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="37">
+        <Properties>
+          <string name="Name">ElColosoRig_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>1</R00>
+            <R01>-0.000000000000000000000019952025</R01>
+            <R02>-0.00000000000000024492934</R02>
+            <R10>-0.00000000000000024492934</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>-1</R12>
+            <R20>-0.000000000000000000000019952028</R20>
+            <R21>1</R21>
+            <R22>-0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="38">
+        <Properties>
+          <string name="Name">ElColosoRig_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>-1</R00>
+            <R01>-0.00000000000000012246466</R01>
+            <R02>0.00000000000000024492937</R02>
+            <R10>-0.00000000000000024492934</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>-1</R12>
+            <R20>0.00000000000000012246471</R20>
+            <R21>-1</R21>
+            <R22>0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="39">
+        <Properties>
+          <string name="Name">ElColosoRig_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>-1</R00>
+            <R01>-0.00000000000000012246466</R01>
+            <R02>0.00000000000000024492937</R02>
+            <R10>-0.00000000000000024492934</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>-1</R12>
+            <R20>0.00000000000000012246471</R20>
+            <R21>-1</R21>
+            <R22>0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="40">
+        <Properties>
+          <string name="Name">Root_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>1</R00>
+            <R01>0.00000000000000012246467</R01>
+            <R02>-0.00000000000000012246467</R02>
+            <R10>-0.00000000000000012246467</R10>
+            <R11>1</R11>
+            <R12>-0.00000000000000012246471</R12>
+            <R20>0.00000000000000012246467</R20>
+            <R21>0.00000000000000012246471</R21>
+            <R22>1</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="41">
+        <Properties>
+          <string name="Name">Root_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>1</R00>
+            <R01>-0.00000000000000012246467</R01>
+            <R02>-0.0000000000000001224647</R02>
+            <R10>0.00000000000000012246467</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>1</R12>
+            <R20>-0.0000000000000001224647</R20>
+            <R21>-1</R21>
+            <R22>-0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="42">
+        <Properties>
+          <string name="Name">Root_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+            <R00>1</R00>
+            <R01>-0.00000000000000012246467</R01>
+            <R02>-0.0000000000000001224647</R02>
+            <R10>0.00000000000000012246467</R10>
+            <R11>-0.00000016292067</R11>
+            <R12>1</R12>
+            <R20>-0.0000000000000001224647</R20>
+            <R21>-1</R21>
+            <R22>-0.00000016292067</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="43">
+        <Properties>
+          <string name="Name">Hips_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000000000000039186383</X>
+            <Y>-116.19233</Y>
+            <Z>38.74481</Z>
+            <R00>1</R00>
+            <R01>-0.000000000000000037865063</R01>
+            <R02>0.000000031664975</R02>
+            <R10>-0.000000000383347</R10>
+            <R11>0.99992675</R11>
+            <R12>0.012106345</R12>
+            <R20>-0.00000003166265</R20>
+            <R21>-0.012106344</R21>
+            <R22>0.9999268</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="44">
+        <Properties>
+          <string name="Name">Hips_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000000000000020212054</X>
+            <Y>-116.19232</Y>
+            <Z>38.744827</Z>
+            <R00>1</R00>
+            <R01>-0.00000000000000016180338</R01>
+            <R02>0.000000031664975</R02>
+            <R10>-0.00000000038335204</R10>
+            <R11>0.99992675</R11>
+            <R12>0.012106508</R12>
+            <R20>-0.00000003166265</R20>
+            <R21>-0.012106507</R21>
+            <R22>0.9999268</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="45">
+        <Properties>
+          <string name="Name">Hips_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000000000000020212054</X>
+            <Y>-116.19232</Y>
+            <Z>38.744827</Z>
+            <R00>1</R00>
+            <R01>-0.00000000000000016180338</R01>
+            <R02>0.000000031664975</R02>
+            <R10>-0.00000000038335204</R10>
+            <R11>0.99992675</R11>
+            <R12>0.012106508</R12>
+            <R20>-0.00000003166265</R20>
+            <R21>-0.012106507</R21>
+            <R22>0.9999268</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="46">
+        <Properties>
+          <string name="Name">Spine1_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.0000000000006284787</X>
+            <Y>-52.03784</Y>
+            <Z>37.968082</Z>
+            <R00>1</R00>
+            <R01>0.0000000000000035479843</R01>
+            <R02>0.00000005960466</R02>
+            <R10>0.00000003504486</R10>
+            <R11>0.8088936</R11>
+            <R12>-0.5879552</R12>
+            <R20>-0.00000004821382</R20>
+            <R21>0.5879552</R21>
+            <R22>0.8088936</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="47">
+        <Properties>
+          <string name="Name">Spine1_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.0000000000005684342</X>
+            <Y>64.15918</Y>
+            <Z>0.0000038146973</Z>
+            <R00>1</R00>
+            <R01>-0.000000018926302</R01>
+            <R02>0.00000003421833</R02>
+            <R10>0.000000035625984</R10>
+            <R11>0.8017164</R11>
+            <R12>-0.5977048</R12>
+            <R20>-0.000000016121053</R20>
+            <R21>0.5977049</R21>
+            <R22>0.80171645</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="48">
+        <Properties>
+          <string name="Name">Spine1_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.0000000000005684342</X>
+            <Y>64.15918</Y>
+            <Z>0.0000038146973</Z>
+            <R00>1</R00>
+            <R01>-0.000000018926302</R01>
+            <R02>0.00000003421833</R02>
+            <R10>0.000000035625984</R10>
+            <R11>0.8017164</R11>
+            <R12>-0.5977048</R12>
+            <R20>-0.000000016121053</R20>
+            <R21>0.5977049</R21>
+            <R22>0.80171645</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="49">
+        <Properties>
+          <string name="Name">Spine2_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.00000000000006204774</X>
+            <Y>12.116692</Y>
+            <Z>84.59964</Z>
+            <R00>1</R00>
+            <R01>0.00000000000003050151</R01>
+            <R02>0.00000017881399</R02>
+            <R10>-0.00000012532828</R10>
+            <R11>0.71327305</R11>
+            <R12>0.7008863</R12>
+            <R20>-0.00000012754317</R20>
+            <R21>-0.7008863</R21>
+            <R22>0.713273</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="50">
+        <Properties>
+          <string name="Name">Spine2_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.00000000000045474735</X>
+            <Y>79.311455</Y>
+            <Z>-0.00002670288</Z>
+            <R00>1</R00>
+            <R01>0.00000005878899</R01>
+            <R02>0.00000016898684</R02>
+            <R10>-0.00000017636692</R10>
+            <R11>0.16487226</R11>
+            <R12>0.986315</R12>
+            <R20>0.000000030123218</R20>
+            <R21>-0.986315</R21>
+            <R22>0.16487226</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="51">
+        <Properties>
+          <string name="Name">Spine2_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.00000000000045474735</X>
+            <Y>79.311455</Y>
+            <Z>-0.00002670288</Z>
+            <R00>1</R00>
+            <R01>0.00000005878899</R01>
+            <R02>0.00000016898684</R02>
+            <R10>-0.00000017636692</R10>
+            <R11>0.16487226</R11>
+            <R12>0.986315</R12>
+            <R20>0.000000030123218</R20>
+            <R21>-0.986315</R21>
+            <R22>0.16487226</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="52">
+        <Properties>
+          <string name="Name">Chest_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.0000000000013290795</X>
+            <Y>76.27121</Y>
+            <Z>21.559216</Z>
+            <R00>1</R00>
+            <R01>0.000000000000015702681</R01>
+            <R02>0.00000018848647</R02>
+            <R10>-0.00000012930707</R10>
+            <R11>0.72757477</R11>
+            <R12>0.68602836</R12>
+            <R20>-0.00000013713799</R20>
+            <R21>-0.68602836</R21>
+            <R22>0.72757477</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="53">
+        <Properties>
+          <string name="Name">Chest_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.0000000000009094947</X>
+            <Y>89.94386</Y>
+            <Z>-0.0000076293945</Z>
+            <R00>1</R00>
+            <R01>-0.0000000036874468</R01>
+            <R02>0.000000009710519</R02>
+            <R10>0.0000000038869175</R10>
+            <R11>0.99978733</R11>
+            <R12>-0.020621628</R12>
+            <R20>-0.000000009632387</R20>
+            <R21>0.020621687</R21>
+            <R22>0.99978733</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="54">
+        <Properties>
+          <string name="Name">Chest_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.0000000000009094947</X>
+            <Y>89.94386</Y>
+            <Z>-0.0000076293945</Z>
+            <R00>1</R00>
+            <R01>-0.0000000036874468</R01>
+            <R02>0.000000009710519</R02>
+            <R10>0.0000000038869175</R10>
+            <R11>0.99978733</R11>
+            <R12>-0.020621628</R12>
+            <R20>-0.000000009632387</R20>
+            <R21>0.020621687</R21>
+            <R22>0.99978733</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="55">
+        <Properties>
+          <string name="Name">Neck_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.0000000000005206143</X>
+            <Y>134.14497</Y>
+            <Z>-33.0098</Z>
+            <R00>1</R00>
+            <R01>0.0000000000000010948304</R01>
+            <R02>0.00000005960468</R02>
+            <R10>-0.000000040890505</R10>
+            <R11>0.7275747</R11>
+            <R12>0.6860285</R12>
+            <R20>-0.000000043366853</R20>
+            <R21>-0.6860285</R21>
+            <R22>0.72757477</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="56">
+        <Properties>
+          <string name="Name">Neck_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000000000003637979</X>
+            <Y>79.54338</Y>
+            <Z>0.0000076293945</Z>
+            <R00>1</R00>
+            <R01>0.000000000000014210855</R01>
+            <R02>-0.0000001288818</R02>
+            <R10>0.0000000000000071054274</R10>
+            <R11>1</R11>
+            <R12>0.00000008940697</R12>
+            <R20>0.0000001288818</R20>
+            <R21>-0.00000011920929</R21>
+            <R22>1</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="57">
+        <Properties>
+          <string name="Name">Neck_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000000000003637979</X>
+            <Y>79.54338</Y>
+            <Z>0.0000076293945</Z>
+            <R00>1</R00>
+            <R01>0.000000000000014210855</R01>
+            <R02>-0.0000001288818</R02>
+            <R10>0.0000000000000071054274</R10>
+            <R11>1</R11>
+            <R12>0.00000008940697</R12>
+            <R20>0.0000001288818</R20>
+            <R21>-0.00000011920929</R21>
+            <R22>1</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="58">
+        <Properties>
+          <string name="Name">Head_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.00000000000056218257</X>
+            <Y>220.95563</Y>
+            <Z>-114.863365</Z>
+            <R00>1</R00>
+            <R01>-0.0000000000000011922678</R01>
+            <R02>0.00000016049046</R02>
+            <R10>-0.000000054036</R10>
+            <R11>0.9416145</R11>
+            <R12>0.3366929</R12>
+            <R20>-0.00000015112015</R20>
+            <R21>-0.3366929</R21>
+            <R22>0.9416145</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="59">
+        <Properties>
+          <string name="Name">Head_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.00000000000045474735</X>
+            <Y>119.3151</Y>
+            <Z>-0.000015258789</Z>
+            <R00>1</R00>
+            <R01>-0.00000002390178</R01>
+            <R02>0.00000010588805</R02>
+            <R10>0.000000064357494</R10>
+            <R11>0.9160758</R11>
+            <R12>-0.40100515</R12>
+            <R20>-0.000000087416765</R20>
+            <R21>0.40100515</R21>
+            <R22>0.9160759</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="60">
+        <Properties>
+          <string name="Name">Head_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.00000000000045474735</X>
+            <Y>119.3151</Y>
+            <Z>-0.000015258789</Z>
+            <R00>1</R00>
+            <R01>-0.00000002390178</R01>
+            <R02>0.00000010588805</R02>
+            <R10>0.000000064357494</R10>
+            <R11>0.9160758</R11>
+            <R12>-0.40100515</R12>
+            <R20>-0.000000087416765</R20>
+            <R21>0.40100515</R21>
+            <R22>0.9160759</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="61">
+        <Properties>
+          <string name="Name">LeftClavicle_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-48.75456</X>
+            <Y>109.95706</Y>
+            <Z>21.55923</Z>
+            <R00>0.07505331</R00>
+            <R01>-0.9042266</R01>
+            <R02>-0.42040613</R02>
+            <R10>0.99717957</R10>
+            <R11>0.068057254</R11>
+            <R12>0.031641897</R12>
+            <R20>0.0000002412594</R20>
+            <R21>-0.42159522</R21>
+            <R22>0.9067842</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="62">
+        <Properties>
+          <string name="Name">LeftClavicle_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-48.754566</X>
+            <Y>24.508965</Y>
+            <Z>23.109451</Z>
+            <R00>0.075053185</R00>
+            <R01>-0.90422654</R01>
+            <R02>-0.42040625</R02>
+            <R10>0.7255225</R10>
+            <R11>0.338743</R11>
+            <R12>-0.59905785</R12>
+            <R20>0.68409365</R20>
+            <R21>-0.260053</R21>
+            <R22>0.68146044</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="63">
+        <Properties>
+          <string name="Name">LeftClavicle_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-48.754566</X>
+            <Y>24.508965</Y>
+            <Z>23.109451</Z>
+            <R00>0.075053185</R00>
+            <R01>-0.90422654</R01>
+            <R02>-0.42040625</R02>
+            <R10>0.7255225</R10>
+            <R11>0.338743</R11>
+            <R12>-0.59905785</R12>
+            <R20>0.68409365</R20>
+            <R21>-0.260053</R21>
+            <R22>0.68146044</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="64">
+        <Properties>
+          <string name="Name">LeftUpperArm_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-162.51515</X>
+            <Y>118.51929</Y>
+            <Z>-31.481611</Z>
+            <R00>-0.9999186</R00>
+            <R01>0.012761578</R01>
+            <R02>-0.00021801332</R02>
+            <R10>-0.012763441</R10>
+            <R11>-0.99977255</R11>
+            <R12>0.017085912</R12>
+            <R20>0.00000007946437</R20>
+            <R21>0.017087303</R21>
+            <R22>0.999854</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="65">
+        <Properties>
+          <string name="Name">LeftUpperArm_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000045776367</X>
+            <Y>125.809845</Y>
+            <Z>-0.000022888184</Z>
+            <R00>-0.08777464</R00>
+            <R01>-0.995995</R01>
+            <R02>0.0170216</R02>
+            <R10>0.9032843</R10>
+            <R11>-0.08678505</R11>
+            <R12>-0.42017373</R12>
+            <R20>0.4199681</R20>
+            <R21>-0.021505252</R21>
+            <R22>0.9072841</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="66">
+        <Properties>
+          <string name="Name">LeftUpperArm_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000045776367</X>
+            <Y>125.809845</Y>
+            <Z>-0.000022888184</Z>
+            <R00>-0.08777464</R00>
+            <R01>-0.995995</R01>
+            <R02>0.0170216</R02>
+            <R10>0.9032843</R10>
+            <R11>-0.08678505</R11>
+            <R12>-0.42017373</R12>
+            <R20>0.4199681</R20>
+            <R21>-0.021505252</R21>
+            <R22>0.9072841</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="67">
+        <Properties>
+          <string name="Name">LeftForearm_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-159.19682</X>
+            <Y>-141.44606</Y>
+            <Z>-27.038496</Z>
+            <R00>-0.9959033</R00>
+            <R01>-0.088946</R01>
+            <R02>-0.016284158</R02>
+            <R10>0.09042435</R10>
+            <R11>-0.9796215</R11>
+            <R12>-0.17934687</R12>
+            <R20>-0.00000012577843</R20>
+            <R21>-0.18008465</R21>
+            <R22>0.9836511</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="68">
+        <Properties>
+          <string name="Name">LeftForearm_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>260.02448</Y>
+            <Z>-0.0000019073486</Z>
+            <R00>0.9946681</R00>
+            <R01>0.10144208</R01>
+            <R02>0.018571993</R02>
+            <R10>-0.103113085</R10>
+            <R11>0.97518647</R11>
+            <R12>0.1959062</R12>
+            <R20>0.0017619769</R20>
+            <R21>-0.19677669</R21>
+            <R22>0.98044676</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="69">
+        <Properties>
+          <string name="Name">LeftForearm_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>260.02448</Y>
+            <Z>-0.0000019073486</Z>
+            <R00>0.9946681</R00>
+            <R01>0.10144208</R01>
+            <R02>0.018571993</R02>
+            <R10>-0.103113085</R10>
+            <R11>0.97518647</R11>
+            <R12>0.1959062</R12>
+            <R20>0.0017619769</R20>
+            <R21>-0.19677669</R21>
+            <R22>0.98044676</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="70">
+        <Properties>
+          <string name="Name">LeftHand_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-182.80075</X>
+            <Y>-401.41147</Y>
+            <Z>-74.82823</Z>
+            <R00>-0.9959578</R00>
+            <R01>-0.06704355</R01>
+            <R02>-0.059777945</R02>
+            <R10>0.08982339</R10>
+            <R11>-0.7433766</R11>
+            <R12>-0.6628145</R12>
+            <R20>-0.00000008625439</R20>
+            <R21>-0.6655047</R21>
+            <R22>0.74639374</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="71">
+        <Properties>
+          <string name="Name">LeftHand_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000045776367</X>
+            <Y>265.37338</Y>
+            <Z>-0.000078201294</Z>
+            <R00>0.9999999</R00>
+            <R01>-0.00045037095</R01>
+            <R02>-0.00040161313</R02>
+            <R10>0.0005935586</R10>
+            <R11>0.8540382</R11>
+            <R12>0.5202104</R12>
+            <R20>0.00010870667</R20>
+            <R21>-0.5202104</R21>
+            <R22>0.8540381</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="72">
+        <Properties>
+          <string name="Name">LeftHand_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000045776367</X>
+            <Y>265.37338</Y>
+            <Z>-0.000078201294</Z>
+            <R00>0.9999999</R00>
+            <R01>-0.00045037095</R01>
+            <R02>-0.00040161313</R02>
+            <R10>0.0005935586</R10>
+            <R11>0.8540382</R11>
+            <R12>0.5202104</R12>
+            <R20>0.00010870667</R20>
+            <R21>-0.5202104</R21>
+            <R22>0.8540381</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="73">
+        <Properties>
+          <string name="Name">LeftFingers1_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-188.16338</X>
+            <Y>-460.87152</Y>
+            <Z>-128.05951</Z>
+            <R00>-0.95311886</R00>
+            <R01>-0.29304898</R01>
+            <R02>-0.07541115</R02>
+            <R10>0.30259636</R10>
+            <R11>-0.9230466</R11>
+            <R12>-0.23752995</R12>
+            <R20>-0.00000008944015</R20>
+            <R21>-0.2492134</R21>
+            <R22>0.96844864</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="74">
+        <Properties>
+          <string name="Name">LeftFingers1_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000061035156</X>
+            <Y>79.98642</Y>
+            <Z>0.000030517578</Z>
+            <R00>0.9764464</R00>
+            <R01>0.20895328</R01>
+            <R02>0.053770497</R02>
+            <R10>-0.16104253</R10>
+            <R11>0.87167096</R11>
+            <R12>-0.46287706</R12>
+            <R20>-0.14358982</R20>
+            <R21>0.4433152</R21>
+            <R22>0.88479024</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="75">
+        <Properties>
+          <string name="Name">LeftFingers1_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000061035156</X>
+            <Y>79.98642</Y>
+            <Z>0.000030517578</Z>
+            <R00>0.9764464</R00>
+            <R01>0.20895328</R01>
+            <R02>0.053770497</R02>
+            <R10>-0.16104253</R10>
+            <R11>0.87167096</R11>
+            <R12>-0.46287706</R12>
+            <R20>-0.14358982</R20>
+            <R21>0.4433152</R21>
+            <R22>0.88479024</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="76">
+        <Properties>
+          <string name="Name">LeftFingers2_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-203.00171</X>
+            <Y>-507.60968</Y>
+            <Z>-140.67839</Z>
+            <R00>-0.8912103</R00>
+            <R01>0.42268655</R01>
+            <R02>0.16456114</R02>
+            <R10>-0.45359042</R10>
+            <R11>-0.8304907</R11>
+            <R12>-0.323328</R12>
+            <R20>0.00000010078114</R20>
+            <R21>-0.3627966</R21>
+            <R22>0.9318684</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="77">
+        <Properties>
+          <string name="Name">LeftFingers2_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.00010681152</X>
+            <Y>50.634705</Y>
+            <Z>-0.000045776367</Z>
+            <R00>0.71217453</R00>
+            <R01>-0.6541739</R01>
+            <R02>-0.2546843</R02>
+            <R10>0.6798533</R10>
+            <R11>0.7331275</R11>
+            <R12>0.017988235</R12>
+            <R20>0.17494862</R20>
+            <R21>-0.18595876</R21>
+            <R22>0.96685696</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="78">
+        <Properties>
+          <string name="Name">LeftFingers2_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.00010681152</X>
+            <Y>50.634705</Y>
+            <Z>-0.000045776367</Z>
+            <R00>0.71217453</R00>
+            <R01>-0.6541739</R01>
+            <R02>-0.2546843</R02>
+            <R10>0.6798533</R10>
+            <R11>0.7331275</R11>
+            <R12>0.017988235</R12>
+            <R20>0.17494862</R20>
+            <R21>-0.18595876</R21>
+            <R22>0.96685696</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="79">
+        <Properties>
+          <string name="Name">RightClavicle_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>48.75455</X>
+            <Y>109.95706</Y>
+            <Z>21.559225</Z>
+            <R00>0.07505327</R00>
+            <R01>0.9042266</R01>
+            <R02>0.42040622</R02>
+            <R10>-0.9971796</R10>
+            <R11>0.06805719</R11>
+            <R12>0.03164194</R12>
+            <R20>-0.00000017836567</R20>
+            <R21>-0.4215953</R21>
+            <R22>0.9067841</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="80">
+        <Properties>
+          <string name="Name">RightClavicle_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>48.754543</X>
+            <Y>24.508972</Y>
+            <Z>23.109467</Z>
+            <R00>0.075053394</R00>
+            <R01>0.90422666</R01>
+            <R02>0.4204061</R02>
+            <R10>-0.72552264</R10>
+            <R11>0.33874303</R11>
+            <R12>-0.59905773</R12>
+            <R20>-0.68409365</R20>
+            <R21>-0.26005277</R21>
+            <R22>0.6814606</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="81">
+        <Properties>
+          <string name="Name">RightClavicle_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>48.754543</X>
+            <Y>24.508972</Y>
+            <Z>23.109467</Z>
+            <R00>0.075053394</R00>
+            <R01>0.90422666</R01>
+            <R02>0.4204061</R02>
+            <R10>-0.72552264</R10>
+            <R11>0.33874303</R11>
+            <R12>-0.59905773</R12>
+            <R20>-0.68409365</R20>
+            <R21>-0.26005277</R21>
+            <R22>0.6814606</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="82">
+        <Properties>
+          <string name="Name">RightUpperArm_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>162.51514</X>
+            <Y>118.51933</Y>
+            <Z>-31.481607</Z>
+            <R00>-0.9999186</R00>
+            <R01>-0.012761582</R01>
+            <R02>0.00021812467</R02>
+            <R10>0.012763446</R10>
+            <R11>-0.99977255</R11>
+            <R12>0.017085906</R12>
+            <R20>0.000000031873988</R20>
+            <R21>0.017087298</R21>
+            <R22>0.999854</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="83">
+        <Properties>
+          <string name="Name">RightUpperArm_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.0000076293945</X>
+            <Y>125.80983</Y>
+            <Z>0</Z>
+            <R00>-0.087774605</R00>
+            <R01>0.99599504</R01>
+            <R02>-0.017021526</R02>
+            <R10>-0.9032844</R10>
+            <R11>-0.08678499</R11>
+            <R12>-0.4201737</R12>
+            <R20>-0.4199681</R20>
+            <R21>-0.021505302</R21>
+            <R22>0.9072841</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="84">
+        <Properties>
+          <string name="Name">RightUpperArm_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.0000076293945</X>
+            <Y>125.80983</Y>
+            <Z>0</Z>
+            <R00>-0.087774605</R00>
+            <R01>0.99599504</R01>
+            <R02>-0.017021526</R02>
+            <R10>-0.9032844</R10>
+            <R11>-0.08678499</R11>
+            <R12>-0.4201737</R12>
+            <R20>-0.4199681</R20>
+            <R21>-0.021505302</R21>
+            <R22>0.9072841</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="85">
+        <Properties>
+          <string name="Name">RightForearm_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>159.19682</X>
+            <Y>-141.44609</Y>
+            <Z>-27.038486</Z>
+            <R00>-0.9959033</R00>
+            <R01>0.08894597</R01>
+            <R02>0.01628409</R02>
+            <R10>-0.090424314</R10>
+            <R11>-0.97962147</R11>
+            <R12>-0.17934686</R12>
+            <R20>0.00000006405962</R20>
+            <R21>-0.18008462</R21>
+            <R22>0.9836511</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="86">
+        <Properties>
+          <string name="Name">RightForearm_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000015258789</X>
+            <Y>260.02457</Y>
+            <Z>0.0000038146973</Z>
+            <R00>0.9946681</R00>
+            <R01>-0.10144208</R01>
+            <R02>-0.018571816</R02>
+            <R10>0.103113055</R10>
+            <R11>0.9751864</R11>
+            <R12>0.19590619</R12>
+            <R20>-0.0017621485</R20>
+            <R21>-0.19677664</R21>
+            <R22>0.98044676</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="87">
+        <Properties>
+          <string name="Name">RightForearm_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000015258789</X>
+            <Y>260.02457</Y>
+            <Z>0.0000038146973</Z>
+            <R00>0.9946681</R00>
+            <R01>-0.10144208</R01>
+            <R02>-0.018571816</R02>
+            <R10>0.103113055</R10>
+            <R11>0.9751864</R11>
+            <R12>0.19590619</R12>
+            <R20>-0.0017621485</R20>
+            <R21>-0.19677664</R21>
+            <R22>0.98044676</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="88">
+        <Properties>
+          <string name="Name">RightHand_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>182.80075</X>
+            <Y>-401.41156</Y>
+            <Z>-74.82816</Z>
+            <R00>-0.9959578</R00>
+            <R01>0.06704359</R01>
+            <R02>0.059777893</R02>
+            <R10>-0.08982338</R10>
+            <R11>-0.74337655</R11>
+            <R12>-0.66281456</R12>
+            <R20>0.000000022675131</R20>
+            <R21>-0.66550475</R21>
+            <R22>0.7463937</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="89">
+        <Properties>
+          <string name="Name">RightHand_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000030517578</X>
+            <Y>265.3734</Y>
+            <Z>-0.0000038146973</Z>
+            <R00>0.9999999</R00>
+            <R01>0.00045034496</R01>
+            <R02>0.00040160058</R02>
+            <R10>-0.0005935248</R10>
+            <R11>0.85403806</R11>
+            <R12>0.5202103</R12>
+            <R20>-0.00010870216</R20>
+            <R21>-0.52021044</R21>
+            <R22>0.85403806</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="90">
+        <Properties>
+          <string name="Name">RightHand_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000030517578</X>
+            <Y>265.3734</Y>
+            <Z>-0.0000038146973</Z>
+            <R00>0.9999999</R00>
+            <R01>0.00045034496</R01>
+            <R02>0.00040160058</R02>
+            <R10>-0.0005935248</R10>
+            <R11>0.85403806</R11>
+            <R12>0.5202103</R12>
+            <R20>-0.00010870216</R20>
+            <R21>-0.52021044</R21>
+            <R22>0.85403806</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="91">
+        <Properties>
+          <string name="Name">RightFingers1_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>188.16336</X>
+            <Y>-460.8716</Y>
+            <Z>-128.05952</Z>
+            <R00>-0.9531188</R00>
+            <R01>0.29304895</R01>
+            <R02>0.07541103</R02>
+            <R10>-0.30259627</R10>
+            <R11>-0.92304665</R11>
+            <R12>-0.23752986</R12>
+            <R20>0.000000021422977</R20>
+            <R21>-0.24921326</R21>
+            <R22>0.9684487</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="92">
+        <Properties>
+          <string name="Name">RightFingers1_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000045776367</X>
+            <Y>79.98648</Y>
+            <Z>0.000015258789</Z>
+            <R00>0.9764463</R00>
+            <R01>-0.20895323</R01>
+            <R02>-0.053770445</R02>
+            <R10>0.16104245</R10>
+            <R11>0.8716709</R11>
+            <R12>-0.46287727</R12>
+            <R20>0.1435898</R20>
+            <R21>0.44331545</R21>
+            <R22>0.8847902</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="93">
+        <Properties>
+          <string name="Name">RightFingers1_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000045776367</X>
+            <Y>79.98648</Y>
+            <Z>0.000015258789</Z>
+            <R00>0.9764463</R00>
+            <R01>-0.20895323</R01>
+            <R02>-0.053770445</R02>
+            <R10>0.16104245</R10>
+            <R11>0.8716709</R11>
+            <R12>-0.46287727</R12>
+            <R20>0.1435898</R20>
+            <R21>0.44331545</R21>
+            <R22>0.8847902</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="94">
+        <Properties>
+          <string name="Name">RightFingers2_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>203.00177</X>
+            <Y>-507.60968</Y>
+            <Z>-140.67834</Z>
+            <R00>-0.89121026</R00>
+            <R01>-0.4226866</R01>
+            <R02>-0.1645611</R02>
+            <R10>0.4535905</R10>
+            <R11>-0.83049065</R11>
+            <R12>-0.323328</R12>
+            <R20>-0.000000043334673</R20>
+            <R21>-0.36279655</R21>
+            <R22>0.9318684</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="95">
+        <Properties>
+          <string name="Name">RightFingers2_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>50.63452</Y>
+            <Z>-0.000015258789</Z>
+            <R00>0.7121744</R00>
+            <R01>0.654174</R01>
+            <R02>0.25468415</R02>
+            <R10>-0.67985344</R10>
+            <R11>0.7331274</R11>
+            <R12>0.017988399</R12>
+            <R20>-0.17494841</R20>
+            <R21>-0.18595874</R21>
+            <R22>0.966857</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="96">
+        <Properties>
+          <string name="Name">RightFingers2_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0</X>
+            <Y>50.63452</Y>
+            <Z>-0.000015258789</Z>
+            <R00>0.7121744</R00>
+            <R01>0.654174</R01>
+            <R02>0.25468415</R02>
+            <R10>-0.67985344</R10>
+            <R11>0.7331274</R11>
+            <R12>0.017988399</R12>
+            <R20>-0.17494841</R20>
+            <R21>-0.18595874</R21>
+            <R22>0.966857</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="97">
+        <Properties>
+          <string name="Name">PlateLeft_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-112.94464</X>
+            <Y>229.68332</Y>
+            <Z>1.7737454</Z>
+            <R00>0.57346207</R00>
+            <R01>-0.8084523</R01>
+            <R02>0.13246207</R02>
+            <R10>0.8192322</R10>
+            <R11>0.5659161</R11>
+            <R12>-0.09272343</R12>
+            <R20>0.000000048244775</R20>
+            <R21>0.16169055</R21>
+            <R22>0.98684156</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="98">
+        <Properties>
+          <string name="Name">PlateLeft_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-112.94466</X>
+            <Y>125.19217</Y>
+            <Z>90.84963</Z>
+            <R00>0.57346195</R00>
+            <R01>-0.80845237</R01>
+            <R02>0.13246195</R02>
+            <R10>0.59605265</R10>
+            <R11>0.300822</R11>
+            <R12>-0.7444645</R12>
+            <R20>0.5620167</R20>
+            <R21>0.5058763</R21>
+            <R22>0.6543901</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="99">
+        <Properties>
+          <string name="Name">PlateLeft_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-112.94466</X>
+            <Y>125.19217</Y>
+            <Z>90.84963</Z>
+            <R00>0.57346195</R00>
+            <R01>-0.80845237</R01>
+            <R02>0.13246195</R02>
+            <R10>0.59605265</R10>
+            <R11>0.300822</R11>
+            <R12>-0.7444645</R12>
+            <R20>0.5620167</R20>
+            <R21>0.5058763</R21>
+            <R22>0.6543901</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="100">
+        <Properties>
+          <string name="Name">PlateRight_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>114.07039</X>
+            <Y>222.64828</Y>
+            <Z>3.4207265</Z>
+            <R00>0.5734622</R00>
+            <R01>0.8084523</R01>
+            <R02>-0.13246188</R02>
+            <R10>-0.8192321</R10>
+            <R11>0.5659163</R11>
+            <R12>-0.09272345</R12>
+            <R20>-0.0000001529228</R20>
+            <R21>0.16169043</R21>
+            <R22>0.98684156</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="101">
+        <Properties>
+          <string name="Name">PlateRight_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>114.07037</X>
+            <Y>118.94379</Y>
+            <Z>87.22173</Z>
+            <R00>0.5734623</R00>
+            <R01>0.80845225</R01>
+            <R02>-0.132462</R02>
+            <R10>-0.59605247</R10>
+            <R11>0.3008222</R11>
+            <R12>-0.7444645</R12>
+            <R20>-0.5620165</R20>
+            <R21>0.50587666</R21>
+            <R22>0.6543901</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="102">
+        <Properties>
+          <string name="Name">PlateRight_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>114.07037</X>
+            <Y>118.94379</Y>
+            <Z>87.22173</Z>
+            <R00>0.5734623</R00>
+            <R01>0.80845225</R01>
+            <R02>-0.132462</R02>
+            <R10>-0.59605247</R10>
+            <R11>0.3008222</R11>
+            <R12>-0.7444645</R12>
+            <R20>-0.5620165</R20>
+            <R21>0.50587666</R21>
+            <R22>0.6543901</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="103">
+        <Properties>
+          <string name="Name">PlateBack_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>3.811981</X>
+            <Y>261.3653</Y>
+            <Z>91.14253</Z>
+            <R00>1</R00>
+            <R01>-0.0000000021417483</R01>
+            <R02>0.0000000000000033081551</R02>
+            <R10>0.0000000011019233</R10>
+            <R11>0.51449573</R11>
+            <R12>-0.8574929</R12>
+            <R20>0.0000000018365324</R20>
+            <R21>0.8574929</R21>
+            <R22>0.51449573</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="104">
+        <Properties>
+          <string name="Name">PlateBack_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>3.8119476</X>
+            <Y>86.933655</Y>
+            <Z>177.60684</Z>
+            <R00>1</R00>
+            <R01>-0.00000018626453</R01>
+            <R02>0.000000040322988</R02>
+            <R10>-0.00000000045816595</R10>
+            <R11>-0.21393037</R11>
+            <R12>-0.97684884</R12>
+            <R20>0.00000019057863</R20>
+            <R21>0.97684884</R21>
+            <R22>-0.21393037</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="105">
+        <Properties>
+          <string name="Name">PlateBack_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>3.8119476</X>
+            <Y>86.933655</Y>
+            <Z>177.60684</Z>
+            <R00>1</R00>
+            <R01>-0.00000018626453</R01>
+            <R02>0.000000040322988</R02>
+            <R10>-0.00000000045816595</R10>
+            <R11>-0.21393037</R11>
+            <R12>-0.97684884</R12>
+            <R20>0.00000019057863</R20>
+            <R21>0.97684884</R21>
+            <R22>-0.21393037</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="106">
+        <Properties>
+          <string name="Name">LeftThigh_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-121.26938</X>
+            <Y>-141.87912</Y>
+            <Z>38.744797</Z>
+            <R00>-0.99912673</R00>
+            <R01>0.041754626</R01>
+            <R02>-0.0015783733</R02>
+            <R10>-0.04178445</R10>
+            <R11>-0.9984125</R11>
+            <R12>0.03777028</R12>
+            <R20>0.0000012163647</R20>
+            <R21>0.03780324</R21>
+            <R22>0.9992852</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="107">
+        <Properties>
+          <string name="Name">LeftThigh_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-121.26938</X>
+            <Y>-25.684914</Y>
+            <Z>-0.31098557</Z>
+            <R00>-0.99912673</R00>
+            <R01>0.041754626</R01>
+            <R02>-0.0015784049</R02>
+            <R10>-0.041781403</R10>
+            <R11>-0.998797</R11>
+            <R12>0.02566982</R12>
+            <R20>-0.0005046724</R20>
+            <R21>0.025713347</R21>
+            <R22>0.9996694</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="108">
+        <Properties>
+          <string name="Name">LeftThigh_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-121.26938</X>
+            <Y>-25.684914</Y>
+            <Z>-0.31098557</Z>
+            <R00>-0.99912673</R00>
+            <R01>0.041754626</R01>
+            <R02>-0.0015784049</R02>
+            <R10>-0.041781403</R10>
+            <R11>-0.998797</R11>
+            <R12>0.02566982</R12>
+            <R20>-0.0005046724</R20>
+            <R21>0.025713347</R21>
+            <R22>0.9996694</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="109">
+        <Properties>
+          <string name="Name">LeftShin_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-113.71165</X>
+            <Y>-322.5943</Y>
+            <Z>45.58727</Z>
+            <R00>-0.9995656</R00>
+            <R01>-0.02866183</R01>
+            <R02>0.006871474</R02>
+            <R10>0.029474018</R10>
+            <R11>-0.9720294</R11>
+            <R12>0.23300283</R12>
+            <R20>0.0000009868652</R20>
+            <R21>0.23310414</R21>
+            <R22>0.9724518</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="110">
+        <Properties>
+          <string name="Name">LeftShin_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000038146973</X>
+            <Y>181.00255</Y>
+            <Z>-0.000011444092</Z>
+            <R00>0.99746114</R00>
+            <R01>0.0692528</R01>
+            <R02>-0.016600186</R02>
+            <R10>-0.07116368</R10>
+            <R11>0.9781016</R11>
+            <R12>-0.19558418</R12>
+            <R20>0.0026919157</R20>
+            <R21>0.19626893</R21>
+            <R22>0.9805464</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="111">
+        <Properties>
+          <string name="Name">LeftShin_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000038146973</X>
+            <Y>181.00255</Y>
+            <Z>-0.000011444092</Z>
+            <R00>0.99746114</R00>
+            <R01>0.0692528</R01>
+            <R02>-0.016600186</R02>
+            <R10>-0.07116368</R10>
+            <R11>0.9781016</R11>
+            <R12>-0.19558418</R12>
+            <R20>0.0026919157</R20>
+            <R21>0.19626893</R21>
+            <R22>0.9805464</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="112">
+        <Properties>
+          <string name="Name">LeftFoot_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-119.04039</X>
+            <Y>-503.30957</Y>
+            <Z>88.924934</Z>
+            <R00>-0.9993113</R00>
+            <R01>0.024558445</R01>
+            <R02>0.02782007</R02>
+            <R10>-0.037108943</R10>
+            <R11>-0.66136056</R11>
+            <R12>-0.7491496</R12>
+            <R20>0.0000011466477</R20>
+            <R21>-0.74966604</R21>
+            <R22>0.66181636</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="113">
+        <Properties>
+          <string name="Name">LeftFoot_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000061035156</X>
+            <Y>185.91547</Y>
+            <Z>0</Z>
+            <R00>0.9977835</R00>
+            <R01>-0.044041473</R01>
+            <R02>-0.04988778</R02>
+            <R10>0.064713344</R10>
+            <R11>0.46740776</R11>
+            <R12>0.8816702</R12>
+            <R20>-0.015512115</R20>
+            <R21>-0.8829442</R21>
+            <R22>0.46922168</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="114">
+        <Properties>
+          <string name="Name">LeftFoot_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000061035156</X>
+            <Y>185.91547</Y>
+            <Z>0</Z>
+            <R00>0.9977835</R00>
+            <R01>-0.044041473</R01>
+            <R02>-0.04988778</R02>
+            <R10>0.064713344</R10>
+            <R11>0.46740776</R11>
+            <R12>0.8816702</R12>
+            <R20>-0.015512115</R20>
+            <R21>-0.8829442</R21>
+            <R22>0.46922168</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="115">
+        <Properties>
+          <string name="Name">LeftToe_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-117.88313</X>
+            <Y>-534.4739</Y>
+            <Z>53.599514</Z>
+            <R00>-0.99946386</R00>
+            <R01>0.03128862</R01>
+            <R02>-0.00964555</R02>
+            <R10>0.00000005220478</R10>
+            <R11>-0.29459432</R11>
+            <R12>-0.9556225</R12>
+            <R20>-0.032741632</R20>
+            <R21>-0.95511</R21>
+            <R22>0.2944364</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="116">
+        <Properties>
+          <string name="Name">LeftToe_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000030517578</X>
+            <Y>47.12155</Y>
+            <Z>0</Z>
+            <R00>0.9987755</R00>
+            <R01>-0.020336084</R01>
+            <R02>0.045101386</R02>
+            <R10>-0.000000024214387</R10>
+            <R11>0.911615</R11>
+            <R12>0.41104522</R12>
+            <R20>-0.049474142</R20>
+            <R21>-0.41054177</R21>
+            <R22>0.91049874</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="117">
+        <Properties>
+          <string name="Name">LeftToe_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.000030517578</X>
+            <Y>47.12155</Y>
+            <Z>0</Z>
+            <R00>0.9987755</R00>
+            <R01>-0.020336084</R01>
+            <R02>0.045101386</R02>
+            <R10>-0.000000024214387</R10>
+            <R11>0.911615</R11>
+            <R12>0.41104522</R12>
+            <R20>-0.049474142</R20>
+            <R21>-0.41054177</R21>
+            <R22>0.91049874</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="118">
+        <Properties>
+          <string name="Name">RightThigh_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>121.26936</X>
+            <Y>-141.87912</Y>
+            <Z>38.7448</Z>
+            <R00>-0.9991267</R00>
+            <R01>-0.041754622</R01>
+            <R02>0.0015783169</R02>
+            <R10>0.04178444</R10>
+            <R11>-0.99841255</R11>
+            <R12>0.037770282</R12>
+            <R20>-0.0000012724576</R20>
+            <R21>0.037803244</R21>
+            <R22>0.9992852</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="119">
+        <Properties>
+          <string name="Name">RightThigh_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>121.26936</X>
+            <Y>-25.684914</Y>
+            <Z>-0.31097412</Z>
+            <R00>-0.9991267</R00>
+            <R01>-0.041754622</R01>
+            <R02>0.0015782852</R02>
+            <R10>0.041781392</R10>
+            <R11>-0.99879706</R11>
+            <R12>0.025669824</R12>
+            <R20>0.0005045528</R20>
+            <R21>0.025713347</R21>
+            <R22>0.9996694</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="120">
+        <Properties>
+          <string name="Name">RightThigh_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>121.26936</X>
+            <Y>-25.684914</Y>
+            <Z>-0.31097412</Z>
+            <R00>-0.9991267</R00>
+            <R01>-0.041754622</R01>
+            <R02>0.0015782852</R02>
+            <R10>0.041781392</R10>
+            <R11>-0.99879706</R11>
+            <R12>0.025669824</R12>
+            <R20>0.0005045528</R20>
+            <R21>0.025713347</R21>
+            <R22>0.9996694</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="121">
+        <Properties>
+          <string name="Name">RightShin_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>113.71166</X>
+            <Y>-322.5943</Y>
+            <Z>45.587265</Z>
+            <R00>-0.9995656</R00>
+            <R01>0.028661812</R01>
+            <R02>-0.0068715927</R02>
+            <R10>-0.029474026</R10>
+            <R11>-0.9720294</R11>
+            <R12>0.23300286</R12>
+            <R20>-0.0000011061212</R20>
+            <R21>0.23310417</R21>
+            <R22>0.9724518</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="122">
+        <Properties>
+          <string name="Name">RightShin_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.0000076293945</X>
+            <Y>181.00253</Y>
+            <Z>-0.000019073486</Z>
+            <R00>0.9974611</R00>
+            <R01>-0.06925278</R01>
+            <R02>0.016600247</R02>
+            <R10>0.07116368</R10>
+            <R11>0.9781017</R11>
+            <R12>-0.19558422</R12>
+            <R20>-0.0026919788</R20>
+            <R21>0.19626896</R21>
+            <R22>0.9805464</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="123">
+        <Properties>
+          <string name="Name">RightShin_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.0000076293945</X>
+            <Y>181.00253</Y>
+            <Z>-0.000019073486</Z>
+            <R00>0.9974611</R00>
+            <R01>-0.06925278</R01>
+            <R02>0.016600247</R02>
+            <R10>0.07116368</R10>
+            <R11>0.9781017</R11>
+            <R12>-0.19558422</R12>
+            <R20>-0.0026919788</R20>
+            <R21>0.19626896</R21>
+            <R22>0.9805464</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="124">
+        <Properties>
+          <string name="Name">RightFoot_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>119.04039</X>
+            <Y>-503.30954</Y>
+            <Z>88.92496</Z>
+            <R00>-0.9993113</R00>
+            <R01>-0.024558354</R01>
+            <R02>-0.027820136</R02>
+            <R10>0.03710893</R10>
+            <R11>-0.66136056</R11>
+            <R12>-0.7491496</R12>
+            <R20>-0.0000012593699</R20>
+            <R21>-0.74966604</R21>
+            <R22>0.66181636</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="125">
+        <Properties>
+          <string name="Name">RightFoot_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.00005340576</X>
+            <Y>185.91547</Y>
+            <Z>0.00002670288</Z>
+            <R00>0.9977835</R00>
+            <R01>0.044041473</R01>
+            <R02>0.049887773</R02>
+            <R10>-0.06471334</R10>
+            <R11>0.46740776</R11>
+            <R12>0.8816702</R12>
+            <R20>0.015512123</R20>
+            <R21>-0.8829442</R21>
+            <R22>0.46922165</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="126">
+        <Properties>
+          <string name="Name">RightFoot_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>-0.00005340576</X>
+            <Y>185.91547</Y>
+            <Z>0.00002670288</Z>
+            <R00>0.9977835</R00>
+            <R01>0.044041473</R01>
+            <R02>0.049887773</R02>
+            <R10>-0.06471334</R10>
+            <R11>0.46740776</R11>
+            <R12>0.8816702</R12>
+            <R20>0.015512123</R20>
+            <R21>-0.8829442</R21>
+            <R22>0.46922165</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="127">
+        <Properties>
+          <string name="Name">RightToe_Composited</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>117.88313</X>
+            <Y>-534.474</Y>
+            <Z>53.599487</Z>
+            <R00>-0.99946386</R00>
+            <R01>-0.031288505</R01>
+            <R02>0.009645524</R02>
+            <R10>-0.000000066448834</R10>
+            <R11>-0.29459423</R11>
+            <R12>-0.9556225</R12>
+            <R20>0.032741513</R20>
+            <R21>-0.9551101</R21>
+            <R22>0.29443628</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="128">
+        <Properties>
+          <string name="Name">RightToe_Original</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000030517578</X>
+            <Y>47.121643</Y>
+            <Z>0.000091552734</Z>
+            <R00>0.9987755</R00>
+            <R01>0.020336084</R01>
+            <R02>-0.045101386</R02>
+            <R10>0.000000031664968</R10>
+            <R11>0.911615</R11>
+            <R12>0.4110453</R12>
+            <R20>0.04947414</R20>
+            <R21>-0.4105419</R21>
+            <R22>0.9104986</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="CFrameValue" referent="129">
+        <Properties>
+          <string name="Name">RightToe_Initial</string>
+          <BinaryString name="AttributesSerialize"></BinaryString>
+          <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+          <bool name="DefinesCapabilities">false</bool>
+          <BinaryString name="SerializedOverrides">
+          </BinaryString>
+          <int64 name="SourceAssetId">-1</int64>
+          <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+          <CoordinateFrame name="Value">
+            <X>0.000030517578</X>
+            <Y>47.121643</Y>
+            <Z>0.000091552734</Z>
+            <R00>0.9987755</R00>
+            <R01>0.020336084</R01>
+            <R02>-0.045101386</R02>
+            <R10>0.000000031664968</R10>
+            <R11>0.911615</R11>
+            <R12>0.4110453</R12>
+            <R20>0.04947414</R20>
+            <R21>-0.4105419</R21>
+            <R22>0.9104986</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="AnimationController" referent="130">
+      <Properties>
+        <string name="Name">AnimationController</string>
+        <BinaryString name="AttributesSerialize"></BinaryString>
+        <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+        <bool name="DefinesCapabilities">false</bool>
+        <BinaryString name="SerializedOverrides">
+        </BinaryString>
+        <int64 name="SourceAssetId">-1</int64>
+        <SharedString name="Tags">rxNJufX5oaagQE3qNtzJSQ==</SharedString>
+      </Properties>
+    </Item>
+  </Item>
+  <SharedStrings>
+    <SharedString md5="rxNJufX5oaagQE3qNtzJSQ=="></SharedString>
+    <SharedString md5="8LLTb7gGfyD+k9BUcuguQg==">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</SharedString>
+  </SharedStrings>
+</roblox>

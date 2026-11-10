@@ -42,7 +42,8 @@ for name, body in string.gmatch(source, "\n    (Nocturna%w+) = (%b{})") do
     local studs = tonumber(string.match(body, "StudsPerTile = ([%d%.]+)"))
     local pattern = string.match(body, 'Pattern = "(%w+)"') or "Regular"
     local color = tonumber(string.match(body, "Color = (%d+)"))
-    if base and color and color > 0 then
+    -- Roblox no admite variantes de Glass: esa superficie queda con su material.
+    if base and base ~= "Glass" and color and color > 0 then
         local properties = {
             BaseMaterial = base,
             StudsPerTile = studs or 8,
