@@ -23,6 +23,10 @@ Config.Player = {
     RecoveryDelay = 0.6,
     FieldOfView = 78,
     SprintFieldOfView = 86,
+    -- Al zafar de una criatura: aire lleno y un empujón de velocidad para huir.
+    -- El factor queda por debajo del margen del antitrampas (1,3).
+    AdrenalineTime = 2.5,
+    AdrenalineFactor = 1.18,
 }
 
 Config.Flashlight = {

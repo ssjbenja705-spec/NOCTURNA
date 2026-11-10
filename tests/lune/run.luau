@@ -6096,6 +6096,37 @@ T.Test("captura: un compañero que se acerca frena el drenaje y da tiempo una so
     T.NoEngineErrors(Engine)
 end)
 
+T.Test("captura: el grupo ve al atrapado y al zafar hay adrenalina por un rato", function()
+    local players, MonsterService, CaptureService = captureMatch(2)
+    local victim = players[1]
+    Engine.RequireServer("Security.AntiCheat").Grace(players[2], 30)
+    rootOf(players[2]).CFrame = rootOf(victim).CFrame + Vector3.new(200, 0, 0)
+    local entry = MonsterService.Spawn("ElImitador")
+    strike(entry, victim)
+    local capture = toStruggle(CaptureService, victim)
+    Engine.Run(1.2)
+    local party = Engine.LastSent("PartyUpdate", players[2])[1]
+    local row = nil
+    for _, member in ipairs(party) do
+        if member.UserId == victim.UserId then
+            row = member
+        end
+    end
+    T.True(row ~= nil and row.Captured == true, "el compañero lo ve atrapado")
+
+    victim:SetAttribute("Stamina", 10)
+    solve(victim, capture)
+    T.False(CaptureService.IsCaptured(victim), "zafó")
+    Engine.Run(0.3)
+    local humanoid = victim.Character:FindFirstChildOfClass("Humanoid")
+    local walk = GameConfig.Player.WalkSpeed
+    T.True(math.abs(humanoid.WalkSpeed - walk * GameConfig.Player.AdrenalineFactor) < 0.05, "corre más rápido: " .. humanoid.WalkSpeed)
+    T.Equal(victim:GetAttribute("Stamina"), GameConfig.Player.MaxStamina, "aire lleno")
+    Engine.Run(GameConfig.Player.AdrenalineTime + 0.3)
+    T.Equal(humanoid.WalkSpeed, walk, "después vuelve a lo normal")
+    T.NoEngineErrors(Engine)
+end)
+
 T.Test("captura: una criatura agarra a uno solo y nadie agarra al que ya está agarrado", function()
     local players, MonsterService, CaptureService = captureMatch(2)
     local first = MonsterService.Spawn("ElTrepador")
@@ -6899,14 +6930,21 @@ T.Test("sustos: todos los del mapa pasan en un capítulo normal, el primero a lo
         local startedAt = Director.PlayTime()
         T.True(startedAt < ScareConfig.Timing.FirstDelay, "el reloj recién empieza: " .. startedAt)
 
-        -- Cinco minutos de partida recorriendo el mapa.
+        -- Cinco minutos de partida recorriendo el mapa. El primero se fuerza a los
+        -- FirstDue s, salvo que el director esté en un respiro (después de un
+        -- susto guionado o un golpe): entonces llega apenas termina.
+        local readyAt = nil
         wander(players, 300, 2, function()
+            local now = Director.PlayTime()
+            if not readyAt and now >= ScareConfig.Timing.FirstDue and Director.Blocked() == nil then
+                readyAt = now
+            end
             return #Director.History() >= #plan
         end)
         local history = Director.History()
         T.Equal(#history, #plan, string.format("capítulo %d: pasaron todos los sustos", setup.Chapter))
-        T.True(history[1].PlayTime >= ScareConfig.Timing.FirstDelay - 0.01 and history[1].PlayTime <= ScareConfig.Timing.FirstDue + 2,
-            "el primero a los 20-30 s: " .. history[1].PlayTime)
+        T.True(history[1].PlayTime >= ScareConfig.Timing.FirstDelay - 0.01 and history[1].PlayTime <= (readyAt or ScareConfig.Timing.FirstDue) + 2,
+            "el primero a los 20-30 s (o al terminar el respiro): " .. history[1].PlayTime)
         T.False(ScarePlan.IsJumpscare(ScareConfig, history[1].Kind), "no abre con uno de golpe")
         local last = history[#history].PlayTime
         local limit = ScareConfig.Timing.FirstDue + (#plan - 1) * ScareConfig.Timing.MaxInterval + 3

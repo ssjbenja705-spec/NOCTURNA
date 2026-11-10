@@ -40,7 +40,7 @@ return {
     -- vida por segundo. Mientras forcejea nunca baja de StruggleMinHealth: si pierde
     -- el forcejeo recibe el golpe completo de siempre.
     GrabDamageFraction = 0.4,
-    StruggleDrainPerSecond = 3,
+    StruggleDrainPerSecond = 3, -- si la dificultad no trae el suyo
     StruggleMinHealth = 5,
 
     -- Ayuda del grupo: si un compañero libre llega cerca de la criatura mientras
@@ -50,8 +50,8 @@ return {
 
     -- Secuencia por dificultad: largo, tiempo y castigo por error (segundos).
     Difficulty = {
-        Normal = {Length = 6, Time = 6, MistakeTime = 0.5},
-        Pesadilla = {Length = 8, Time = 6, MistakeTime = 0.8},
+        Normal = {Length = 6, Time = 6, MistakeTime = 0.5, DrainPerSecond = 3},
+        Pesadilla = {Length = 8, Time = 6, MistakeTime = 0.8, DrainPerSecond = 4},
     },
 
     -- Cada criatura agarra a su manera. Hold: dónde queda el jugador respecto de la
