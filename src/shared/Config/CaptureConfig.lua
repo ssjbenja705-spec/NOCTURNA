@@ -43,6 +43,11 @@ return {
     StruggleDrainPerSecond = 3,
     StruggleMinHealth = 5,
 
+    -- Ayuda del grupo: si un compañero libre llega cerca de la criatura mientras
+    -- forcejea, la víctima deja de perder vida y gana tiempo (una vez por captura).
+    HelpRange = 12,
+    HelpTime = 2.5,
+
     -- Secuencia por dificultad: largo, tiempo y castigo por error (segundos).
     Difficulty = {
         Normal = {Length = 6, Time = 6, MistakeTime = 0.5},

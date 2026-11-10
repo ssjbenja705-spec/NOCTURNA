@@ -268,8 +268,28 @@ local function watchHealth(character)
         return
     end
 
+    -- Cada golpe se siente: destello rojo y quejido según cuánto dolió. El drenaje
+    -- del forcejeo llega de a poquito, así que se junta y se avisa cada tanto.
+    local last = humanoid.Health
+    local pending, lastFeedback = 0, 0
     humanoid.HealthChanged:Connect(function(health)
         vignette.Visible = health > 0 and health <= GameConfig.Player.MaxHealth * 0.35
+        local lost = last - health
+        last = health
+        if lost <= 0 or health <= 0 then
+            pending = 0
+            return
+        end
+        pending += lost
+        local now = os.clock()
+        if pending >= 4 and now - lastFeedback >= 0.45 then
+            redFlash(math.clamp(0.15 + pending / 45, 0.2, 0.6))
+            if pending >= 8 then
+                AudioController.Play("Hurt")
+                FirstPerson.Shake(math.clamp(pending / 6, 1.5, 5), 0.35)
+            end
+            pending, lastFeedback = 0, now
+        end
     end)
     vignette.Visible = false
 

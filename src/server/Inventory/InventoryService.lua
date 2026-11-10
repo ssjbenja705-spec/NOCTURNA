@@ -104,6 +104,29 @@ function InventoryService.ClearAll()
     end
 end
 
+-- Compañero vivo y herido más cercano, dentro del alcance.
+local function hurtTeammate(player, range)
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    local own = character and character:FindFirstChildOfClass("Humanoid")
+    if not root or not own or own.Health <= 0 then
+        return nil
+    end
+    local best, bestDistance = nil, range
+    for _, other in ipairs(Players:GetPlayers()) do
+        local otherCharacter = other ~= player and other.Character
+        local otherRoot = otherCharacter and otherCharacter:FindFirstChild("HumanoidRootPart")
+        local humanoid = otherCharacter and otherCharacter:FindFirstChildOfClass("Humanoid")
+        if otherRoot and humanoid and humanoid.Health > 0 and humanoid.Health < humanoid.MaxHealth then
+            local distance = (otherRoot.Position - root.Position).Magnitude
+            if distance <= bestDistance then
+                best, bestDistance = other, distance
+            end
+        end
+    end
+    return best
+end
+
 local function useItem(player, itemId)
     if typeof(itemId) ~= "string" or not InventoryService.HasItem(player, itemId) then
         return
@@ -119,6 +142,12 @@ local function useItem(player, itemId)
         used = FlashlightService.Recharge(player)
     elseif itemId == "Medkit" then
         used = DamageService.Heal(player, definition.HealAmount)
+        local mate = not used and definition.ShareRange and hurtTeammate(player, definition.ShareRange)
+        if mate and DamageService.Heal(mate, definition.HealAmount) then
+            used = true
+            Remotes.FireClient("StoryNotice", mate, player.DisplayName .. " te curó con un botiquín.")
+            Remotes.FireClient("StoryNotice", player, "Curaste a " .. mate.DisplayName .. ".")
+        end
     end
 
     if used then

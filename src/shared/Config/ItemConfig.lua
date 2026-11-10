@@ -10,11 +10,13 @@ return {
     },
     Medkit = {
         DisplayName = "Botiquín",
-        Description = "Recupera 50 puntos de vida.",
+        Description = "Recupera 50 puntos de vida. Con la vida llena, cura al compañero herido más cercano.",
         Stackable = false,
         MaxStack = 1,
         Usable = true,
         HealAmount = 50,
+        -- Con la vida llena cura al compañero más herido que esté a este alcance.
+        ShareRange = 10,
         Color = Color3.fromRGB(190, 70, 70),
     },
     Fuse = {

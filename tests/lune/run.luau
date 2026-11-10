@@ -1236,6 +1236,31 @@ T.Test("botiquín: cura, y no se gasta con la vida llena", function()
     T.False(Inventory.HasItem(player, "Medkit"), "consumido")
 end)
 
+T.Test("botiquín: con la vida llena cura al compañero herido cercano, no al lejano", function()
+    local players = bootServer(2)
+    Engine.Run(1)
+    local healer, mate = players[1], players[2]
+    local Inventory = Engine.RequireServer("Inventory.InventoryService")
+    local mateHumanoid = mate.Character:FindFirstChildOfClass("Humanoid")
+    local healerRoot = healer.Character:FindFirstChild("HumanoidRootPart")
+    local mateRoot = mate.Character:FindFirstChild("HumanoidRootPart")
+
+    mateHumanoid.Health = 40
+    mateRoot.CFrame = healerRoot.CFrame + Vector3.new(40, 0, 0)
+    Inventory.AddItem(healer, "Medkit", 1)
+    fire("UseItem", healer, "Medkit")
+    Engine.Run(0.5)
+    T.Equal(mateHumanoid.Health, 40, "lejos: no lo alcanza")
+    T.True(Inventory.HasItem(healer, "Medkit"), "y no se gasta")
+
+    mateRoot.CFrame = healerRoot.CFrame + Vector3.new(4, 0, 0)
+    fire("UseItem", healer, "Medkit")
+    Engine.Run(0.5)
+    T.Equal(mateHumanoid.Health, 90, "cerca: lo cura")
+    T.False(Inventory.HasItem(healer, "Medkit"), "consumido")
+    T.NoEngineErrors(Engine)
+end)
+
 T.Test("la vida no se regenera sola: el script por defecto se elimina", function()
     local players = bootServer(1)
     Engine.Run(4)
@@ -6035,6 +6060,39 @@ T.Test("captura: si la víctima se va o muere en medio, todo se suelta sin traba
     T.False(rootOf(victim).Anchored, "sin anclar")
     Engine.Run(CaptureConfig.RecoverTime + 0.2)
     T.False(CaptureService.IsBusy(entry), "la criatura queda libre")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("captura: un compañero que se acerca frena el drenaje y da tiempo una sola vez", function()
+    local players, MonsterService, CaptureService = captureMatch(2)
+    local victim, helper = players[1], players[2]
+    Engine.RequireServer("Security.AntiCheat").Grace(helper, 30)
+    rootOf(helper).CFrame = rootOf(victim).CFrame + Vector3.new(200, 0, 0)
+    local entry = MonsterService.Spawn("ElColoso")
+    strike(entry, victim)
+    local capture = toStruggle(CaptureService, victim)
+    local before = healthOf(victim)
+    Engine.Run(1)
+    T.True(healthOf(victim) < before, "solo: sigue perdiendo vida")
+    T.Equal(capture.Helped, nil, "nadie ayudó todavía")
+
+    local deadline = capture.Session.Deadline
+    rootOf(helper).CFrame = entry.Root.CFrame + Vector3.new(4, 0, 0)
+    Engine.Run(0.2)
+    T.Equal(capture.Helped, helper, "el compañero ayuda")
+    T.True(math.abs(capture.Session.Deadline - deadline - CaptureConfig.HelpTime) < 0.01, "suma tiempo")
+    local helped = healthOf(victim)
+    Engine.Run(1)
+    T.Equal(healthOf(victim), helped, "con ayuda no drena")
+    T.Equal(Engine.LastSent("CaptureUpdate", victim)[1].HelperName, helper.DisplayName, "la víctima sabe quién ayuda")
+
+    -- Se va y vuelve: el tiempo extra no se repite.
+    local extended = capture.Session.Deadline
+    rootOf(helper).CFrame = rootOf(helper).CFrame + Vector3.new(200, 0, 0)
+    Engine.Run(0.2)
+    rootOf(helper).CFrame = entry.Root.CFrame + Vector3.new(4, 0, 0)
+    Engine.Run(0.2)
+    T.True(math.abs(capture.Session.Deadline - extended) < 0.01, "una sola vez")
     T.NoEngineErrors(Engine)
 end)
 
