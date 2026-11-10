@@ -35,6 +35,14 @@ return {
     -- Cuánto empuja el contragolpe al jugador hacia atrás.
     ShoveDistance = 1.5,
 
+    -- Que te agarren duele aunque zafes: al agarrar saca esta parte del golpe de la
+    -- criatura (ya escalado por la dificultad) y durante el forcejeo sigue sacando
+    -- vida por segundo. Mientras forcejea nunca baja de StruggleMinHealth: si pierde
+    -- el forcejeo recibe el golpe completo de siempre.
+    GrabDamageFraction = 0.4,
+    StruggleDrainPerSecond = 3,
+    StruggleMinHealth = 5,
+
     -- Secuencia por dificultad: largo, tiempo y castigo por error (segundos).
     Difficulty = {
         Normal = {Length = 6, Time = 6, MistakeTime = 0.5},

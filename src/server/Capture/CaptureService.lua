@@ -351,7 +351,33 @@ local function completeFail(capture, now)
     end
 end
 
+-- Daño por estar atrapado: nunca deja al jugador por debajo del mínimo (el golpe
+-- completo llega sólo si pierde el forcejeo).
+local function hurt(capture, amount)
+    local humanoid = capture.Humanoid
+    if not humanoid or humanoid.Health <= 0 or amount <= 0 then
+        return 0
+    end
+    local room = humanoid.Health - CaptureConfig.StruggleMinHealth
+    local dealt = math.min(amount, math.max(room, 0))
+    if dealt > 0 then
+        humanoid.Health -= dealt
+        capture.Hurt = (capture.Hurt or 0) + dealt
+    end
+    return dealt
+end
+CaptureService._Hurt = hurt
+
+local function drainVictim(capture, now)
+    local last = capture.LastDrain or now
+    capture.LastDrain = now
+    if capture.Phase == "Grab" or capture.Phase == "Struggle" then
+        hurt(capture, CaptureConfig.StruggleDrainPerSecond * math.max(0, now - last))
+    end
+end
+
 local function holdVictim(capture, now)
+    drainVictim(capture, now)
     local alpha = ease((now - capture.Started) / CaptureConfig.PullTime)
     local goal = alpha >= 1 and capture.Hold or capture.StartCFrame:Lerp(capture.Hold, alpha)
     local root = capture.Root
@@ -525,6 +551,10 @@ function CaptureService.TryCapture(entry, player, damage)
     capture.Hold = holdCFrame(entry, standY, profile)
     captures[player] = capture
     byEntry[entry] = capture
+
+    -- El agarre en sí ya lastima.
+    hurt(capture, math.floor(capture.Damage * CaptureConfig.GrabDamageFraction + 0.5))
+    capture.LastDrain = now
 
     holdEntry(entry, "Capture")
     root.Anchored = true

@@ -5808,7 +5808,8 @@ T.Test("captura: el zarpazo agarra en vez de dañar, ancla a la víctima y retie
         return CaptureService.IsCaptured(player)
     end, 3, 0.05), "el golpe se vuelve captura")
 
-    T.Equal(healthOf(player), 100, "agarrar no daña")
+    -- El agarre ya lastima (una parte del golpe), sin matar.
+    T.True(healthOf(player) < 100 and healthOf(player) >= 60, "agarrar lastima: " .. healthOf(player))
     T.True(rootOf(player).Anchored, "víctima anclada por el servidor")
     T.Equal(player:GetAttribute("Captured"), true, "atributo de captura")
     local model = entry.Model
@@ -5932,7 +5933,7 @@ T.Test("captura: zafar suelta, contragolpe, aturde 5 s exactos y después vuelve
     T.Equal(escaped.StunTime, 5, "5 segundos")
     local away = (rootOf(player).Position - entry.Root.Position) * Vector3.new(1, 0, 1)
     T.True(away.Magnitude > CaptureConfig.Creatures.ElColoso.Hold.Forward, "el empujón lo aleja")
-    T.Equal(healthOf(player), 100, "sin daño")
+    T.True(healthOf(player) < 100 and healthOf(player) > CaptureConfig.StruggleMinHealth, "zafar duele pero no mata: " .. healthOf(player))
     -- Aprovecha el aturdimiento para alejarse.
     Bot.MoveTo(Engine, player, rootOf(player).Position + Vector3.new(200, 0, 200))
 
@@ -5980,7 +5981,9 @@ T.Test("captura: perder el forcejeo aplica el daño de la dificultad y el camino
             return not CaptureService.IsCaptured(player)
         end, 15, 0.05), "termina")
         local expected = math.floor(MonsterConfig.ElImitador.Damage * GameConfig.Difficulties[difficulty].MonsterDamage + 0.5)
-        T.Equal(healthOf(player), 100 - expected, "daño en " .. difficulty)
+        -- Golpe completo al perder, más lo que ya sacaron el agarre y el forcejeo.
+        local health = healthOf(player)
+        T.True(health <= 100 - expected and health >= 100 - expected - 50, "daño en " .. difficulty .. ": " .. health)
         T.False(rootOf(player).Anchored, "suelto")
         T.Equal(Engine.LastSent("MonsterEffect", player)[1], "Jumpscare", "golpe")
         T.Equal(entry.Model:GetAttribute("State"), "Recover", "se recupera sin aturdirse")
@@ -6041,11 +6044,12 @@ T.Test("captura: una criatura agarra a uno solo y nadie agarra al que ya está a
     local second = MonsterService.Spawn("ElColoso")
     strike(first, players[1])
     T.True(CaptureService.IsCaptured(players[1]), "agarra al primero")
+    local grabbed = healthOf(players[1])
     T.Equal(CaptureService.TryCapture(first, players[2], 30), "Busy", "no agarra a un segundo")
     T.Equal(CaptureService.TryCapture(second, players[1], 30), "Busy", "otra no le saca la presa")
     T.Equal(snapshotOf(second, players[1]), nil, "las demás no ven al agarrado")
     T.True(snapshotOf(second, players[2]) ~= nil, "sí al compañero")
-    T.Equal(healthOf(players[1]), 100, "nadie más lo lastima")
+    T.Equal(healthOf(players[1]), grabbed, "nadie más lo lastima")
 
     -- La otra criatura sí puede agarrar al compañero: dos capturas a la vez.
     strike(second, players[2])
@@ -6079,9 +6083,10 @@ T.Test("captura: inmunidad al zafar y escudo de las escenas", function()
     T.False(CaptureService.IsCaptured(player), "zafó")
 
     local second = MonsterService.Spawn("ElImitador")
+    local afterEscape = healthOf(player)
     strike(second, player)
     T.False(CaptureService.IsCaptured(player), "no lo vuelven a agarrar enseguida")
-    T.Equal(healthOf(player), 100, "ni lo lastiman")
+    T.Equal(healthOf(player), afterEscape, "ni lo lastiman")
 
     Engine.Run(CaptureConfig.EscapeImmunity + 0.2)
     local field = Engine.New("ForceField")
@@ -6125,7 +6130,7 @@ T.Test("captura: el bot de la campaña forcejea y zafa como un jugador", functio
         Bot.Act(Engine, player)
         return not CaptureService.IsCaptured(player)
     end, 15, 0.4), "zafa")
-    T.Equal(healthOf(player), 100, "sin daño")
+    T.True(healthOf(player) < 100 and healthOf(player) > 0, "zafa herido: " .. healthOf(player))
     T.NoEngineErrors(Engine)
 end)
 

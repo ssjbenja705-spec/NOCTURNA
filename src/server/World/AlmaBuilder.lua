@@ -67,8 +67,37 @@ function AlmaBuilder.Description()
     description.RightLegColor = OVERALLS
     -- Face = 0: la cara clásica de Roblox, que sonríe.
     description.Face = 0
+    -- Pelo real del catálogo de Roblox (Lin's Hair, del paquete gratuito "Lina"):
+    -- largo, castaño cobrizo y con flequillo.
+    description.HairAccessory = tostring(AlmaBuilder.HAIR_ASSET)
     return description
 end
+
+-- Pelo del catálogo de Roblox que usa Alma (en el avatar y, cargado aparte, en el
+-- cuerpo de respaldo).
+AlmaBuilder.HAIR_ASSET = 301818464
+
+-- El cuerpo de respaldo (piezas) también intenta ponerse el pelo del catálogo; si
+-- Roblox no lo entrega, queda el pelo armado con piezas.
+local function catalogHair(rig)
+    local humanoid = rig:FindFirstChildOfClass("Humanoid")
+    if not humanoid then
+        return false
+    end
+    local ok, model = pcall(function()
+        return game:GetService("InsertService"):LoadAsset(AlmaBuilder.HAIR_ASSET)
+    end)
+    local accessory = ok and model and model:FindFirstChildOfClass("Accessory")
+    if not accessory then
+        return false
+    end
+    local attached = pcall(function()
+        humanoid:AddAccessory(accessory)
+    end)
+    model:Destroy()
+    return attached and rig:FindFirstChildOfClass("Accessory") ~= nil
+end
+AlmaBuilder.CatalogHair = catalogHair
 
 local function fromHook()
     local folder = ServerStorage:FindFirstChild(MODELS_FOLDER)
@@ -612,9 +641,9 @@ local function attach(holder, host, rig, cframe)
     layout(rig, cframe * CFrame.new(0, height, 0))
     -- El pelo se suelda con la cabeza ya en su lugar. Un modelo propio que ya trae
     -- pelo (accesorio o pieza "Hair") lo conserva.
-    local ownHair = rig:GetAttribute("Source") == "Hook"
-        and (rig:FindFirstChildOfClass("Accessory") ~= nil or rig:FindFirstChild("Hair") ~= nil)
-    if not ownHair then
+    -- El avatar ya trae el pelo del catálogo (HairAccessory) como accesorio.
+    local ownHair = rig:FindFirstChildOfClass("Accessory") ~= nil or rig:FindFirstChild("Hair") ~= nil
+    if not ownHair and not catalogHair(rig) then
         AlmaBuilder.AddHair(rig)
     end
     rig.Parent = holder
