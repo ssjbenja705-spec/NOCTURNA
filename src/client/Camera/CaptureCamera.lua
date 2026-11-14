@@ -353,10 +353,16 @@ function CaptureCamera.Sync(data)
     if type(data.TimeLeft) == "number" and type(data.TimeLimit) == "number" then
         shot.Deadline = os.clock() + data.TimeLeft
         shot.TimeLimit = data.TimeLimit
-        shot.SafetyAt = shot.Deadline + CaptureConfig.FailTime + SAFETY_PADDING
+        local profile = CaptureConfig.Creatures[shot.Kind or data.Kind or ""] or {}
+        local execution = profile.Execution and profile.Execution.Time or CaptureConfig.FailTime
+        shot.SafetyAt = shot.Deadline + execution + SAFETY_PADDING
     end
     if data.Event == "Failing" then
         shot.Phase = "Fail"
+        -- La ejecución dura lo suyo: la cámara no se suelta antes de tiempo.
+        local profile = CaptureConfig.Creatures[data.Kind or ""] or {}
+        local execution = profile.Execution and profile.Execution.Time or CaptureConfig.FailTime
+        shot.SafetyAt = math.max(shot.SafetyAt or 0, os.clock() + execution + SAFETY_PADDING)
     elseif data.Event == "Struggle" then
         shot.Phase = "Struggle"
     end

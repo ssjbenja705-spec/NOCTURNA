@@ -7,6 +7,7 @@ local GameConfig = require(Shared.Config.GameConfig)
 local Remotes = require(Shared.Modules.RemoteHelper)
 local ClientState = require(script.Parent.Parent.Core.ClientState)
 local Theme = require(script.Parent.Theme)
+local RecordsUI = require(script.Parent.RecordsUI)
 
 local player = Players.LocalPlayer
 local Colors = Theme.Colors
@@ -235,9 +236,19 @@ function StatusUI.Start()
 
     Remotes.OnClient("ChapterSummary", function(data)
         summaryTitle.Text = Theme.Upper(string.format("Informe · Capítulo %s", data.Count or "")) .. "\n" .. tostring(data.ChapterName or "")
+        -- Tiempo del servidor (con décimas) y si es récord personal.
+        local timeLine = formatDuration(data.Duration or 0)
+        if typeof(data.Time) == "number" then
+            timeLine = RecordsUI.FormatTime(data.Time)
+            if data.PersonalBest then
+                timeLine ..= "  ★ ¡NUEVO RÉCORD PERSONAL!"
+            elseif data.Previous then
+                timeLine ..= "  (récord " .. RecordsUI.FormatTime(data.Previous) .. ")"
+            end
+        end
         Theme.Typewrite(summaryBody, string.format(
             "Tiempo: %s\nObjetivos cumplidos: %d\nCaídas del grupo: %d\nEncuentros: %d\nIntentos fallidos: %d",
-            formatDuration(data.Duration or 0),
+            timeLine,
             data.Objectives or 0,
             data.Deaths or 0,
             data.Monsters or 0,

@@ -123,6 +123,7 @@ function Signal:Fire(...)
 end
 
 Engine.Signal = Signal
+Engine.Task = taskLibrary
 
 -- Instancias ------------------------------------------------------------------
 

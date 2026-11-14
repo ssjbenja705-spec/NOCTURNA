@@ -66,7 +66,9 @@ function MonsterWorld:Players()
 
         -- Quien está agarrado no existe para las demás criaturas: nadie más lo
         -- persigue ni lo ataca mientras forcejea.
-        if root and humanoid and humanoid.Health > 0 and not CaptureService.IsCaptured(player) then
+        -- Recién reaparecido (SpawnShielded): unos segundos en que no lo ven.
+        if root and humanoid and humanoid.Health > 0 and not CaptureService.IsCaptured(player)
+            and player:GetAttribute("SpawnShielded") ~= true then
             local position = root.Position
             table.insert(snapshots, {
                 Player = player,

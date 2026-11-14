@@ -70,6 +70,10 @@ function Progression.ClientView(player)
         CompletedMatches = data.CompletedMatches,
         MonsterEncounters = data.MonsterEncounters,
         PlayTime = data.PlayTime,
+        Wins = data.Wins,
+        ChapterWins = table.clone(data.ChapterWins),
+        BestTimes = table.clone(data.BestTimes),
+        LastWin = data.LastWin and table.clone(data.LastWin) or nil,
         Settings = table.clone(data.Settings),
         Offline = offline[player] == true,
     }
@@ -250,6 +254,27 @@ end
 
 function Progression.RecordMonsterEncounter(player)
     return increment(player, "MonsterEncounters", "NocturnaMonsterEncounters")
+end
+
+-- Victoria en un capítulo, con su tiempo (lo mide el servidor). Devuelve el récord
+-- anterior y si este lo superó. Una sola vez por partida: lo controla RecordsService.
+function Progression.RecordWin(player, chapter, seconds)
+    local data = profiles[player]
+    if not data or typeof(chapter) ~= "number" or typeof(seconds) ~= "number" or seconds ~= seconds then
+        return nil
+    end
+    local time = math.floor(math.max(seconds, 0) * 10 + 0.5) / 10
+    local previous = data.BestTimes[chapter]
+    data.Wins += 1
+    data.ChapterWins[chapter] = (data.ChapterWins[chapter] or 0) + 1
+    local personalBest = previous == nil or time < previous
+    if personalBest then
+        data.BestTimes[chapter] = time
+    end
+    data.LastWin = {Chapter = chapter, Time = time, At = os.time()}
+    player:SetAttribute("NocturnaWins", data.Wins)
+    Progression.Push(player)
+    return {Time = time, Previous = previous, PersonalBest = personalBest, Wins = data.Wins}
 end
 
 function Progression.GetSettings(player)

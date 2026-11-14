@@ -52,6 +52,9 @@ Config.Noise = {
 
 Config.Match = {
     RespawnDelay = 6,
+    -- Reaparición segura: lejos de las criaturas y unos segundos invisible para ellas.
+    SafeRespawnDistance = 45,
+    SpawnShield = 4,
     LivesPerChapter = 3,
     LivesPerExtraPlayer = 1,
     FirstMonsterDelay = 25,

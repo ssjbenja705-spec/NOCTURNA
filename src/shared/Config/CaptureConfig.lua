@@ -5,7 +5,7 @@
 --   Grab      la criatura agarra al jugador, lo acomoda y arranca su animación.
 --   Struggle  el jugador aprieta la secuencia en orden antes de que se acabe el tiempo.
 --   Release   ganó: lo suelta, el jugador le pega y la criatura queda aturdida.
---   Fail      perdió: remate de la criatura y daño según la dificultad.
+--   Fail      perdió: la criatura lo ejecuta a su manera (Execution) y muere.
 return {
     -- Teclas lógicas de la secuencia. El servidor sólo acepta estos nombres.
     Keys = {"Q", "E", "R", "F", "Space"},
@@ -23,7 +23,7 @@ return {
     -- Tiempos del servidor (segundos).
     PullTime = 0.35,
     ReleaseTime = 0.5,
-    FailTime = 1.1,
+    FailTime = 1.1, -- respaldo si una criatura no trae su ejecución
     -- Aturdimiento tras el contragolpe: exacto, medido por el servidor.
     StunTime = 5,
     RecoverTime = 1,
@@ -66,6 +66,8 @@ return {
             Hold = {Forward = 2.2, Side = 0, Lift = 0.5, Pitch = 0},
             Camera = {Back = 3.2, Side = 2.2, Up = 1.2, Bias = 0.7, Fov = 60},
             Mouth = "Sealed",
+            -- Sin boca que se abra: lo aprieta contra su cara hasta ahogarlo.
+            Execution = {Style = "Smother", Time = 2.8},
         },
         ElImitador = {
             Verb = "abre la boca frente a vos",
@@ -73,24 +75,32 @@ return {
             Hold = {Forward = 2.3, Side = 0, Lift = 0.8, Pitch = 0},
             Camera = {Back = 2.6, Side = 1.7, Up = 0.9, Bias = 0.8, Fov = 55},
             Mouth = "Jaw",
+            -- Lo devora: la mandíbula se abre de a poco, lo mete en la boca y traga.
+            Execution = {Style = "Devour", Time = 3.4},
         },
         ElQuieto = {
             Verb = "te aprieta el cuello con sus manos de maniquí",
             GrabTime = 1.2, ExtraLength = 1, ExtraTime = 0.5,
             Hold = {Forward = 2, Side = 0, Lift = 0, Pitch = 0},
             Camera = {Back = 3.4, Side = -2.4, Up = 1.4, Bias = 0.65, Fov = 62},
+            -- Un giro seco del cuello, cuadro a cuadro.
+            Execution = {Style = "Snap", Time = 2.4},
         },
         ElTrepador = {
             Verb = "te levanta desde arriba",
             GrabTime = 1.5, ExtraLength = 1, ExtraTime = 0.5,
             Hold = {Forward = 1.8, Side = 0, Lift = 2.4, Pitch = 0.35},
             Camera = {Back = 4, Side = 2.6, Up = -0.6, Bias = 0.6, Fov = 66},
+            -- Se lo lleva hacia arriba, a la oscuridad del techo.
+            Execution = {Style = "Lift", Time = 3},
         },
         ElColoso = {
             Verb = "te aplasta en su puño",
             GrabTime = 1.6, ExtraLength = 2, ExtraTime = 1,
             Hold = {Forward = 3.2, Side = 0, Lift = 2.2, Pitch = 0.1},
             Camera = {Back = 6, Side = 3.4, Up = 1, Bias = 0.6, Fov = 68},
+            -- Cierra el puño hasta aplastarlo.
+            Execution = {Style = "Crush", Time = 2.8},
         },
     },
 }

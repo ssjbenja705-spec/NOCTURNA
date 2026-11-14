@@ -70,6 +70,16 @@ function DRAW.Settings(icon)
     end
 end
 
+-- Récords: un reloj de arena con arena roja.
+function DRAW.Records(icon)
+    shape(icon, 0.22, 0.06, 0.56, 0.08, Colors.Accent)
+    shape(icon, 0.22, 0.86, 0.56, 0.08, Colors.Accent)
+    shape(icon, 0.3, 0.16, 0.4, 0.3, Colors.Paper, {Round = 0.4, Transparency = 0.2})
+    shape(icon, 0.3, 0.54, 0.4, 0.3, Colors.Paper, {Round = 0.4, Transparency = 0.2})
+    shape(icon, 0.46, 0.4, 0.08, 0.2, Colors.Blood)
+    shape(icon, 0.34, 0.66, 0.32, 0.14, Colors.Blood, {Round = 0.3})
+end
+
 function DRAW.Admin(icon)
     shape(icon, 0.06, 0.27, 0.88, 0.46, nil, {Hollow = true, Stroke = Colors.Text, Round = 0.5, Thickness = 2})
     shape(icon, 0.36, 0.34, 0.28, 0.32, Colors.Danger, {Round = 0.5})

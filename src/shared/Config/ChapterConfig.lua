@@ -267,6 +267,8 @@ Chapters[3] = {
         {
             Id = "C3_PURGE", Type = "Activate", Target = "LEVERS_C3",
             Name = "Bajen las 2 palancas de purga a la vez",
+            SoloName = "Bajá las 2 palancas de purga",
+            SoloHint = "Una palanca queda trabada unos segundos: bajala y corré a la otra.",
             Hint = "En grupo: cuenten juntos. Solo: tenés unos segundos para correr a la otra.",
             OnComplete = {
                 Dialogue = {
@@ -461,6 +463,8 @@ Chapters[5] = {
         {
             Id = "C5_DOOR", Type = "Activate", Target = "LAMPS_C5",
             Name = "Prendan las dos lámparas al mismo tiempo",
+            SoloName = "Prendé las dos lámparas",
+            SoloHint = "La primera queda prendida unos segundos: corré a la otra.",
             Hint = "En grupo: cuenten hasta cinco y a la vez. Solo: corré de una a la otra.",
             OnComplete = {
                 Dialogue = {

@@ -206,6 +206,50 @@ local function newEntry(joint, role, part)
     return entry
 end
 
+-- Un fallo del animador queda en el informe de errores del juego (Creator Hub),
+-- una sola vez por motivo: así se ve en partidas reales, no sólo en Studio.
+local reported = {}
+local function report(key, message)
+    if reported[key] then
+        return
+    end
+    reported[key] = true
+    warn(message)
+    task.spawn(error, message, 0)
+end
+MonsterAnimator.Report = report
+
+local function boneCount(body)
+    local count = 0
+    for _, item in ipairs(body:GetDescendants()) do
+        if item:IsA("Bone") then
+            count += 1
+        end
+    end
+    return count
+end
+
+-- El modelo con huesos puede llegar al cliente en varios cuadros: se espera a
+-- tener todos los huesos (BoneCount, del servidor) antes de armar el esqueleto.
+-- Nunca se cae a las piezas: una criatura con piel sin esqueleto queda rígida.
+local function waitForBones(model, style)
+    for _ = 1, 150 do
+        if not model.Parent then
+            return nil
+        end
+        local body = model:FindFirstChild("Body")
+        local wanted = model:GetAttribute("BoneCount") or 0
+        if body and boneCount(body) >= wanted then
+            local bones = CreatureBones.Get(model, style)
+            if bones then
+                return bones
+            end
+        end
+        task.wait(0.2)
+    end
+    return nil
+end
+
 local function addRig(model)
     if rigs[model] then
         return rigs[model]
@@ -337,13 +381,18 @@ local function addRig(model)
     -- Malla con piel y huesos: el esqueleto reemplaza a las piezas.
     local bones = nil
     if CreatureBones.IsRig(model) then
-        if not model:FindFirstChild("Body") then
-            model:WaitForChild("Body", 5)
-        end
+        bones = waitForBones(model, style)
         if rigs[model] then
             return rigs[model]
         end
-        bones = CreatureBones.Get(model, style)
+        if not bones then
+            if model.Parent then
+                local body = model:FindFirstChild("Body")
+                report("rig:" .. kind, string.format("[NOCTURNA] %s: el esqueleto no llegó completo (%d de %s huesos)",
+                    kind, body and boneCount(body) or 0, tostring(model:GetAttribute("BoneCount"))))
+            end
+            return nil
+        end
     end
     if bones then
         rig.Bones = bones
@@ -1309,9 +1358,18 @@ function MonsterAnimator.Update(deltaTime, cameraCFrame)
                     local elapsed = math.min(rig.Elapsed, 0.25)
                     rig.Elapsed = 0
                     local ok, err = pcall(animate, rig, elapsed, distance)
-                    if not ok then
-                        rig.Broken = true
-                        warn("[NOCTURNA] Falló la animación de " .. model.Name .. ": " .. tostring(err))
+                    if ok then
+                        rig.Failures = 0
+                    else
+                        -- Un error suelto no congela a la criatura: se reintenta en
+                        -- un rato y sólo se rinde si falla muchas veces seguidas.
+                        rig.Failures = (rig.Failures or 0) + 1
+                        rig.Elapsed = -0.5
+                        report("anim:" .. tostring(rig.Kind) .. ":" .. tostring(err),
+                            "[NOCTURNA] Falló la animación de " .. tostring(rig.Kind) .. ": " .. tostring(err))
+                        if rig.Failures >= 20 then
+                            rig.Broken = true
+                        end
                     end
                 end
             end

@@ -84,9 +84,10 @@ local function buildUpdate()
         Chapter = chapterIndex,
         ChapterName = chapter.Name,
         ObjectiveId = objective.Id,
-        Objective = objective.Name,
+        -- Quien juega solo lee la versión para una persona (SoloName / SoloHint).
+        Objective = (#Players:GetPlayers() <= 1 and objective.SoloName) or objective.Name,
         Type = objective.Type,
-        Hint = objective.Hint,
+        Hint = (#Players:GetPlayers() <= 1 and objective.SoloHint) or objective.Hint,
         Puzzle = puzzleType,
         PuzzleId = puzzleId,
         Count = count,

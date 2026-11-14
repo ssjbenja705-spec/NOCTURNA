@@ -111,13 +111,24 @@ local function fromHook()
     return nil
 end
 
+-- Roblox puede tardar o fallar al armar el avatar en un servidor recién abierto:
+-- se reintenta antes de caer al cuerpo de piezas, y el motivo queda registrado.
+local AVATAR_TRIES = 3
 local function fromDescription()
-    local success, rig = pcall(function()
-        return Players:CreateHumanoidModelFromDescription(AlmaBuilder.Description(), Enum.HumanoidRigType.R15)
-    end)
-    if success and rig and rig:FindFirstChild("HumanoidRootPart") and rig:FindFirstChildOfClass("Humanoid") then
-        return rig
+    local lastError = nil
+    for try = 1, AVATAR_TRIES do
+        local success, rig = pcall(function()
+            return Players:CreateHumanoidModelFromDescription(AlmaBuilder.Description(), Enum.HumanoidRigType.R15)
+        end)
+        if success and rig and rig:FindFirstChild("HumanoidRootPart") and rig:FindFirstChildOfClass("Humanoid") then
+            return rig
+        end
+        lastError = success and "avatar incompleto" or tostring(rig)
+        if try < AVATAR_TRIES then
+            task.wait(1.5 * try)
+        end
     end
+    warn("[NOCTURNA] Alma: no se pudo armar el avatar (" .. tostring(lastError) .. "); se usa el cuerpo de respaldo.")
     return nil
 end
 

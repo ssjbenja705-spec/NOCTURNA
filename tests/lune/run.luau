@@ -797,8 +797,9 @@ T.Test("en PC no aparecen los botones táctiles", function()
     T.True(root:FindFirstChild("TouchActions") == nil, "sin controles táctiles")
 end)
 
-T.Test("campaña completa con 2 jugadores, 5 capítulos y un final", function()
-    local players = bootServer(2)
+for _, count in ipairs({2, 1}) do
+T.Test("campaña completa con " .. count .. (count == 1 and " jugador (solo)" or " jugadores") .. ", 5 capítulos y un final", function()
+    local players = bootServer(count)
     startMatch(players)
 
     T.True(waitForPhase("Playing", 60), "empieza el capítulo 1")
@@ -828,8 +829,9 @@ T.Test("campaña completa con 2 jugadores, 5 capítulos y un final", function()
     end
 
     T.True(waitForPhase("Ending", 60), "llega a la decisión final")
-    fire("EndingVote", players[1], "Rescue")
-    fire("EndingVote", players[2], "Rescue")
+    for _, voter in ipairs(players) do
+        fire("EndingVote", voter, "Rescue")
+    end
     T.True(waitForPhase("Lobby", 120), "vuelve al lobby tras el final")
     T.NoEngineErrors(Engine)
 
@@ -838,6 +840,60 @@ T.Test("campaña completa con 2 jugadores, 5 capítulos y un final", function()
     T.Equal(data.UnlockedChapter, 5, "capítulos desbloqueados")
     T.True(data.Endings.Rescue, "final registrado")
     T.Equal(data.CompletedMatches, 1, "campaña contada")
+end)
+end
+
+T.Test("récords: una victoria por capítulo, récord personal, ranking del servidor y global sin duplicados", function()
+    local players = bootServer(2)
+    Engine.Run(1)
+    local Records = Engine.RequireServer("Data.RecordsService")
+    local Progression = Engine.RequireServer("Data.ProgressionService")
+    local first, second = players[1], players[2]
+
+    local results = Records.RecordChapter(2, 312.46, "c2:1")
+    Engine.Run(1)
+    T.True(results[first] ~= nil and results[first].PersonalBest, "primer tiempo: récord personal")
+    T.Equal(Progression.Get(first).Wins, 1, "suma una victoria")
+    T.Equal(Progression.Get(first).BestTimes[2], 312.5, "con décimas")
+    T.Equal(Progression.Get(second).ChapterWins[2], 1, "victoria del compañero también")
+
+    Records.RecordChapter(2, 312.46, "c2:1")
+    Engine.Run(1)
+    T.Equal(Progression.Get(first).Wins, 1, "el mismo final no suma dos veces")
+
+    local slower = Records.RecordChapter(2, 400, "c2:2")
+    Engine.Run(1)
+    T.False(slower[first].PersonalBest, "más lento no es récord")
+    T.Equal(Progression.Get(first).Wins, 2, "pero es otra victoria")
+    T.Equal(Progression.Get(first).BestTimes[2], 312.5, "el récord sigue")
+    T.Equal(Progression.Get(first).LastWin.Time, 400, "la última partida queda anotada")
+
+    local faster = Records.RecordChapter(2, 250, "c2:3")
+    Engine.Run(1)
+    T.True(faster[first].PersonalBest, "más rápido: nuevo récord")
+    T.Equal(faster[first].Previous, 312.5, "con el anterior")
+    local sent = Engine.LastSent("RecordResult", first)[1]
+    T.True(sent.PersonalBest and sent.GlobalRank == 1, "aviso con el puesto global")
+
+    T.Equal(#Records.Server(2), 2, "ranking del servidor con los dos")
+    T.Equal(Records.Server(2)[1].Time, 250, "ordenado de menor a mayor")
+    local global = Records.Global(2, true)
+    T.Equal(global[1].Time, 250, "ranking global: el mejor tiempo")
+    T.Equal(#global, 2, "uno por jugador")
+
+    local cheat = Records.RecordChapter(3, 4, "c3:1")
+    T.Equal(next(cheat), nil, "un tiempo imposible no cuenta")
+
+    fire("RecordsRequest", first)
+    Engine.Run(0.5)
+    local snapshot = Engine.LastSent("RecordsData", first)[1]
+    T.Equal(snapshot.Personal.Wins, 3, "la pantalla recibe las victorias")
+    local Ui = Engine.Require(Engine.ClientFolder:FindFirstChild("UI"):FindFirstChild("RecordsUI"), "Client")
+    local lines = table.concat(Ui.Lines(snapshot, "Personal"), "\n")
+    T.True(string.find(lines, "Victorias totales: 3", 1, true) ~= nil, "pestaña personal")
+    T.True(string.find(table.concat(Ui.Lines(snapshot, "Server", 2), "\n"), "4:10.0", 1, true) ~= nil, "pestaña del servidor con el tiempo")
+    T.Equal(Ui.FormatTime(65.3), "1:05.3", "formato de tiempo")
+    T.NoEngineErrors(Engine)
 end)
 
 T.Test("el final verdadero sólo aparece con los 15 documentos", function()
@@ -899,6 +955,47 @@ T.Test("muerte, reaparición en el punto de control y reintentos del grupo", fun
     T.True(players[1].Character ~= firstCharacter, "reapareció")
     T.True(players[1].Character:FindFirstChildOfClass("Humanoid").Health > 0, "con vida")
     T.Equal(Engine.LastSent("DownState", players[1])[1].Down, false, "aviso de regreso")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("reaparición segura: nunca al lado de la criatura, y unos segundos invisible para ellas", function()
+    local players = bootServer(1)
+    startMatch(players, nil)
+    T.True(waitForPhase("Playing", 60), "partida")
+    local player = players[1]
+    local MonsterService = Engine.RequireServer("Monsters.MonsterService")
+    local Match = Engine.RequireServer("Multiplayer.MatchService")
+    MonsterService.Clear()
+
+    -- La criatura espera justo en el punto de control.
+    local checkpoint = player.Character:FindFirstChild("HumanoidRootPart").CFrame
+    gameState().Checkpoint = checkpoint
+    local entry = MonsterService.Spawn("ElOyente")
+    entry.Controller.Position = Vector3.new(checkpoint.X, entry.Controller.Height, checkpoint.Z)
+
+    -- Al empezar el capítulo no hay otra sala segura: la criatura se va lejos.
+    local chosen = Match.SafeSpawnCFrame(player, 1)
+    Match.ClearSpawnArea(chosen)
+    local monsterDistance = (chosen.Position - entry.Controller.Position).Magnitude
+    T.True(monsterDistance >= GameConfig.Match.SafeRespawnDistance, "la criatura ya no espera ahí: " .. math.floor(monsterDistance))
+    T.Equal(entry.Controller.Target, nil, "y no persigue a nadie")
+
+    -- Sin criaturas cerca, el punto de control de siempre.
+    entry.Controller.Position = checkpoint.Position + Vector3.new(400, 0, 400)
+    T.True((Match.SafeSpawnCFrame(player, 1).Position - checkpoint.Position).Magnitude < 1, "si está despejado, el punto de control")
+
+    player.Character:FindFirstChildOfClass("Humanoid").Health = 0
+    Engine.Run(GameConfig.Match.RespawnDelay + 0.7)
+    T.Equal(player:GetAttribute("SpawnShielded"), true, "recién reaparecido, protegido")
+    local world = entry.Controller.World
+    world.Cache = nil
+    local seen = false
+    for _, snap in ipairs(world:Players()) do
+        seen = seen or snap.Player == player
+    end
+    T.False(seen, "las criaturas no lo ven mientras dura")
+    Engine.Run(GameConfig.Match.SpawnShield + 0.5)
+    T.Equal(player:GetAttribute("SpawnShielded"), nil, "después vuelve a ser visible")
     T.NoEngineErrors(Engine)
 end)
 
@@ -2652,6 +2749,32 @@ T.Test("El Coloso: cada pisada sacude la cámara según la distancia y nada de l
     T.Equal(distant, 0, "de lejos no sacude")
 end)
 
+T.Test("audio: cada sonido tiene categoría y tiempo mínimo, nada aturde y el mismo golpe no se repite enseguida", function()
+    for name, definition in pairs(AudioConfig.Sfx) do
+        local rule = AudioConfig.Rules[name]
+        T.True(rule ~= nil, "sin regla: " .. name)
+        T.True(AudioConfig.Categories[rule.Category] ~= nil, "categoría desconocida: " .. name)
+        T.True(math.min(definition.Volume or 1, AudioConfig.MaxVolume) <= 1.5, "demasiado fuerte: " .. name)
+    end
+    for name in pairs(AudioConfig.Music) do
+        T.True(AudioConfig.MusicCategory[name] ~= nil, "música sin categoría: " .. name)
+    end
+    for _, setting in pairs(AudioConfig.Categories) do
+        T.True(SaveSchema.DefaultSettings[setting] ~= nil, "perilla sin valor por defecto: " .. setting)
+    end
+    local normalized = SaveSchema.NormalizeSettings({MonsterVolume = 4, UiVolume = -1})
+    T.Equal(normalized.MonsterVolume, 1, "perilla acotada")
+    T.Equal(normalized.UiVolume, 0, "perilla acotada abajo")
+    T.Equal(normalized.AmbientVolume, SaveSchema.DefaultSettings.AmbientVolume, "perilla nueva con su valor")
+
+    Engine.Reset()
+    local Audio = clientModule("Effects", "AudioController")
+    T.True(Audio.Allow("Jumpscare"), "el primer susto suena")
+    T.False(Audio.Allow("Jumpscare"), "el segundo enseguida, no")
+    Engine.Run(AudioConfig.Rules.Jumpscare.Cooldown + 0.5)
+    T.True(Audio.Allow("Jumpscare"), "pasado su tiempo vuelve a sonar")
+end)
+
 T.Test("El Coloso: cada paso suena fuerte, levanta polvo, titila la luz, retumba de lejos y nunca camina en silencio", function()
     Engine.Reset()
     local Animator = clientModule("Effects", "MonsterAnimator")
@@ -2856,6 +2979,10 @@ local function almaScene(options)
     character:FindFirstChild("HumanoidRootPart").CFrame = roblox.CFrame.new(0, 3, 60)
     local AlmaBuilder = Engine.RequireServer("World.AlmaBuilder")
     local holder, host = AlmaBuilder.Build(Engine.Workspace, {Id = "ALMA"}, roblox.CFrame.new(0, 0, 0))
+    if options and options.AvatarOffline then
+        -- Sin avatares se reintenta un par de veces antes del cuerpo de piezas.
+        Engine.Run(5)
+    end
     return holder, host, character, AlmaBuilder
 end
 
@@ -3057,6 +3184,33 @@ T.Test("huesos: la criatura usa su esqueleto con piel si está importado; si no,
         warned = warned or string.find(message, "ElQuietoRig", 1, true) ~= nil
     end
     T.True(warned, "avisa qué le falta")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("huesos: si el esqueleto llega en partes, el cliente espera y anima los huesos (nunca piezas rígidas)", function()
+    Engine.Reset()
+    rigTemplate("ElQuieto")
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local model = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    placeRig(model, roblox.CFrame.new(0, 3.6, 0))
+    T.True((model:GetAttribute("BoneCount") or 0) >= 20, "el servidor cuenta los huesos")
+
+    -- Como en una partida real: la pierna izquierda todavía no llegó al cliente.
+    local thigh = bodyBone(model, "LeftThigh")
+    local holder = thigh.Parent
+    thigh.Parent = nil
+    local rig = nil
+    Engine.Task.spawn(function()
+        rig = Animator.Track(model)
+    end)
+    Engine.Run(1)
+    T.Equal(rig, nil, "espera el resto del esqueleto")
+    thigh.Parent = holder
+    Engine.Run(1)
+    T.True(rig ~= nil and rig.Bones ~= nil, "con el esqueleto completo anima los huesos")
+    T.Equal(#rig.Feet, 2, "con las dos piernas")
+    T.Equal(#rig.Joints, 0, "sin el camino de piezas")
     T.NoEngineErrors(Engine)
 end)
 
@@ -5994,7 +6148,45 @@ T.Test("captura: zafar suelta, contragolpe, aturde 5 s exactos y después vuelve
     T.NoEngineErrors(Engine)
 end)
 
-T.Test("captura: perder el forcejeo aplica el daño de la dificultad y el camino de muerte", function()
+T.Test("captura: cada criatura ejecuta a su manera (devora, levanta, aplasta, quiebra, ahoga) y mata una sola vez", function()
+    for _, kind in ipairs({"ElImitador", "ElTrepador", "ElColoso", "ElQuieto", "ElOyente"}) do
+        local players, MonsterService, CaptureService = captureMatch(1)
+        local player = players[1]
+        local entry = MonsterService.Spawn(kind)
+        strike(entry, player)
+        local capture = toStruggle(CaptureService, player)
+        T.True(Engine.RunUntil(function()
+            return capture.Phase == "Fail"
+        end, 20, 0.05), kind .. ": pierde")
+        local execution = CaptureService.ExecutionOf(capture)
+        T.Equal(execution.Style, CaptureConfig.Creatures[kind].Execution.Style, kind .. ": su estilo")
+        local start = rootOf(player).Position
+        local hits = 0
+        local connection = player.Character:FindFirstChildOfClass("Humanoid").Died:Connect(function()
+            hits += 1
+        end)
+        Engine.Run(execution.Time * 0.8)
+        local moved = rootOf(player).Position
+        if execution.Style == "Devour" then
+            local mouth = (entry.Model:FindFirstChild("Jaw") or entry.Model:FindFirstChild("Head")).Position
+            T.True((moved - mouth).Magnitude < (start - mouth).Magnitude - 0.5, "lo lleva a la boca")
+            local head = player.Character:FindFirstChild("Head")
+            T.True(head and head.Transparency > 0.4, "va desapareciendo adentro")
+        elseif execution.Style == "Lift" then
+            T.True(moved.Y > start.Y + 3, "lo levanta")
+        end
+        T.True(Engine.RunUntil(function()
+            return not CaptureService.IsCaptured(player)
+        end, 10, 0.05), kind .. ": termina")
+        Engine.Run(0.5)
+        T.Equal(healthOf(player), 0, kind .. ": muere")
+        T.Equal(hits, 1, kind .. ": una sola muerte")
+        connection:Disconnect()
+        T.NoEngineErrors(Engine)
+    end
+end)
+
+T.Test("captura: perder el forcejeo es la ejecución de la criatura y la muerte, en cada dificultad", function()
     for _, difficulty in ipairs({"Normal", "Pesadilla"}) do
         local players, MonsterService, CaptureService = captureMatch(1, {Difficulty = difficulty})
         local player = players[1]
@@ -6003,14 +6195,16 @@ T.Test("captura: perder el forcejeo aplica el daño de la dificultad y el camino
         local capture = toStruggle(CaptureService, player)
         T.Equal(#capture.Session.Sequence, CaptureConfig.Difficulty[difficulty].Length + 1, "largo en " .. difficulty)
         T.True(Engine.RunUntil(function()
+            return capture.Phase == "Fail"
+        end, 15, 0.05), "pierde el forcejeo")
+        -- La ejecución lleva su tiempo: no muere de golpe.
+        local execution = CaptureConfig.Creatures.ElImitador.Execution
+        Engine.Run(execution.Time * 0.4)
+        T.True(CaptureService.IsCaptured(player) and healthOf(player) > 0, "todavía lo está devorando")
+        T.True(Engine.RunUntil(function()
             return not CaptureService.IsCaptured(player)
         end, 15, 0.05), "termina")
-        local expected = math.floor(MonsterConfig.ElImitador.Damage * GameConfig.Difficulties[difficulty].MonsterDamage + 0.5)
-        -- Golpe completo al perder, más lo que ya sacaron el agarre y el forcejeo.
-        local health = healthOf(player)
-        T.True(health <= 100 - expected and health >= 100 - expected - 50, "daño en " .. difficulty .. ": " .. health)
-        T.False(rootOf(player).Anchored, "suelto")
-        T.Equal(Engine.LastSent("MonsterEffect", player)[1], "Jumpscare", "golpe")
+        T.Equal(healthOf(player), 0, "muere en " .. difficulty)
         T.Equal(entry.Model:GetAttribute("State"), "Recover", "se recupera sin aturdirse")
         T.True(CaptureService.IsImmune(player), "no lo agarra enseguida")
     end
@@ -6439,6 +6633,20 @@ end
 local function healthOf(player)
     return player.Character:FindFirstChildOfClass("Humanoid").Health
 end
+
+T.Test("persecución: se corre solo a velocidad de carrera sin gastar aire, y al salir vuelve a caminar", function()
+    local players = bootServer(1)
+    Engine.Run(1)
+    local player = players[1]
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    player:SetAttribute("ChaseRun", true)
+    Engine.Run(0.5)
+    T.Equal(humanoid.WalkSpeed, GameConfig.Player.SprintSpeed, "corre sin apretar CORRER")
+    T.Equal(player:GetAttribute("Stamina"), GameConfig.Player.MaxStamina, "el aire no baja")
+    player:SetAttribute("ChaseRun", nil)
+    Engine.Run(0.5)
+    T.Equal(humanoid.WalkSpeed, GameConfig.Player.WalkSpeed, "fuera de la persecución, camina")
+end)
 
 T.Test("persecución: 2000 secuencias de obstáculos válidas, que presentan cada tipo y se aprietan", function()
     local ChasePlan = Engine.RequireShared("Logic.ChasePlan")

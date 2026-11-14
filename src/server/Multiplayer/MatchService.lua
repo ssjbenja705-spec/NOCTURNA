@@ -22,9 +22,11 @@ local StoryService = require(script.Parent.Parent.Story.StoryService)
 local HidingService = require(script.Parent.Parent.World.HidingService)
 local InteractionService = require(script.Parent.Parent.World.InteractionService)
 local LobbyBuilder = require(script.Parent.Parent.World.LobbyBuilder)
+local MapService = require(script.Parent.Parent.World.MapService)
 local RoomGenerator = require(script.Parent.Parent.World.RoomGenerator)
 local WorldService = require(script.Parent.Parent.World.WorldService)
 local LobbyService = require(script.Parent.LobbyService)
+local RecordsService = require(script.Parent.Parent.Data.RecordsService)
 local FinalChaseService = require(script.Parent.Parent.Final.FinalChaseService)
 
 local CONFIG = GameConfig.Match
@@ -60,6 +62,142 @@ local function spawnCFrame(index)
     return GameState.Checkpoint or RoomGenerator.StartCFrame(GameState.Layout, index)
 end
 
+local function nearestMonster(position)
+    local best = math.huge
+    for _, entry in ipairs(MonsterService.Active()) do
+        local controller = entry.Controller
+        if controller and controller.Position then
+            best = math.min(best, (controller.Position - position).Magnitude)
+        end
+    end
+    return best
+end
+
+-- Hay piso debajo y nada sólido donde va el cuerpo.
+local function clearSpot(cframe)
+    local ok, result = pcall(function()
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        local ignore = {}
+        for _, other in ipairs(Players:GetPlayers()) do
+            if other.Character then
+                table.insert(ignore, other.Character)
+            end
+        end
+        params.FilterDescendantsInstances = ignore
+        if not workspace:Raycast(cframe.Position + Vector3.new(0, 2, 0), Vector3.new(0, -12, 0), params) then
+            return false
+        end
+        local overlap = OverlapParams.new()
+        overlap.FilterType = Enum.RaycastFilterType.Exclude
+        overlap.FilterDescendantsInstances = ignore
+        for _, part in ipairs(workspace:GetPartBoundsInBox(cframe + Vector3.new(0, 1.5, 0), Vector3.new(2, 4, 2), overlap)) do
+            if part.CanCollide then
+                return false
+            end
+        end
+        return true
+    end)
+    return ok and result == true
+end
+
+-- Dónde reaparece quien murió: nunca al lado de la criatura que lo mató. Entre el
+-- punto de control, el inicio del capítulo y al lado de un compañero vivo, el
+-- primero con piso y espacio que quede lejos de toda criatura; si ninguno, el
+-- más alejado.
+local function safeSpawnCFrame(player, index)
+    local preferred = spawnCFrame(index)
+    if GameState.Phase == "Lobby" or not GameState.Layout or FinalChaseService.IsActive() then
+        return preferred
+    end
+    local candidates = {preferred}
+    for slot = 1, 4 do
+        table.insert(candidates, RoomGenerator.StartCFrame(GameState.Layout, slot))
+    end
+    for _, other in ipairs(Players:GetPlayers()) do
+        local character = other ~= player and other.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if root and isAlive(other) and other:GetAttribute("Hidden") ~= true and other:GetAttribute("Captured") ~= true then
+            table.insert(candidates, root.CFrame * CFrame.new(0, 0.5, 4))
+        end
+    end
+    -- Las salas que el grupo ya recorrió (nunca una sala adelante sin explorar).
+    local cellSize = GameConfig.Map.CellSize
+    for cellIndex, cell in ipairs(GameState.Layout.Cells or {}) do
+        if MapService.IsRevealed(cellIndex) then
+            table.insert(candidates, CFrame.new((cell.X - 1) * cellSize, 3.5, (cell.Z - 1) * cellSize))
+        end
+    end
+    local anyClear = false
+    local clear = {}
+    for i, candidate in ipairs(candidates) do
+        clear[i] = clearSpot(candidate)
+        anyClear = anyClear or clear[i]
+    end
+    -- El más cercano al punto de control entre los seguros; si no hay, el más
+    -- alejado de toda criatura.
+    local safe, safeGap = nil, math.huge
+    local best, bestDistance = preferred, -1
+    for i, candidate in ipairs(candidates) do
+        if clear[i] or not anyClear then
+            local distance = nearestMonster(candidate.Position)
+            if distance >= CONFIG.SafeRespawnDistance then
+                local gap = (candidate.Position - preferred.Position).Magnitude
+                if gap < safeGap then
+                    safe, safeGap = candidate, gap
+                end
+            elseif distance > bestDistance then
+                best, bestDistance = candidate, distance
+            end
+        end
+    end
+    return safe or best
+end
+MatchService.SafeSpawnCFrame = safeSpawnCFrame
+
+-- Si igual queda una criatura esperando al lado del punto de reaparición (al
+-- empezar el capítulo no hay otra sala segura), se va lejos mientras el jugador
+-- todavía está caído: a la sala más alejada de todos, sin recordar a nadie.
+local function clearSpawnArea(spawn)
+    if not GameState.Layout or FinalChaseService.IsActive() then
+        return
+    end
+    local cellSize = GameConfig.Map.CellSize
+    for _, entry in ipairs(MonsterService.Active()) do
+        local controller = entry.Controller
+        if controller and controller.Position
+            and (controller.Position - spawn.Position).Magnitude < CONFIG.SafeRespawnDistance then
+            local far, farDistance = nil, -1
+            for _, cell in ipairs(GameState.Layout.Cells or {}) do
+                local point = Vector3.new((cell.X - 1) * cellSize, controller.Height or controller.Position.Y, (cell.Z - 1) * cellSize)
+                local nearest = (point - spawn.Position).Magnitude
+                for _, other in ipairs(Players:GetPlayers()) do
+                    local root = other.Character and other.Character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        nearest = math.min(nearest, (point - root.Position).Magnitude)
+                    end
+                end
+                if nearest > farDistance then
+                    far, farDistance = point, nearest
+                end
+            end
+            if far then
+                pcall(function()
+                    controller:Interrupt()
+                    controller:ForgetNoises()
+                    controller.Target = nil
+                    table.clear(controller.LastSeen or {})
+                    controller.Position = far
+                    if entry.Root then
+                        entry.Root.CFrame = controller:GetCFrame()
+                    end
+                end)
+            end
+        end
+    end
+end
+MatchService.ClearSpawnArea = clearSpawnArea
+
 local function respawn(player, index)
     down[player] = nil
     Remotes.FireClient("DownState", player, {Down = false})
@@ -67,7 +205,16 @@ local function respawn(player, index)
     if player.Parent ~= Players then
         return
     end
-    teleport(player, spawnCFrame(index))
+    local spawn = safeSpawnCFrame(player, index)
+    clearSpawnArea(spawn)
+    teleport(player, spawn)
+    -- Unos segundos sin que ninguna criatura lo vea: se ubica y la cámara se acomoda.
+    player:SetAttribute("SpawnShielded", true)
+    task.delay(CONFIG.SpawnShield, function()
+        if player.Parent then
+            player:SetAttribute("SpawnShielded", nil)
+        end
+    end)
 end
 
 local function broadcastParty()
@@ -261,6 +408,10 @@ local function onChapterCompleted(chapterIndex)
     local chapter = ChapterConfig[chapterIndex]
     local nextChapter = chapterIndex + 1
 
+    -- Victoria y tiempo de cada jugador presente (antes de la escena de cierre).
+    local elapsed = MatchAnalytics.GetSummary().Elapsed
+    local records = RecordsService.RecordChapter(chapterIndex, elapsed, "c" .. chapterIndex .. ":" .. token)
+
     GameState.SetPhase("Cutscene")
     MonsterService.Clear()
     HidingService.Clear()
@@ -285,7 +436,17 @@ local function onChapterCompleted(chapterIndex)
     local summary = MatchAnalytics.GetSummary()
     summary.ChapterName = chapter.Name
     summary.Count = chapter.Count
-    Remotes.FireAll("ChapterSummary", summary)
+    summary.Time = math.floor(elapsed * 10 + 0.5) / 10
+    for _, player in ipairs(Players:GetPlayers()) do
+        local personal = table.clone(summary)
+        local record = records[player]
+        if record then
+            personal.PersonalBest = record.PersonalBest
+            personal.Previous = record.Previous
+            personal.ServerRank = record.ServerRank
+        end
+        Remotes.FireClient("ChapterSummary", player, personal)
+    end
     task.wait(CONFIG.SummaryDuration)
     if token ~= runToken then
         return

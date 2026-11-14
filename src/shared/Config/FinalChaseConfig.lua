@@ -70,6 +70,9 @@ FinalChaseConfig.Obstacles = {
     SpacingEnd = 27,
     -- Respiro extra después de una compuerta o un derrumbe.
     RecoverySpacing = 6,
+    -- Si el obstáculo siguiente pide la acción contraria (saltar después de
+    -- agacharse o al revés), un poco más de lugar: nunca dos movimientos encimados.
+    SwitchSpacing = 6,
     LastBefore = 34,
     -- Cada tipo aparece primero solo, en este orden, y después se mezclan.
     Intro = {"Vault", "Slide", "Debris", "Door"},
@@ -119,7 +122,8 @@ FinalChaseConfig.Timing = {
     FadeOut = 1.2,
     -- Pantalla negra con los textos de la transición (el grupo ya está en la galería).
     Arrive = 3.4,
-    Reveal = 2.4,
+    -- La entrada de la criatura se ve entera: tamaño, rugido y avance (no un segundo).
+    Reveal = 4.5,
     Countdown = 1.4,
     FinishFade = 1.6,
     CleanupAfter = 3,

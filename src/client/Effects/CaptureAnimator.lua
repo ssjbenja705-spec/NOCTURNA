@@ -308,11 +308,55 @@ local function poseFor(session, now)
     end
 
     if phase == "Fail" then
-        local climax = ease(t / CaptureConfig.FailTime)
-        pose.Gape += 0.5 * climax
-        pose.HeadPush += 0.5 * climax
-        pose.Lean -= 0.2 * climax
-        pose.Out -= 0.15 * climax
+        -- La ejecución de cada criatura (CaptureConfig.Execution), en tres tiempos:
+        -- el agarre final, la ejecución y el cierre (tragar, soltar, quedarse quieta).
+        local execution = session.Profile.Execution or {Style = "Smother", Time = CaptureConfig.FailTime}
+        local p = math.clamp(t / execution.Time, 0, 1)
+        local style = execution.Style
+        local grip = ease(math.clamp(p / 0.2, 0, 1))
+        pose.Lean -= 0.15 * grip
+        pose.Out -= 0.15 * grip
+        if style == "Devour" then
+            -- La boca se abre de a poco, la cabeza avanza y engulle; al final traga
+            -- (la cabeza sube y la garganta se cierra).
+            local open = ease(math.clamp((p - 0.1) / 0.35, 0, 1))
+            local gulp = ease(math.clamp((p - 0.78) / 0.22, 0, 1))
+            pose.Gape += 1.2 * open * (1 - gulp)
+            pose.HeadPush += 0.7 * open * (1 - 0.6 * gulp)
+            pose.HeadPitch += -0.5 * open + 0.9 * gulp
+            pose.Lean -= 0.3 * open - 0.25 * gulp
+            pose.HeadRoll += math.sin(since * 9) * 0.06 * open * (1 - gulp)
+            if gulp > 0.05 and not session.Gulped then
+                session.Gulped = true
+                session.PlaySound("Drool")
+                session.PlaySound("WetBreath")
+            end
+        elseif style == "Lift" then
+            local lift = ease(math.clamp((p - 0.15) / 0.75, 0, 1))
+            pose.Arms += 1.2 * lift
+            pose.Lift += 0.4 * lift
+            pose.HeadPitch -= 0.4 * lift
+        elseif style == "Crush" then
+            local squeeze = math.clamp((p - 0.3) / 0.6, 0, 1)
+            pose.Out -= 0.35 * squeeze
+            pose.Arms += 0.3 * squeeze
+            pose.ArmShake += 0.4 * squeeze
+            pose.HeadPitch -= 0.25 * squeeze
+        elseif style == "Snap" then
+            -- Inmóvil y, de golpe, el giro.
+            local snap = p >= 0.55 and 1 or 0
+            pose.Twist += 0.3 * snap
+            pose.Out -= 0.4 * snap
+            if snap == 1 and not session.Snapped then
+                session.Snapped = true
+                session.PlaySound("QuietoScrape")
+                session.PlaySound("CaptureHit")
+            end
+        else
+            local press = ease(math.clamp(p / 0.6, 0, 1))
+            pose.HeadPush += 0.5 * press
+            pose.Gape += 0.4 * press
+        end
     elseif phase == "Release" then
         -- El contragolpe: la cabeza salta hacia atrás y los brazos se abren.
         local recoil = 1 - ease(t / CaptureConfig.ReleaseTime)
