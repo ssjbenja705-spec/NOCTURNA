@@ -45,10 +45,24 @@ function SettingsUI.Start()
         TextColor3 = Colors.TextDim,
     })
 
+    -- Las filas van en una lista con desplazamiento: entran en la pantalla de un
+    -- celular aunque haya muchas perillas.
+    local ROWS = 9
+    local rows = Theme.New("ScrollingFrame", {
+        Name = "Rows",
+        Position = UDim2.fromOffset(0, FIRST_ROW - 6),
+        Size = UDim2.new(1, 0, 1, -(FIRST_ROW - 6) - 34),
+        CanvasSize = UDim2.fromOffset(0, ROWS * ROW_HEIGHT + 12),
+        ScrollBarThickness = 4,
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    }, panel)
+
     local refreshers = {}
 
     local function rowLabel(y, text)
-        return Theme.Label(panel, {
+        return Theme.Label(rows, {
             Position = UDim2.fromOffset(18, y),
             Size = UDim2.fromOffset(130, BUTTON),
             Text = text,
@@ -59,7 +73,7 @@ function SettingsUI.Start()
 
     -- Volumen y brillo: una barra de diez marcas, como un dial viejo.
     local function addStepper(key, title, order)
-        local y = FIRST_ROW + (order - 1) * ROW_HEIGHT
+        local y = 6 + (order - 1) * ROW_HEIGHT
         rowLabel(y, title)
 
         local meter = Theme.New("Frame", {
@@ -67,7 +81,7 @@ function SettingsUI.Start()
             Position = UDim2.fromOffset(148, y + BUTTON / 2 - 7),
             Size = UDim2.new(1, -(148 + 2 * BUTTON + 34), 0, 14),
             BackgroundTransparency = 1,
-        }, panel)
+        }, rows)
         local segments = {}
         for index = 1, SEGMENTS do
             segments[index] = Theme.New("Frame", {
@@ -78,13 +92,13 @@ function SettingsUI.Start()
             }, meter)
         end
 
-        local minus = Theme.Button(panel, "-", {
+        local minus = Theme.Button(rows, "-", {
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -(BUTTON + 24), 0, y),
             Size = UDim2.fromOffset(BUTTON, BUTTON),
             TextSize = 22,
         })
-        local plus = Theme.Button(panel, "+", {
+        local plus = Theme.Button(rows, "+", {
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -16, 0, y),
             Size = UDim2.fromOffset(BUTTON, BUTTON),
@@ -114,9 +128,9 @@ function SettingsUI.Start()
     end
 
     local function addToggle(key, title, order)
-        local y = FIRST_ROW + (order - 1) * ROW_HEIGHT
+        local y = 6 + (order - 1) * ROW_HEIGHT
         rowLabel(y, title).Size = UDim2.new(1, -150, 0, BUTTON)
-        local button = Theme.Button(panel, "", {
+        local button = Theme.Button(rows, "", {
             Name = key,
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, -16, 0, y),
@@ -139,10 +153,13 @@ function SettingsUI.Start()
     end
 
     addStepper("MusicVolume", "Música", 1)
-    addStepper("EffectsVolume", "Efectos", 2)
-    addStepper("Brightness", "Brillo", 3)
-    addToggle("Subtitles", "Subtítulos", 4)
-    addToggle("LowQuality", "Modo bajo consumo", 5)
+    addStepper("AmbientVolume", "Ambiente", 2)
+    addStepper("MonsterVolume", "Criaturas", 3)
+    addStepper("EffectsVolume", "Efectos", 4)
+    addStepper("UiVolume", "Interfaz", 5)
+    addStepper("Brightness", "Brillo", 6)
+    addToggle("Subtitles", "Subtítulos", 7)
+    addToggle("LowQuality", "Modo bajo consumo", 8)
 
     local function close()
         panel.Visible = false

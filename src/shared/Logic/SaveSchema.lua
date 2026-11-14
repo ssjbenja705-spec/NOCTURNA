@@ -7,7 +7,10 @@ SaveSchema.ChapterCount = 5
 
 SaveSchema.DefaultSettings = {
     MusicVolume = 0.7,
+    AmbientVolume = 0.8,
+    MonsterVolume = 0.9,
     EffectsVolume = 0.9,
+    UiVolume = 0.6,
     Brightness = 0.5,
     Subtitles = true,
     LowQuality = false,
@@ -45,7 +48,7 @@ function SaveSchema.NormalizeSettings(raw)
         return result
     end
 
-    for _, key in ipairs({"MusicVolume", "EffectsVolume", "Brightness"}) do
+    for _, key in ipairs({"MusicVolume", "AmbientVolume", "MonsterVolume", "EffectsVolume", "UiVolume", "Brightness"}) do
         local value = raw[key]
         if type(value) == "number" and value == value then
             result[key] = math.clamp(value, 0, 1)

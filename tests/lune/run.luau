@@ -2652,6 +2652,32 @@ T.Test("El Coloso: cada pisada sacude la cámara según la distancia y nada de l
     T.Equal(distant, 0, "de lejos no sacude")
 end)
 
+T.Test("audio: cada sonido tiene categoría y tiempo mínimo, nada aturde y el mismo golpe no se repite enseguida", function()
+    for name, definition in pairs(AudioConfig.Sfx) do
+        local rule = AudioConfig.Rules[name]
+        T.True(rule ~= nil, "sin regla: " .. name)
+        T.True(AudioConfig.Categories[rule.Category] ~= nil, "categoría desconocida: " .. name)
+        T.True(math.min(definition.Volume or 1, AudioConfig.MaxVolume) <= 1.5, "demasiado fuerte: " .. name)
+    end
+    for name in pairs(AudioConfig.Music) do
+        T.True(AudioConfig.MusicCategory[name] ~= nil, "música sin categoría: " .. name)
+    end
+    for _, setting in pairs(AudioConfig.Categories) do
+        T.True(SaveSchema.DefaultSettings[setting] ~= nil, "perilla sin valor por defecto: " .. setting)
+    end
+    local normalized = SaveSchema.NormalizeSettings({MonsterVolume = 4, UiVolume = -1})
+    T.Equal(normalized.MonsterVolume, 1, "perilla acotada")
+    T.Equal(normalized.UiVolume, 0, "perilla acotada abajo")
+    T.Equal(normalized.AmbientVolume, SaveSchema.DefaultSettings.AmbientVolume, "perilla nueva con su valor")
+
+    Engine.Reset()
+    local Audio = clientModule("Effects", "AudioController")
+    T.True(Audio.Allow("Jumpscare"), "el primer susto suena")
+    T.False(Audio.Allow("Jumpscare"), "el segundo enseguida, no")
+    Engine.Run(AudioConfig.Rules.Jumpscare.Cooldown + 0.5)
+    T.True(Audio.Allow("Jumpscare"), "pasado su tiempo vuelve a sonar")
+end)
+
 T.Test("El Coloso: cada paso suena fuerte, levanta polvo, titila la luz, retumba de lejos y nunca camina en silencio", function()
     Engine.Reset()
     local Animator = clientModule("Effects", "MonsterAnimator")
