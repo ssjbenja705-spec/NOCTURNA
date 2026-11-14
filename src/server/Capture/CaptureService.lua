@@ -36,6 +36,7 @@ local stuns = {} -- [entrada de criatura] = aturdimiento o recuperación
 local immuneUntil = {} -- [player] = os.clock() hasta el que no lo pueden agarrar
 local nextId = 0
 local random = Random.new()
+local restoreVictim -- se define junto a la ejecución, más abajo
 
 local KEYS = {}
 for _, key in ipairs(CaptureConfig.Keys) do
@@ -272,6 +273,9 @@ end
 
 -- Corte limpio: la víctima se fue, murió, cambió el capítulo o la criatura desapareció.
 local function abort(capture, reason)
+    if capture.Faded then
+        restoreVictim(capture)
+    end
     if capture.Phase == "Done" then
         return
     end
@@ -337,20 +341,105 @@ local function escape(capture, now)
     EventBus.Emit("PlayerEscaped", player, capture.Kind)
 end
 
--- No zafó: el daño de siempre (escalado por la dificultad al crear la criatura).
+-- Cómo lo ejecuta esta criatura si pierde el forcejeo.
+local function executionOf(capture)
+    local execution = capture.Profile.Execution
+    if type(execution) == "table" and type(execution.Time) == "number" then
+        return execution
+    end
+    return {Style = "Smother", Time = CaptureConfig.FailTime}
+end
+CaptureService.ExecutionOf = executionOf
+
+-- El cuerpo de la víctima se desvanece (devorado o perdido en la oscuridad). Se
+-- guarda la transparencia original por si sobrevive (modo dios, administrador).
+local function fadeVictim(capture, alpha)
+    local character = capture.Character
+    if not character then
+        return
+    end
+    capture.Faded = capture.Faded or {}
+    for _, item in ipairs(character:GetDescendants()) do
+        if (item:IsA("BasePart") and item.Name ~= "HumanoidRootPart") or item:IsA("Decal") then
+            if capture.Faded[item] == nil then
+                capture.Faded[item] = item.Transparency
+            end
+            item.Transparency = math.max(capture.Faded[item], alpha)
+        end
+    end
+end
+
+restoreVictim = function(capture)
+    for item, transparency in pairs(capture.Faded or {}) do
+        if item.Parent then
+            item.Transparency = transparency
+        end
+    end
+    capture.Faded = nil
+end
+
+-- Dónde está la víctima en cada instante de la ejecución (además de la toma de
+-- siempre). p va de 0 a 1.
+local function executionCFrame(capture, p)
+    local hold = capture.Hold
+    local style = executionOf(capture).Style
+    if style == "Devour" then
+        -- Hacia la boca: la parte Jaw o Head de la criatura.
+        local model = capture.Entry.Model
+        local mouthPart = model:FindFirstChild("Jaw") or model:FindFirstChild("Head")
+        local mouth = mouthPart and mouthPart.Position or (capture.Entry.Root.Position + Vector3.new(0, 2, 0))
+        local pull = ease(math.clamp((p - 0.2) / 0.55, 0, 1))
+        local position = hold.Position:Lerp(mouth, pull * 0.92)
+        return CFrame.lookAt(position, mouth + (mouth - hold.Position) * 0.1) * CFrame.Angles(-0.5 * pull, 0, 0)
+    elseif style == "Lift" then
+        local up = ease(math.clamp((p - 0.15) / 0.75, 0, 1))
+        return hold + Vector3.new(0, 7 * up, 0)
+    elseif style == "Crush" then
+        local squeeze = math.clamp((p - 0.3) / 0.6, 0, 1)
+        local shake = Vector3.new(random:NextNumber(-1, 1), random:NextNumber(-1, 1), random:NextNumber(-1, 1)) * 0.12 * squeeze
+        return hold * CFrame.new(shake) * CFrame.Angles(0, 0, 0.25 * squeeze)
+    elseif style == "Snap" then
+        -- Quieto de golpe a mitad de la ejecución: el giro seco.
+        return p >= 0.55 and hold * CFrame.Angles(0.35, 0, 0.7) or hold
+    end
+    -- Smother: lo aprieta contra la cara.
+    local press = ease(math.clamp(p / 0.6, 0, 1))
+    return hold * CFrame.new(0, 0, -0.6 * press)
+end
+
+local function executeVictim(capture, now)
+    local execution = executionOf(capture)
+    local p = math.clamp((now - capture.PhaseStart) / execution.Time, 0, 1)
+    local style = execution.Style
+    if style == "Devour" then
+        fadeVictim(capture, math.clamp((p - 0.5) / 0.35, 0, 1))
+    elseif style == "Lift" then
+        fadeVictim(capture, math.clamp((p - 0.55) / 0.35, 0, 1))
+    elseif style == "Crush" then
+        fadeVictim(capture, math.clamp((p - 0.8) / 0.18, 0, 0.6))
+    end
+    return executionCFrame(capture, p)
+end
+
+-- No zafó: la criatura lo ejecuta (ver executeVictim) y muere. Sigue el camino
+-- normal de muerte de MatchService (reintentos, reaparición segura).
 local function completeFail(capture, now)
     local entry = capture.Entry
     local player = capture.Player
     forget(capture)
-    releaseVictim(capture, true)
+    releaseVictim(capture, false)
     immuneUntil[player] = now + CaptureConfig.FailImmunity
     closeAttack(entry)
     recoverEntry(entry, now)
 
-    broadcast(capture, "Failed", {Damage = capture.Damage})
-    if DamageService.ApplyDamage(player, capture.Damage) then
-        Remotes.FireClient("MonsterEffect", player, "Jumpscare", {Kind = capture.Kind})
+    broadcast(capture, "Failed", {Damage = 100, Style = executionOf(capture).Style})
+    local humanoid = capture.Humanoid
+    if humanoid and humanoid.Health > 0 and DamageService.ApplyDamage(player, 100) then
         EventBus.Emit("PlayerHit", player, capture.Kind)
+    end
+    -- Si sobrevivió igual (modo dios), vuelve a verse.
+    if humanoid and humanoid.Health > 0 then
+        restoreVictim(capture)
     end
 end
 
@@ -422,6 +511,9 @@ local function holdVictim(capture, now)
     drainVictim(capture, now)
     local alpha = ease((now - capture.Started) / CaptureConfig.PullTime)
     local goal = alpha >= 1 and capture.Hold or capture.StartCFrame:Lerp(capture.Hold, alpha)
+    if capture.Phase == "Fail" then
+        goal = executeVictim(capture, now)
+    end
     local root = capture.Root
     -- Se reimpone cada cuadro: nada (física, latencia ni un cliente) lo mueve.
     if alpha < 1 or (root.Position - goal.Position).Magnitude > 0.05 then
@@ -453,7 +545,7 @@ local function updateCapture(capture, now)
             startFail(capture, now)
         end
     elseif capture.Phase == "Fail" then
-        if now - capture.PhaseStart >= CaptureConfig.FailTime then
+        if now - capture.PhaseStart >= executionOf(capture).Time then
             completeFail(capture, now)
         end
     end

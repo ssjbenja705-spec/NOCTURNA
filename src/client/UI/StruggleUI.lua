@@ -386,7 +386,9 @@ local function onVictimUpdate(data)
         finishVictim("¡TE SOLTASTE! ¡CORRÉ!", Colors.Exit, 1.2)
     elseif event == "Failing" then
         AudioController.Play("CaptureDevour")
-        finishVictim("NO...", Colors.Blood, 1.4)
+        local profile = CaptureConfig.Creatures[data.Kind or ""] or {}
+        local execution = profile.Execution and profile.Execution.Time or CaptureConfig.FailTime
+        finishVictim("NO...", Colors.Blood, execution + 0.3)
     elseif event == "Failed" then
         CaptureCamera.Finish("Failed")
         finishVictim("", Colors.Blood, 0.1)

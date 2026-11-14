@@ -6148,7 +6148,45 @@ T.Test("captura: zafar suelta, contragolpe, aturde 5 s exactos y después vuelve
     T.NoEngineErrors(Engine)
 end)
 
-T.Test("captura: perder el forcejeo aplica el daño de la dificultad y el camino de muerte", function()
+T.Test("captura: cada criatura ejecuta a su manera (devora, levanta, aplasta, quiebra, ahoga) y mata una sola vez", function()
+    for _, kind in ipairs({"ElImitador", "ElTrepador", "ElColoso", "ElQuieto", "ElOyente"}) do
+        local players, MonsterService, CaptureService = captureMatch(1)
+        local player = players[1]
+        local entry = MonsterService.Spawn(kind)
+        strike(entry, player)
+        local capture = toStruggle(CaptureService, player)
+        T.True(Engine.RunUntil(function()
+            return capture.Phase == "Fail"
+        end, 20, 0.05), kind .. ": pierde")
+        local execution = CaptureService.ExecutionOf(capture)
+        T.Equal(execution.Style, CaptureConfig.Creatures[kind].Execution.Style, kind .. ": su estilo")
+        local start = rootOf(player).Position
+        local hits = 0
+        local connection = player.Character:FindFirstChildOfClass("Humanoid").Died:Connect(function()
+            hits += 1
+        end)
+        Engine.Run(execution.Time * 0.8)
+        local moved = rootOf(player).Position
+        if execution.Style == "Devour" then
+            local mouth = (entry.Model:FindFirstChild("Jaw") or entry.Model:FindFirstChild("Head")).Position
+            T.True((moved - mouth).Magnitude < (start - mouth).Magnitude - 0.5, "lo lleva a la boca")
+            local head = player.Character:FindFirstChild("Head")
+            T.True(head and head.Transparency > 0.4, "va desapareciendo adentro")
+        elseif execution.Style == "Lift" then
+            T.True(moved.Y > start.Y + 3, "lo levanta")
+        end
+        T.True(Engine.RunUntil(function()
+            return not CaptureService.IsCaptured(player)
+        end, 10, 0.05), kind .. ": termina")
+        Engine.Run(0.5)
+        T.Equal(healthOf(player), 0, kind .. ": muere")
+        T.Equal(hits, 1, kind .. ": una sola muerte")
+        connection:Disconnect()
+        T.NoEngineErrors(Engine)
+    end
+end)
+
+T.Test("captura: perder el forcejeo es la ejecución de la criatura y la muerte, en cada dificultad", function()
     for _, difficulty in ipairs({"Normal", "Pesadilla"}) do
         local players, MonsterService, CaptureService = captureMatch(1, {Difficulty = difficulty})
         local player = players[1]
@@ -6157,14 +6195,16 @@ T.Test("captura: perder el forcejeo aplica el daño de la dificultad y el camino
         local capture = toStruggle(CaptureService, player)
         T.Equal(#capture.Session.Sequence, CaptureConfig.Difficulty[difficulty].Length + 1, "largo en " .. difficulty)
         T.True(Engine.RunUntil(function()
+            return capture.Phase == "Fail"
+        end, 15, 0.05), "pierde el forcejeo")
+        -- La ejecución lleva su tiempo: no muere de golpe.
+        local execution = CaptureConfig.Creatures.ElImitador.Execution
+        Engine.Run(execution.Time * 0.4)
+        T.True(CaptureService.IsCaptured(player) and healthOf(player) > 0, "todavía lo está devorando")
+        T.True(Engine.RunUntil(function()
             return not CaptureService.IsCaptured(player)
         end, 15, 0.05), "termina")
-        local expected = math.floor(MonsterConfig.ElImitador.Damage * GameConfig.Difficulties[difficulty].MonsterDamage + 0.5)
-        -- Golpe completo al perder, más lo que ya sacaron el agarre y el forcejeo.
-        local health = healthOf(player)
-        T.True(health <= 100 - expected and health >= 100 - expected - 50, "daño en " .. difficulty .. ": " .. health)
-        T.False(rootOf(player).Anchored, "suelto")
-        T.Equal(Engine.LastSent("MonsterEffect", player)[1], "Jumpscare", "golpe")
+        T.Equal(healthOf(player), 0, "muere en " .. difficulty)
         T.Equal(entry.Model:GetAttribute("State"), "Recover", "se recupera sin aturdirse")
         T.True(CaptureService.IsImmune(player), "no lo agarra enseguida")
     end
