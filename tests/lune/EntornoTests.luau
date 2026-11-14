@@ -599,6 +599,9 @@ return function(ctx)
             character:FindFirstChild("HumanoidRootPart").CFrame = roblox.CFrame.new(0, 3, 60)
             local AlmaBuilder = Engine.RequireServer("World.AlmaBuilder")
             local holder = AlmaBuilder.Build(Engine.Workspace, {Id = "ALMA"}, roblox.CFrame.new(0, 0, 0))
+            if options.AvatarOffline then
+                Engine.Run(5)
+            end
             local rig = holder:FindFirstChild("Alma")
             hairCheck(rig, rig:GetAttribute("Source"))
 

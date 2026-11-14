@@ -2856,6 +2856,10 @@ local function almaScene(options)
     character:FindFirstChild("HumanoidRootPart").CFrame = roblox.CFrame.new(0, 3, 60)
     local AlmaBuilder = Engine.RequireServer("World.AlmaBuilder")
     local holder, host = AlmaBuilder.Build(Engine.Workspace, {Id = "ALMA"}, roblox.CFrame.new(0, 0, 0))
+    if options and options.AvatarOffline then
+        -- Sin avatares se reintenta un par de veces antes del cuerpo de piezas.
+        Engine.Run(5)
+    end
     return holder, host, character, AlmaBuilder
 end
 
