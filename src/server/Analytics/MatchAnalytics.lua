@@ -21,6 +21,8 @@ end
 function Analytics.StartChapter(chapter, playerCount)
     Analytics.Match.Chapter = chapter
     Analytics.Match.ChapterStartedAt = os.time()
+    -- Con décimas, para los récords: lo mide el servidor.
+    Analytics.Match.ChapterClock = os.clock()
     Analytics.Match.Players = playerCount
     Analytics.Match.MonstersEncountered = 0
     Analytics.Match.ObjectivesCompleted = 0
@@ -46,6 +48,7 @@ end
 function Analytics.GetSummary()
     return {
         Duration = os.time() - Analytics.Match.ChapterStartedAt,
+        Elapsed = os.clock() - (Analytics.Match.ChapterClock or os.clock()),
         Players = Analytics.Match.Players,
         Monsters = Analytics.Match.MonstersEncountered,
         Objectives = Analytics.Match.ObjectivesCompleted,

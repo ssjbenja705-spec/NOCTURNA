@@ -843,6 +843,59 @@ T.Test("campaña completa con " .. count .. (count == 1 and " jugador (solo)" or
 end)
 end
 
+T.Test("récords: una victoria por capítulo, récord personal, ranking del servidor y global sin duplicados", function()
+    local players = bootServer(2)
+    Engine.Run(1)
+    local Records = Engine.RequireServer("Data.RecordsService")
+    local Progression = Engine.RequireServer("Data.ProgressionService")
+    local first, second = players[1], players[2]
+
+    local results = Records.RecordChapter(2, 312.46, "c2:1")
+    Engine.Run(1)
+    T.True(results[first] ~= nil and results[first].PersonalBest, "primer tiempo: récord personal")
+    T.Equal(Progression.Get(first).Wins, 1, "suma una victoria")
+    T.Equal(Progression.Get(first).BestTimes[2], 312.5, "con décimas")
+    T.Equal(Progression.Get(second).ChapterWins[2], 1, "victoria del compañero también")
+
+    Records.RecordChapter(2, 312.46, "c2:1")
+    Engine.Run(1)
+    T.Equal(Progression.Get(first).Wins, 1, "el mismo final no suma dos veces")
+
+    local slower = Records.RecordChapter(2, 400, "c2:2")
+    Engine.Run(1)
+    T.False(slower[first].PersonalBest, "más lento no es récord")
+    T.Equal(Progression.Get(first).Wins, 2, "pero es otra victoria")
+    T.Equal(Progression.Get(first).BestTimes[2], 312.5, "el récord sigue")
+    T.Equal(Progression.Get(first).LastWin.Time, 400, "la última partida queda anotada")
+
+    local faster = Records.RecordChapter(2, 250, "c2:3")
+    Engine.Run(1)
+    T.True(faster[first].PersonalBest, "más rápido: nuevo récord")
+    T.Equal(faster[first].Previous, 312.5, "con el anterior")
+    local sent = Engine.LastSent("RecordResult", first)[1]
+    T.True(sent.PersonalBest and sent.GlobalRank == 1, "aviso con el puesto global")
+
+    T.Equal(#Records.Server(2), 2, "ranking del servidor con los dos")
+    T.Equal(Records.Server(2)[1].Time, 250, "ordenado de menor a mayor")
+    local global = Records.Global(2, true)
+    T.Equal(global[1].Time, 250, "ranking global: el mejor tiempo")
+    T.Equal(#global, 2, "uno por jugador")
+
+    local cheat = Records.RecordChapter(3, 4, "c3:1")
+    T.Equal(next(cheat), nil, "un tiempo imposible no cuenta")
+
+    fire("RecordsRequest", first)
+    Engine.Run(0.5)
+    local snapshot = Engine.LastSent("RecordsData", first)[1]
+    T.Equal(snapshot.Personal.Wins, 3, "la pantalla recibe las victorias")
+    local Ui = Engine.Require(Engine.ClientFolder:FindFirstChild("UI"):FindFirstChild("RecordsUI"), "Client")
+    local lines = table.concat(Ui.Lines(snapshot, "Personal"), "\n")
+    T.True(string.find(lines, "Victorias totales: 3", 1, true) ~= nil, "pestaña personal")
+    T.True(string.find(table.concat(Ui.Lines(snapshot, "Server", 2), "\n"), "4:10.0", 1, true) ~= nil, "pestaña del servidor con el tiempo")
+    T.Equal(Ui.FormatTime(65.3), "1:05.3", "formato de tiempo")
+    T.NoEngineErrors(Engine)
+end)
+
 T.Test("el final verdadero sólo aparece con los 15 documentos", function()
     local players = bootServer(1)
     Engine.Run(1)

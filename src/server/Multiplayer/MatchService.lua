@@ -26,6 +26,7 @@ local MapService = require(script.Parent.Parent.World.MapService)
 local RoomGenerator = require(script.Parent.Parent.World.RoomGenerator)
 local WorldService = require(script.Parent.Parent.World.WorldService)
 local LobbyService = require(script.Parent.LobbyService)
+local RecordsService = require(script.Parent.Parent.Data.RecordsService)
 local FinalChaseService = require(script.Parent.Parent.Final.FinalChaseService)
 
 local CONFIG = GameConfig.Match
@@ -407,6 +408,10 @@ local function onChapterCompleted(chapterIndex)
     local chapter = ChapterConfig[chapterIndex]
     local nextChapter = chapterIndex + 1
 
+    -- Victoria y tiempo de cada jugador presente (antes de la escena de cierre).
+    local elapsed = MatchAnalytics.GetSummary().Elapsed
+    local records = RecordsService.RecordChapter(chapterIndex, elapsed, "c" .. chapterIndex .. ":" .. token)
+
     GameState.SetPhase("Cutscene")
     MonsterService.Clear()
     HidingService.Clear()
@@ -431,7 +436,17 @@ local function onChapterCompleted(chapterIndex)
     local summary = MatchAnalytics.GetSummary()
     summary.ChapterName = chapter.Name
     summary.Count = chapter.Count
-    Remotes.FireAll("ChapterSummary", summary)
+    summary.Time = math.floor(elapsed * 10 + 0.5) / 10
+    for _, player in ipairs(Players:GetPlayers()) do
+        local personal = table.clone(summary)
+        local record = records[player]
+        if record then
+            personal.PersonalBest = record.PersonalBest
+            personal.Previous = record.Previous
+            personal.ServerRank = record.ServerRank
+        end
+        Remotes.FireClient("ChapterSummary", player, personal)
+    end
     task.wait(CONFIG.SummaryDuration)
     if token ~= runToken then
         return

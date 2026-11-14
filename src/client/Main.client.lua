@@ -50,6 +50,7 @@ local MODULES = {
     {"UI", "WakeUp"},
     {"UI", "CutsceneUI"},
     {"UI", "AdminUI"},
+    {"UI", "RecordsUI"},
     {"UI", "PuzzleUI"},
     {"Movement", "MovementInput"},
     {"UI", "MobileControls"},

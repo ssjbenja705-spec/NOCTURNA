@@ -16,6 +16,7 @@ return {
         "CaptureInput",
         "CameraLook",
         "ChaseAction",
+        "RecordsRequest",
     },
     ServerToClient = {
         "GameState",
@@ -31,6 +32,8 @@ return {
         "DocumentOpen",
         "Cutscene",
         "ChapterSummary",
+        "RecordResult",
+        "RecordsData",
         "EndingPrompt",
         "EndingVotes",
         "HorrorEvent",

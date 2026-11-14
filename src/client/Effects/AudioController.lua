@@ -16,7 +16,7 @@ local SFX_MAX_DISTANCE = 120
 
 local AudioController = {}
 -- Un SoundGroup por categoría (AudioConfig.Categories), todos bajo uno maestro.
-local groups = {}
+local groups: {[string]: SoundGroup} = {}
 local settingsNow = nil
 local duckLevel, duckUntil = 1, 0
 local silenceLevel = 1
@@ -30,7 +30,7 @@ local function ruleOf(name)
 end
 
 local function groupOf(category)
-    return groups[category] or groups.Horror
+    return groups[category] or groups["Horror"]
 end
 
 -- Volumen de cada grupo = perilla de AJUSTES x atenuación por golpe x silencio.

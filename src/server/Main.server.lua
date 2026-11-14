@@ -13,6 +13,7 @@ local SERVICES = {
     script.Parent.Analytics.Analytics,
     script.Parent.Security.AntiCheat,
     script.Parent.Data.ProgressionService,
+    script.Parent.Data.RecordsService,
     script.Parent.Data.HealthService,
     script.Parent.Data.StaminaService,
     script.Parent.Data.FlashlightService,
