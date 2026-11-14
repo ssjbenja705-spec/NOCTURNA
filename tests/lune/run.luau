@@ -3060,6 +3060,33 @@ T.Test("huesos: la criatura usa su esqueleto con piel si está importado; si no,
     T.NoEngineErrors(Engine)
 end)
 
+T.Test("huesos: si el esqueleto llega en partes, el cliente espera y anima los huesos (nunca piezas rígidas)", function()
+    Engine.Reset()
+    rigTemplate("ElQuieto")
+    local Factory = Engine.RequireServer("Monsters.MonsterFactory")
+    local Animator = clientModule("Effects", "MonsterAnimator")
+    local model = Factory.Build("ElQuieto", Engine.Workspace, 3.6)
+    placeRig(model, roblox.CFrame.new(0, 3.6, 0))
+    T.True((model:GetAttribute("BoneCount") or 0) >= 20, "el servidor cuenta los huesos")
+
+    -- Como en una partida real: la pierna izquierda todavía no llegó al cliente.
+    local thigh = bodyBone(model, "LeftThigh")
+    local holder = thigh.Parent
+    thigh.Parent = nil
+    local rig = nil
+    Engine.Task.spawn(function()
+        rig = Animator.Track(model)
+    end)
+    Engine.Run(1)
+    T.Equal(rig, nil, "espera el resto del esqueleto")
+    thigh.Parent = holder
+    Engine.Run(1)
+    T.True(rig ~= nil and rig.Bones ~= nil, "con el esqueleto completo anima los huesos")
+    T.Equal(#rig.Feet, 2, "con las dos piernas")
+    T.Equal(#rig.Joints, 0, "sin el camino de piezas")
+    T.NoEngineErrors(Engine)
+end)
+
 for _, case in ipairs({{"ElQuieto", 3.6, 7, 2}, {"ElTrepador", 3.5, 9, 4}, {"ElColoso", 5.5, 6, 2}}) do
     local kind, height, speed, feet = case[1], case[2], case[3], case[4]
     T.Test("huesos: " .. kind .. " camina con los pies clavados en el piso y dobla las rodillas", function()

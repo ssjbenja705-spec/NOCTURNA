@@ -568,6 +568,15 @@ local function buildBoneRig(model, root, kind, template)
     if findBone(body, "Jaw") then
         boneProxy(model, root, body, "Jaw", "Jaw", Vector3.new(headSize * 0.45, headSize * 0.3, headSize * 0.4))
     end
+    -- Cuántos huesos tiene: un modelo tan grande puede llegar al cliente en varios
+    -- cuadros, y el cliente espera a tenerlos todos antes de armar el esqueleto.
+    local boneCount = 0
+    for _, item in ipairs(body:GetDescendants()) do
+        if item:IsA("Bone") then
+            boneCount += 1
+        end
+    end
+    model:SetAttribute("BoneCount", boneCount)
     model:SetAttribute("BoneRig", true)
     return true
 end
