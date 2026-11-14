@@ -797,8 +797,9 @@ T.Test("en PC no aparecen los botones táctiles", function()
     T.True(root:FindFirstChild("TouchActions") == nil, "sin controles táctiles")
 end)
 
-T.Test("campaña completa con 2 jugadores, 5 capítulos y un final", function()
-    local players = bootServer(2)
+for _, count in ipairs({2, 1}) do
+T.Test("campaña completa con " .. count .. (count == 1 and " jugador (solo)" or " jugadores") .. ", 5 capítulos y un final", function()
+    local players = bootServer(count)
     startMatch(players)
 
     T.True(waitForPhase("Playing", 60), "empieza el capítulo 1")
@@ -828,8 +829,9 @@ T.Test("campaña completa con 2 jugadores, 5 capítulos y un final", function()
     end
 
     T.True(waitForPhase("Ending", 60), "llega a la decisión final")
-    fire("EndingVote", players[1], "Rescue")
-    fire("EndingVote", players[2], "Rescue")
+    for _, voter in ipairs(players) do
+        fire("EndingVote", voter, "Rescue")
+    end
     T.True(waitForPhase("Lobby", 120), "vuelve al lobby tras el final")
     T.NoEngineErrors(Engine)
 
@@ -839,6 +841,7 @@ T.Test("campaña completa con 2 jugadores, 5 capítulos y un final", function()
     T.True(data.Endings.Rescue, "final registrado")
     T.Equal(data.CompletedMatches, 1, "campaña contada")
 end)
+end
 
 T.Test("el final verdadero sólo aparece con los 15 documentos", function()
     local players = bootServer(1)
@@ -899,6 +902,47 @@ T.Test("muerte, reaparición en el punto de control y reintentos del grupo", fun
     T.True(players[1].Character ~= firstCharacter, "reapareció")
     T.True(players[1].Character:FindFirstChildOfClass("Humanoid").Health > 0, "con vida")
     T.Equal(Engine.LastSent("DownState", players[1])[1].Down, false, "aviso de regreso")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("reaparición segura: nunca al lado de la criatura, y unos segundos invisible para ellas", function()
+    local players = bootServer(1)
+    startMatch(players, nil)
+    T.True(waitForPhase("Playing", 60), "partida")
+    local player = players[1]
+    local MonsterService = Engine.RequireServer("Monsters.MonsterService")
+    local Match = Engine.RequireServer("Multiplayer.MatchService")
+    MonsterService.Clear()
+
+    -- La criatura espera justo en el punto de control.
+    local checkpoint = player.Character:FindFirstChild("HumanoidRootPart").CFrame
+    gameState().Checkpoint = checkpoint
+    local entry = MonsterService.Spawn("ElOyente")
+    entry.Controller.Position = Vector3.new(checkpoint.X, entry.Controller.Height, checkpoint.Z)
+
+    -- Al empezar el capítulo no hay otra sala segura: la criatura se va lejos.
+    local chosen = Match.SafeSpawnCFrame(player, 1)
+    Match.ClearSpawnArea(chosen)
+    local monsterDistance = (chosen.Position - entry.Controller.Position).Magnitude
+    T.True(monsterDistance >= GameConfig.Match.SafeRespawnDistance, "la criatura ya no espera ahí: " .. math.floor(monsterDistance))
+    T.Equal(entry.Controller.Target, nil, "y no persigue a nadie")
+
+    -- Sin criaturas cerca, el punto de control de siempre.
+    entry.Controller.Position = checkpoint.Position + Vector3.new(400, 0, 400)
+    T.True((Match.SafeSpawnCFrame(player, 1).Position - checkpoint.Position).Magnitude < 1, "si está despejado, el punto de control")
+
+    player.Character:FindFirstChildOfClass("Humanoid").Health = 0
+    Engine.Run(GameConfig.Match.RespawnDelay + 0.7)
+    T.Equal(player:GetAttribute("SpawnShielded"), true, "recién reaparecido, protegido")
+    local world = entry.Controller.World
+    world.Cache = nil
+    local seen = false
+    for _, snap in ipairs(world:Players()) do
+        seen = seen or snap.Player == player
+    end
+    T.False(seen, "las criaturas no lo ven mientras dura")
+    Engine.Run(GameConfig.Match.SpawnShield + 0.5)
+    T.Equal(player:GetAttribute("SpawnShielded"), nil, "después vuelve a ser visible")
     T.NoEngineErrors(Engine)
 end)
 
