@@ -37,9 +37,18 @@ local function updatePlayer(player, deltaTime)
         return
     end
 
-    StaminaModel.Step(state, deltaTime, humanoid.MoveDirection.Magnitude > 0.05, CONFIG)
+    -- Persecución final: corre solo a velocidad de carrera y el AIRE no baja (no
+    -- hace falta mantener apretado CORRER para huir).
+    local chaseRun = player:GetAttribute("ChaseRun") == true
+    if chaseRun then
+        state.Stamina = CONFIG.MaxStamina
+        state.Exhausted = false
+        state.Sprinting = humanoid.MoveDirection.Magnitude > 0.05
+    else
+        StaminaModel.Step(state, deltaTime, humanoid.MoveDirection.Magnitude > 0.05, CONFIG)
+    end
     local frozen = player:GetAttribute("Hidden") == true
-    local speed = frozen and 0 or StaminaModel.Speed(state, state.Crouching, CONFIG)
+    local speed = frozen and 0 or (chaseRun and CONFIG.SprintSpeed or StaminaModel.Speed(state, state.Crouching, CONFIG))
     -- Un tropezón (persecución final) frena por un momento, sin tocar el AIRE.
     if state.StaggerUntil and os.clock() < state.StaggerUntil then
         speed *= state.StaggerFactor

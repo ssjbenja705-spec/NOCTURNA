@@ -11,6 +11,7 @@ local CollectionService = game:GetService("CollectionService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Rng = require(Shared.Logic.Rng)
+local ServerStorage = game:GetService("ServerStorage")
 
 local ChaseArena = {}
 ChaseArena.__index = ChaseArena
@@ -197,6 +198,70 @@ function ChaseArena:BuildEnds()
     -- La compuerta queda arriba y baja cuando todos pasaron.
     self.Shutter = part(ends, "CoreShutter", Vector3.new(width - 6, height - 3, 1.4), self:Frame(finish + 2.5, 0, height + (height - 3) / 2 - 1), RUST, Enum.Material.CorrodedMetal)
     self.ShutterClosed = self:Frame(finish + 2.5, 0, (height - 3) / 2)
+
+    -- Alma, del otro lado de la reja del Núcleo: se la ve desde lejos en el último
+    -- tramo, con luz cálida (todo lo demás es frío), para que se entienda a quién
+    -- se viene a buscar.
+    self:BuildAlma(ends, finish + 26)
+end
+
+function ChaseArena:BuildAlma(parent, almaS)
+    local width, height = self.Arena.Width, self.Arena.Height
+    self.AlmaS = almaS
+    local holder = Instance.new("Model")
+    holder.Name = "AlmaGlimpse"
+    holder.Parent = parent
+
+    local facing = CFrame.Angles(0, math.pi, 0)
+    local folder = ServerStorage:FindFirstChild("NocturnaModels")
+    local hook = folder and folder:FindFirstChild("Alma")
+    local figure = nil
+    if hook and hook:IsA("Model") then
+        figure = hook:Clone()
+        for _, item in ipairs(figure:GetDescendants()) do
+            if item:IsA("BasePart") then
+                item.Anchored = true
+                item.CanCollide = false
+                item.CanTouch = false
+                item.CanQuery = false
+            elseif item:IsA("Script") or item:IsA("LocalScript") then
+                item:Destroy()
+            end
+        end
+        local humanoid = figure:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+        end
+        local _, size = figure:GetBoundingBox()
+        figure:PivotTo(self:Frame(almaS, 0, size.Y / 2) * facing)
+        figure.Name = "Alma"
+        figure.Parent = holder
+    else
+        -- Sin el modelo guardado: una silueta chiquita a contraluz.
+        part(holder, "AlmaBody", Vector3.new(1.4, 2.2, 0.8), self:Frame(almaS, 0, 1.6), STAIN, Enum.Material.SmoothPlastic)
+        local head = part(holder, "AlmaHead", Vector3.new(1.3, 1.3, 1.3), self:Frame(almaS, 0, 3.3), STAIN, Enum.Material.SmoothPlastic)
+        head.Shape = Enum.PartType.Ball
+    end
+
+    -- La reja entre ella y el grupo.
+    local barS = almaS - 4
+    for index = -6, 6 do
+        cylinder(holder, "Bar", height * 0.6, 0.35, self:Frame(barS, index * 1.2, height * 0.3) * CFrame.Angles(0, 0, math.pi / 2), RUST, Enum.Material.CorrodedMetal)
+    end
+    part(holder, "BarTop", Vector3.new(16, 0.6, 0.6), self:Frame(barS, 0, height * 0.6), RUST, Enum.Material.CorrodedMetal)
+
+    -- Su lámpara de nena: la única luz cálida del final.
+    local lampPart = part(holder, "AlmaLamp", Vector3.new(0.8, 0.8, 0.8), self:Frame(almaS + 2, 1.6, 3.4), AMBER, Enum.Material.Neon)
+    local glow = Instance.new("PointLight")
+    glow.Name = "AlmaLight"
+    glow.Color = AMBER
+    glow.Range = 22
+    glow.Brightness = 2.4
+    glow.Shadows = true
+    glow.Parent = lampPart
+    local back = part(holder, "AlmaBacklight", Vector3.new(width * 0.4, 0.3, 0.3), self:Frame(almaS + 6, 0, 0.4), AMBER, Enum.Material.Neon)
+    back.Transparency = 0.3
+    return holder
 end
 
 -- Tramo k: de k * largo a (k + 1) * largo.

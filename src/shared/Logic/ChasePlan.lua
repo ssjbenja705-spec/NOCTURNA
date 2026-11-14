@@ -31,6 +31,13 @@ end
 
 ChasePlan.Allowed = allowed
 
+-- Dos obstáculos seguidos que piden acciones contrarias (saltar y agacharse).
+local function switches(config, a, b)
+    local first, second = config.Actions[a], config.Actions[b]
+    return first ~= nil and second ~= nil and first ~= second
+end
+ChasePlan.Switches = switches
+
 -- Arma la lista de obstáculos para una semilla (un Rng de Shared.Logic.Rng).
 -- Cada uno: {Id, Kind, S, Side}. Side sólo en derrumbes: -1 izquierda, 0 centro,
 -- 1 derecha (la franja donde cae).
@@ -59,6 +66,10 @@ function ChasePlan.Generate(rng, config)
     end
 
     for _, kind in ipairs(settings.Intro) do
+        local last = list[#list]
+        if last and switches(config, last.Kind, kind) then
+            s = math.max(s, last.S + settings.SpacingEnd * 0.9 + (settings.SwitchSpacing or 0))
+        end
         if s > limit then
             break
         end
@@ -74,7 +85,15 @@ function ChasePlan.Generate(rng, config)
                 break
             end
         end
-        add(kind or "Vault")
+        kind = kind or "Vault"
+        local last = list[#list]
+        if last and switches(config, last.Kind, kind) then
+            s = math.max(s, last.S + settings.SpacingEnd * 0.9 + (settings.SwitchSpacing or 0))
+        end
+        if s > limit then
+            break
+        end
+        add(kind)
     end
 
     return list
@@ -95,7 +114,11 @@ function ChasePlan.Validate(list, config)
         if entry.S < settings.FirstS or entry.S > config.Arena.FinishS - settings.LastBefore then
             return false, "fuera de la galería: " .. entry.S
         end
-        if previous and entry.S - previous.S < settings.SpacingEnd * 0.9 - 0.15 then
+        local needed = settings.SpacingEnd * 0.9 - 0.15
+        if previous and switches(config, previous.Kind, entry.Kind) then
+            needed += settings.SwitchSpacing or 0
+        end
+        if previous and entry.S - previous.S < needed then
             return false, string.format("obstáculos pegados en %.1f y %.1f", previous.S, entry.S)
         end
         if index > #settings.Intro and not allowed(history, entry.Kind) then

@@ -799,7 +799,7 @@ function EVENTS.Reveal(data)
     view.Target = tonumber(data.S) or view.Target
     local monster = ensureCreature()
     monster:SetVisible(true)
-    monster:StartRoar(1.8)
+    monster:StartRoar(3)
     burst(point(ARENA.BackS + 4, 0, 8), 60)
     ChaseScore.Hit("CreatureRoar", point(ARENA.BackS + 6, 0, 8))
     ChaseScore.Hit("Stinger")
@@ -891,6 +891,37 @@ function EVENTS.Safe(data)
             ui.Hint.Visible = false
         end
     end
+end
+
+-- Se ve a Alma detrás de la reja del Núcleo: una frase y un tono cálido que se
+-- mete en la música de la persecución (el motivo del recuerdo).
+function EVENTS.AlmaSeen()
+    caption("¡Alma! Está ahí, detrás de la reja. ¡No pares!", 3.5)
+    local tone = Instance.new("Sound")
+    tone.Name = "AlmaTheme"
+    tone.SoundId = "rbxasset://sounds/action_swim.mp3"
+    tone.PlaybackSpeed = 0.32
+    tone.Looped = true
+    tone.Volume = 0
+    local chorus = Instance.new("ChorusSoundEffect")
+    chorus.Depth = 0.45
+    chorus.Mix = 0.6
+    chorus.Rate = 1.4
+    chorus.Parent = tone
+    local reverb = Instance.new("ReverbSoundEffect")
+    reverb.DecayTime = 3.5
+    reverb.Parent = tone
+    tone.Parent = game:GetService("SoundService")
+    tone:Play()
+    local TweenService = game:GetService("TweenService")
+    TweenService:Create(tone, TweenInfo.new(2.5), {Volume = 0.45}):Play()
+    task.delay(9, function()
+        local fade = TweenService:Create(tone, TweenInfo.new(3), {Volume = 0})
+        fade.Completed:Connect(function()
+            tone:Destroy()
+        end)
+        fade:Play()
+    end)
 end
 
 function EVENTS.Finish(data)

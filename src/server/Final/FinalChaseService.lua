@@ -163,6 +163,8 @@ local function register(c, player, character, s)
             entry.Passed[obstacle.Id] = true
         end
     end
+    -- En la persecución se corre solo: velocidad de carrera sin gastar AIRE.
+    player:SetAttribute("ChaseRun", true)
     c.Players[player] = entry
     return entry
 end
@@ -203,6 +205,11 @@ local function newChase(chapterIndex, spec)
 end
 
 local function cleanup(c)
+    for player in pairs(c.Players or {}) do
+        if player.Parent then
+            player:SetAttribute("ChaseRun", nil)
+        end
+    end
     if c.Arena then
         c.Arena:Destroy()
         c.Arena = nil
@@ -613,6 +620,11 @@ local function step(c, deltaTime)
     end
 
     updateDebris(c, frontS, runners, now)
+    -- El grupo ve a Alma detrás de la reja: una sola vez, en el último tramo.
+    if not c.AlmaSeen and arena.AlmaS and frontS >= arena.AlmaS - 150 then
+        c.AlmaSeen = true
+        Remotes.FireAll("ChaseState", {Event = "AlmaSeen"})
+    end
     arena:Stream(c.Creature.S - ARENA.KeepBehind, frontS + ARENA.BuildAhead)
     updateCheckpoint(c, frontS, anySafe)
 

@@ -6634,6 +6634,20 @@ local function healthOf(player)
     return player.Character:FindFirstChildOfClass("Humanoid").Health
 end
 
+T.Test("persecución: se corre solo a velocidad de carrera sin gastar aire, y al salir vuelve a caminar", function()
+    local players = bootServer(1)
+    Engine.Run(1)
+    local player = players[1]
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    player:SetAttribute("ChaseRun", true)
+    Engine.Run(0.5)
+    T.Equal(humanoid.WalkSpeed, GameConfig.Player.SprintSpeed, "corre sin apretar CORRER")
+    T.Equal(player:GetAttribute("Stamina"), GameConfig.Player.MaxStamina, "el aire no baja")
+    player:SetAttribute("ChaseRun", nil)
+    Engine.Run(0.5)
+    T.Equal(humanoid.WalkSpeed, GameConfig.Player.WalkSpeed, "fuera de la persecución, camina")
+end)
+
 T.Test("persecución: 2000 secuencias de obstáculos válidas, que presentan cada tipo y se aprietan", function()
     local ChasePlan = Engine.RequireShared("Logic.ChasePlan")
     local config = Engine.RequireShared("Config.FinalChaseConfig")
