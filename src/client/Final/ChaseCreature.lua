@@ -11,14 +11,34 @@ local PLATE = Color3.fromRGB(70, 60, 56)
 local TISSUE = Color3.fromRGB(96, 22, 28)
 local EYE = Color3.fromRGB(255, 170, 60)
 local MOUTH = Color3.fromRGB(200, 30, 24)
+local WEAK = Color3.fromRGB(255, 120, 60)
 local STRIDE = 11
 
+-- Piezas orgánicas modeladas en Blender (assets/blender/build_organismo.py),
+-- con su textura (SurfaceAppearance), en ReplicatedStorage.NocturnaAssets.Organismo.
+-- Si no están, la criatura se arma con piezas simples como antes.
+local function organicTemplate()
+    local assets = game:GetService("ReplicatedStorage"):FindFirstChild("NocturnaAssets")
+    return assets and assets:FindFirstChild("Organismo")
+end
+ChaseCreature.Template = organicTemplate
+
 local function piece(model, name, size, color, material, shape)
-    local part = Instance.new("Part")
-    part.Name = name
-    part.Size = size
-    part.Color = color
-    part.Material = material or Enum.Material.SmoothPlastic
+    local template = organicTemplate()
+    local mesh = template and template:FindFirstChild(name)
+    local part
+    if mesh and mesh:IsA("MeshPart") then
+        part = mesh:Clone()
+        part.Name = name
+        part.Size = size
+        shape = nil
+    else
+        part = Instance.new("Part")
+        part.Name = name
+        part.Size = size
+        part.Color = color
+        part.Material = material or Enum.Material.SmoothPlastic
+    end
     part.Anchored = true
     part.CanCollide = false
     part.CanTouch = false
@@ -56,6 +76,18 @@ function ChaseCreature.new(parent, origin, scale)
     parts.Head = piece(model, "Head", Vector3.new(8, 5, 6) * size, PLATE, Enum.Material.Slate)
     parts.Jaw = piece(model, "Jaw", Vector3.new(7, 1.6, 5) * size, FLESH, Enum.Material.Slate)
     parts.Mouth = piece(model, "Mouth", Vector3.new(5.5, 1.2, 1) * size, MOUTH, Enum.Material.Neon)
+    -- El punto débil: un saco nervioso expuesto entre las placas del cráneo, que
+    -- late con luz propia (se ve desde lejos durante toda la persecución).
+    parts.WeakPoint = piece(model, "WeakPoint", Vector3.new(3, 2, 3) * size, WEAK, Enum.Material.Neon, Enum.PartType.Ball)
+    parts.WeakPoint.Material = Enum.Material.Neon
+    parts.WeakPoint.Color = WEAK
+    local weakGlow = Instance.new("PointLight")
+    weakGlow.Color = WEAK
+    weakGlow.Range = 16
+    weakGlow.Brightness = 1.5
+    weakGlow.Shadows = false
+    weakGlow.Parent = parts.WeakPoint
+    self.WeakGlow = weakGlow
     local glow = Instance.new("PointLight")
     glow.Color = MOUTH
     glow.Range = 20
@@ -106,6 +138,9 @@ function ChaseCreature:SetVisible(visible)
         end
     end
     self.Glow.Enabled = visible
+    if self.WeakGlow then
+        self.WeakGlow.Enabled = visible
+    end
 end
 
 function ChaseCreature:StartRoar(duration)
@@ -156,6 +191,11 @@ function ChaseCreature:Update(s, speed, deltaTime)
     for _, eye in ipairs(self.Eyes) do
         eye.Part.CFrame = head * CFrame.new(eye.Offset)
     end
+    -- Punto débil arriba de la cabeza, latiendo (más rápido cuando ruge).
+    local beat = (math.sin(os.clock() * (roaring and 9 or 4)) + 1) / 2
+    parts.WeakPoint.CFrame = head * CFrame.new(0, 2.4 * size, 0.6 * size) * CFrame.new(0, beat * 0.15 * size, 0)
+    parts.WeakPoint.Color = WEAK:Lerp(Color3.fromRGB(255, 220, 140), beat)
+    self.WeakGlow.Brightness = 0.8 + beat * 1.6
 
     -- Brazos: se estiran hacia adelante y se clavan en el piso por turnos.
     for _, arm in ipairs(self.Arms) do
