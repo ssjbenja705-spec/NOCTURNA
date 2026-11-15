@@ -6634,6 +6634,43 @@ local function healthOf(player)
     return player.Character:FindFirstChildOfClass("Humanoid").Health
 end
 
+T.Test("persecución: la galería tiene cuatro zonas con portal, Alma al final y el carril libre", function()
+    Engine.Reset()
+    local ChaseArena = Engine.RequireServer("Final.ChaseArena")
+    local ChasePlan = Engine.RequireShared("Logic.ChasePlan")
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    local obstacles = ChasePlan.Generate(Rng.new(3), config)
+    local arena = ChaseArena.new(config, obstacles, 3)
+    arena:Stream(config.Arena.BackS, config.Arena.Length)
+    local zones, gates = {}, 0
+    local half = config.Arena.Width / 2
+    local blocked = 0
+    local decoration = {Generator = true, GeneratorDrum = true, FleshPillar = true, FleshRoot = true, HangingSlab = true, Catwalk = true, Chain = true, ZoneGatePost = true}
+    for _, segment in pairs(arena.Segments) do
+        zones[segment:GetAttribute("Zone")] = true
+        for _, item in ipairs(segment:GetDescendants()) do
+            if item.Name == "ZoneGateLintel" then
+                gates += 1
+            end
+            if decoration[item.Name] and item:IsA("BasePart") then
+                T.False(item.CanCollide, item.Name .. " no choca")
+                local _, lateral = arena:Coordinates(item.Position)
+                local height = item.Position.Y - config.Arena.Origin.Y
+                if math.abs(lateral) < half - 6 and height - item.Size.Y / 2 < 5 then
+                    blocked += 1
+                end
+            end
+        end
+    end
+    for _, name in ipairs({"Laboratorio", "Maquinas", "Cisterna", "Nido"}) do
+        T.True(zones[name] == true, "zona " .. name)
+    end
+    T.Equal(gates, 3, "un portal por cada zona nueva")
+    T.Equal(blocked, 0, "el carril queda libre")
+    T.True(arena.Folder:FindFirstChild("AlmaGlimpse", true) ~= nil, "Alma detrás de la reja")
+    arena:Destroy()
+end)
+
 T.Test("persecución: se corre solo a velocidad de carrera sin gastar aire, y al salir vuelve a caminar", function()
     local players = bootServer(1)
     Engine.Run(1)

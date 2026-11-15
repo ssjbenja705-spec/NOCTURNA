@@ -12,6 +12,7 @@ local CollectionService = game:GetService("CollectionService")
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Rng = require(Shared.Logic.Rng)
 local ServerStorage = game:GetService("ServerStorage")
+local TweenService = game:GetService("TweenService")
 
 local ChaseArena = {}
 ChaseArena.__index = ChaseArena
@@ -323,6 +324,7 @@ function ChaseArena:BuildSegment(k)
     end
 
     self:BuildProps(segment, rng, s0, progress)
+    self:BuildZone(segment, rng, s0, progress)
     self:BuildObstacles(segment, s0, s0 + length)
 
     segment.Parent = self.Folder
@@ -387,6 +389,108 @@ function ChaseArena:BuildProps(segment, rng, s0, progress)
         local blob = part(segment, "Tissue", Vector3.new(radius, radius, radius), self:Frame(s0 + rng:Int(2, length - 2), side * (half - 0.4), rng:Int(1, math.floor(height - 4))),
             TISSUE, Enum.Material.SmoothPlastic)
         blob.Shape = Enum.PartType.Ball
+    end
+end
+
+-- Zonas de la galería: cada tramo pertenece a una según cuánto se avanzó, para que
+-- el recorrido tenga dirección (se baja del laboratorio hasta el nido).
+ChaseArena.Zones = {
+    {Until = 0.3, Name = "Laboratorio", Sign = "LABORATORIO 3"},
+    {Until = 0.55, Name = "Maquinas", Sign = "SALA DE MÁQUINAS"},
+    {Until = 0.8, Name = "Cisterna", Sign = "CISTERNA"},
+    {Until = 2, Name = "Nido", Sign = "NÚCLEO"},
+}
+
+function ChaseArena.ZoneAt(progress)
+    for index, zone in ipairs(ChaseArena.Zones) do
+        if progress < zone.Until then
+            return index, zone
+        end
+    end
+    return #ChaseArena.Zones, ChaseArena.Zones[#ChaseArena.Zones]
+end
+
+-- Todo lo de las zonas queda contra las paredes o arriba: el carril de carrera
+-- (lateral menor a la mitad del ancho menos 6) y la altura de un salto quedan
+-- libres, y nada choca.
+function ChaseArena:BuildZone(segment, rng, s0, progress)
+    local arena = self.Arena
+    local width, height, length = arena.Width, arena.Height, arena.SegmentLength
+    local half = width / 2
+    local index, zone = ChaseArena.ZoneAt(progress)
+    segment:SetAttribute("Zone", zone.Name)
+
+    -- Portal grande al entrar en una zona nueva, con su cartel.
+    local previous = ChaseArena.ZoneAt(math.clamp((s0 - length) / arena.FinishS, 0, 1))
+    if index > previous then
+        local gate = s0 + 1
+        for _, side in ipairs({-1, 1}) do
+            part(segment, "ZoneGatePost", Vector3.new(2.4, height - 1, 2.4), self:Frame(gate, side * (half - 1.2), (height - 1) / 2), METAL, Enum.Material.DiamondPlate)
+        end
+        part(segment, "ZoneGateLintel", Vector3.new(width, 2.6, 2.4), self:Frame(gate, 0, height - 2.3), METAL, Enum.Material.DiamondPlate)
+        sign(segment, zone.Sign, self:Frame(gate - 1.3, 0, height - 2.3) * CFrame.Angles(0, math.pi, 0), 12)
+        lamp(segment, self:Frame(gate, -half + 2.5, height - 4.5) * CFrame.Angles(0, math.pi / 2, 0), EMERGENCY, true)
+    end
+
+    if zone.Name == "Maquinas" then
+        -- Generadores contra las paredes y una pasarela colgada arriba.
+        for _, side in ipairs({-1, 1}) do
+            local s = s0 + rng:Int(6, length - 10)
+            local base = self:Frame(s, side * (half - 3.2), 3)
+            part(segment, "Generator", Vector3.new(4.4, 6, 7), base, Color3.fromRGB(58, 64, 60), Enum.Material.Metal)
+            cylinder(segment, "GeneratorDrum", 6.6, 3.6, base * CFrame.new(0, 3.6, 0) * CFrame.Angles(0, math.pi / 2, 0), RUST, Enum.Material.CorrodedMetal)
+            local light = part(segment, "GeneratorLight", Vector3.new(0.3, 0.6, 0.6), base * CFrame.new(-side * 2.3, 1.5, 2), AMBER, Enum.Material.Neon)
+            light.Transparency = rng:Chance(0.5) and 0 or 0.6
+        end
+        local walkSide = rng:Chance(0.5) and -1 or 1
+        local walkY = height - 6.5
+        part(segment, "Catwalk", Vector3.new(6, 0.4, length), self:Frame(s0 + length / 2, walkSide * (half - 4), walkY), METAL, Enum.Material.DiamondPlate)
+        part(segment, "CatwalkRail", Vector3.new(0.2, 1.4, length), self:Frame(s0 + length / 2, walkSide * (half - 7), walkY + 0.9), RUST, Enum.Material.CorrodedMetal)
+        for chain = 1, 3 do
+            part(segment, "Chain", Vector3.new(0.15, 6.5, 0.15), self:Frame(s0 + chain * length / 4, walkSide * (half - 6.8), walkY + 3.4), Color3.fromRGB(40, 38, 36), Enum.Material.Metal)
+        end
+    elseif zone.Name == "Cisterna" then
+        -- Agua negra que cubre el piso (sólo se ve: no frena ni choca).
+        local water = part(segment, "Water", Vector3.new(width, 0.12, length), self:Frame(s0 + length / 2, 0, 0.18), Color3.fromRGB(14, 22, 24), Enum.Material.Glass)
+        water.Transparency = 0.25
+        water.Reflectance = 0.35
+        -- Losas del techo colgando, con hierros a la vista.
+        for _ = 1, rng:Int(1, 2) do
+            local side = rng:Chance(0.5) and -1 or 1
+            local s = s0 + rng:Int(5, length - 5)
+            part(segment, "HangingSlab", Vector3.new(6, 0.8, 5), self:Frame(s, side * (half - 5), height - 2.5)
+                * CFrame.Angles(rng:Float() * 0.5 + 0.3, 0, side * 0.35), CONCRETE_DARK, Enum.Material.Concrete)
+            for bar = -1, 1 do
+                part(segment, "Rebar", Vector3.new(0.12, 3.5, 0.12), self:Frame(s + bar, side * (half - 5) + bar * 0.6, height - 4.6)
+                    * CFrame.Angles(rng:Float() * 0.4, 0, rng:Float() * 0.4), RUST, Enum.Material.CorrodedMetal)
+            end
+        end
+        dust(segment, self:Frame(s0 + rng:Int(4, length - 4), rng:Int(-10, 10), height - 1), 5, Color3.fromRGB(110, 130, 140))
+    elseif zone.Name == "Nido" then
+        -- El tejido tomó todo: raíces de carne por las paredes, columnas vivas y
+        -- una luz roja que late.
+        for _, side in ipairs({-1, 1}) do
+            for root = 1, 3 do
+                local s = s0 + root * length / 4 + rng:Int(-3, 3)
+                cylinder(segment, "FleshRoot", height * 0.9, rng:Int(9, 16) / 10, self:Frame(s, side * (half - 0.6), height * 0.45)
+                    * CFrame.Angles(0, 0, math.pi / 2 + rng:Float() * 0.4 - 0.2), TISSUE, Enum.Material.Slate)
+            end
+            cylinder(segment, "FleshPillar", height, 3.2, self:Frame(s0 + rng:Int(6, length - 6), side * (half - 3), height / 2)
+                * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(60, 16, 20), Enum.Material.Slate)
+        end
+        local pulse = part(segment, "NestGlow", Vector3.new(1, 1, 1), self:Frame(s0 + length / 2, 0, height - 3), Color3.fromRGB(200, 30, 24), Enum.Material.Neon)
+        pulse.Transparency = 1
+        local light = Instance.new("PointLight")
+        light.Name = "NestPulse"
+        light.Color = Color3.fromRGB(220, 40, 30)
+        light.Range = 32
+        light.Brightness = 1.6
+        light.Shadows = false
+        light.Parent = pulse
+        segment:SetAttribute("Pulse", true)
+        pcall(function()
+            TweenService:Create(light, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Brightness = 3.4}):Play()
+        end)
     end
 end
 

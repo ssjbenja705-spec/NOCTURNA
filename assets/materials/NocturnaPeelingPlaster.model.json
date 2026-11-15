@@ -2,9 +2,9 @@
   "attributes": {
     "NocturnaMean": {
       "Color3": [
-        0.5019607843137255,
-        0.5490196078431373,
-        0.4745098039215686
+        0.4196078431372549,
+        0.47058823529411764,
+        0.43137254901960786
       ]
     },
     "NocturnaTexture": true,
@@ -19,10 +19,10 @@
   "className": "MaterialVariant",
   "properties": {
     "BaseMaterial": "Plaster",
-    "ColorMap": "rbxassetid://72705602825394",
+    "ColorMap": "rbxassetid://139724169889779",
     "MaterialPattern": "Organic",
-    "NormalMap": "rbxassetid://96880619696942",
-    "RoughnessMap": "rbxassetid://108909095235477",
+    "NormalMap": "rbxassetid://82083331062557",
+    "RoughnessMap": "rbxassetid://130064486731683",
     "StudsPerTile": 10
   }
 }
