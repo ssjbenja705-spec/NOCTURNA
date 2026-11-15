@@ -33,18 +33,18 @@ TextureAssets.Variants = {
     },
     NocturnaWetConcrete = {
         BaseMaterial = "Concrete", StudsPerTile = 12, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(89, 87, 81),
-        Color = 125001835297678, Normal = 140702473517480, Roughness = 128334651781701, Metalness = 0,
+        Mean = Color3.fromRGB(92, 90, 83),
+        Color = 71973734522029, Normal = 123296248498910, Roughness = 116418933413115, Metalness = 0,
     },
     NocturnaStainedConcrete = {
         BaseMaterial = "Concrete", StudsPerTile = 12, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(104, 100, 92),
-        Color = 76811597972832, Normal = 71678841120169, Roughness = 82455481645879, Metalness = 0,
+        Mean = Color3.fromRGB(104, 101, 93),
+        Color = 129321851909119, Normal = 122998044473233, Roughness = 127974848535887, Metalness = 0,
     },
     NocturnaPeelingPlaster = {
         BaseMaterial = "Plaster", StudsPerTile = 10, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(128, 140, 121),
-        Color = 72705602825394, Normal = 96880619696942, Roughness = 108909095235477, Metalness = 0,
+        Mean = Color3.fromRGB(107, 120, 110),
+        Color = 139724169889779, Normal = 82083331062557, Roughness = 130064486731683, Metalness = 0,
     },
     NocturnaDirtyTiles = {
         BaseMaterial = "CeramicTiles", StudsPerTile = 6, Pattern = "Regular", Tint = WHITE,
@@ -53,8 +53,8 @@ TextureAssets.Variants = {
     },
     NocturnaStainedPlaster = {
         BaseMaterial = "Plaster", StudsPerTile = 10, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(171, 163, 145),
-        Color = 71599657425870, Normal = 140160376971291, Roughness = 92946102615219, Metalness = 0,
+        Mean = Color3.fromRGB(170, 162, 144),
+        Color = 85264459545075, Normal = 132344830822311, Roughness = 73894254584155, Metalness = 0,
     },
     NocturnaFleshWall = {
         BaseMaterial = "Pebble", StudsPerTile = 6, Pattern = "Regular", Tint = WHITE,
@@ -63,13 +63,13 @@ TextureAssets.Variants = {
     },
     NocturnaStainedSlate = {
         BaseMaterial = "Slate", StudsPerTile = 8, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(51, 53, 46),
-        Color = 115909867396741, Normal = 74585257290861, Roughness = 137690940375819, Metalness = 0,
+        Mean = Color3.fromRGB(52, 55, 53),
+        Color = 87124985159700, Normal = 70776815427975, Roughness = 87743979389675, Metalness = 0,
     },
     NocturnaFleshCeiling = {
         BaseMaterial = "Slate", StudsPerTile = 8, Pattern = "Organic", Tint = WHITE,
-        Mean = Color3.fromRGB(85, 34, 38),
-        Color = 81493325488739, Normal = 113003152442506, Roughness = 92962746358189, Metalness = 0,
+        Mean = Color3.fromRGB(121, 55, 50),
+        Color = 105658525619414, Normal = 123218224005138, Roughness = 83260267663881, Metalness = 0,
     },
     NocturnaScratchedSteel = {
         BaseMaterial = "Metal", StudsPerTile = 8, Pattern = "Regular", Tint = WHITE,

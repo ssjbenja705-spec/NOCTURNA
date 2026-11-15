@@ -3,8 +3,8 @@
     "NocturnaMean": {
       "Color3": [
         0.40784313725490196,
-        0.39215686274509803,
-        0.3607843137254902
+        0.396078431372549,
+        0.36470588235294116
       ]
     },
     "NocturnaTexture": true,
@@ -19,10 +19,10 @@
   "className": "MaterialVariant",
   "properties": {
     "BaseMaterial": "Concrete",
-    "ColorMap": "rbxassetid://76811597972832",
+    "ColorMap": "rbxassetid://129321851909119",
     "MaterialPattern": "Organic",
-    "NormalMap": "rbxassetid://71678841120169",
-    "RoughnessMap": "rbxassetid://82455481645879",
+    "NormalMap": "rbxassetid://122998044473233",
+    "RoughnessMap": "rbxassetid://127974848535887",
     "StudsPerTile": 12
   }
 }
