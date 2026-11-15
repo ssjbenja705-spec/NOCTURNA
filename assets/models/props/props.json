@@ -1,0 +1,1016 @@
+{
+ "WaterCooler": {
+  "Body": {
+   "Material": "Plastic",
+   "Color": [
+    204,
+    202,
+    192
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Dark": {
+   "Material": "Plastic",
+   "Color": [
+    46,
+    48,
+    50
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Metal": {
+   "Material": "Metal",
+   "Color": [
+    118,
+    120,
+    118
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "TapHot": {
+   "Material": "Plastic",
+   "Color": [
+    168,
+    38,
+    34
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "TapCold": {
+   "Material": "Plastic",
+   "Color": [
+    38,
+    84,
+    160
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Bottle": {
+   "Material": "Glass",
+   "Color": [
+    162,
+    198,
+    216
+   ],
+   "Transparency": 0.55,
+   "Reflectance": 0.08,
+   "Collide": false
+  },
+  "Water": {
+   "Material": "Glass",
+   "Color": [
+    70,
+    132,
+    184
+   ],
+   "Transparency": 0.3,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "HospitalBed": {
+  "Frame": {
+   "Material": "Metal",
+   "Color": [
+    176,
+    180,
+    182
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Wheels": {
+   "Material": "Rubber",
+   "Color": [
+    30,
+    30,
+    32
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Panels": {
+   "Material": "Plastic",
+   "Color": [
+    186,
+    182,
+    170
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Mattress": {
+   "Material": "Fabric",
+   "Color": [
+    176,
+    186,
+    188
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Sheet": {
+   "Material": "Fabric",
+   "Color": [
+    148,
+    156,
+    146
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "IVBag": {
+   "Material": "Glass",
+   "Color": [
+    222,
+    214,
+    168
+   ],
+   "Transparency": 0.35,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "Desk": {
+  "Wood": {
+   "Material": "Wood",
+   "Color": [
+    118,
+    88,
+    62
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Metal": {
+   "Material": "Metal",
+   "Color": [
+    58,
+    58,
+    60
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Monitor": {
+   "Material": "Plastic",
+   "Color": [
+    186,
+    178,
+    156
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Screen": {
+   "Material": "Glass",
+   "Color": [
+    28,
+    50,
+    40
+   ],
+   "Transparency": 0.1,
+   "Reflectance": 0.2,
+   "Collide": false
+  },
+  "Papers": {
+   "Material": "Cardboard",
+   "Color": [
+    206,
+    196,
+    168
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Chair": {
+   "Material": "Fabric",
+   "Color": [
+    52,
+    50,
+    54
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "FilingCabinet": {
+  "Body": {
+   "Material": "Metal",
+   "Color": [
+    150,
+    156,
+    148
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Handles": {
+   "Material": "Metal",
+   "Color": [
+    70,
+    70,
+    72
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Papers": {
+   "Material": "Cardboard",
+   "Color": [
+    200,
+    178,
+    128
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "Bookcase": {
+  "Wood": {
+   "Material": "Wood",
+   "Color": [
+    96,
+    70,
+    50
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "BooksRed": {
+   "Material": "Leather",
+   "Color": [
+    104,
+    40,
+    34
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "BooksGreen": {
+   "Material": "Fabric",
+   "Color": [
+    50,
+    68,
+    58
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "BooksTan": {
+   "Material": "Leather",
+   "Color": [
+    128,
+    100,
+    64
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "Sofa": {
+  "Fabric": {
+   "Material": "Fabric",
+   "Color": [
+    96,
+    62,
+    54
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Cushions": {
+   "Material": "Fabric",
+   "Color": [
+    112,
+    74,
+    62
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Legs": {
+   "Material": "Wood",
+   "Color": [
+    52,
+    38,
+    28
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "Wheelchair": {
+  "Frame": {
+   "Material": "Metal",
+   "Color": [
+    150,
+    154,
+    156
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Tires": {
+   "Material": "Rubber",
+   "Color": [
+    28,
+    28,
+    30
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Seat": {
+   "Material": "Fabric",
+   "Color": [
+    34,
+    34,
+    36
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "TrashBin": {
+  "Bin": {
+   "Material": "Metal",
+   "Color": [
+    110,
+    114,
+    110
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Bag": {
+   "Material": "Plastic",
+   "Color": [
+    26,
+    26,
+    28
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Trash": {
+   "Material": "Cardboard",
+   "Color": [
+    196,
+    186,
+    160
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "Extinguisher": {
+  "Body": {
+   "Material": "Metal",
+   "Color": [
+    160,
+    28,
+    26
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.05,
+   "Collide": true
+  },
+  "Valve": {
+   "Material": "Metal",
+   "Color": [
+    170,
+    172,
+    170
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Hose": {
+   "Material": "Rubber",
+   "Color": [
+    24,
+    24,
+    26
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Label": {
+   "Material": "Plastic",
+   "Color": [
+    226,
+    222,
+    206
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Sign": {
+   "Material": "Plastic",
+   "Color": [
+    172,
+    34,
+    32
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "Plant": {
+  "Pot": {
+   "Material": "Slate",
+   "Color": [
+    128,
+    74,
+    54
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Soil": {
+   "Material": "Ground",
+   "Color": [
+    52,
+    40,
+    30
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Stems": {
+   "Material": "Wood",
+   "Color": [
+    72,
+    56,
+    38
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Leaves": {
+   "Material": "Fabric",
+   "Color": [
+    98,
+    88,
+    54
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "LabTable": {
+  "Cabinet": {
+   "Material": "Metal",
+   "Color": [
+    184,
+    188,
+    186
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Top": {
+   "Material": "Slate",
+   "Color": [
+    28,
+    28,
+    30
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Chrome": {
+   "Material": "Metal",
+   "Color": [
+    196,
+    200,
+    200
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.1,
+   "Collide": false
+  },
+  "Glassware": {
+   "Material": "Glass",
+   "Color": [
+    205,
+    222,
+    218
+   ],
+   "Transparency": 0.5,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Reagents": {
+   "Material": "Glass",
+   "Color": [
+    150,
+    92,
+    40
+   ],
+   "Transparency": 0.2,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Liquids": {
+   "Material": "Glass",
+   "Color": [
+    110,
+    168,
+    64
+   ],
+   "Transparency": 0.25,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "SpecimenTank": {
+  "Frame": {
+   "Material": "Metal",
+   "Color": [
+    112,
+    118,
+    122
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Glass": {
+   "Material": "Glass",
+   "Color": [
+    176,
+    206,
+    200
+   ],
+   "Transparency": 0.62,
+   "Reflectance": 0.12,
+   "Collide": true
+  },
+  "Fluid": {
+   "Material": "Glass",
+   "Color": [
+    96,
+    150,
+    86
+   ],
+   "Transparency": 0.45,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Light": {
+    "Color": [
+     96,
+     150,
+     86
+    ],
+    "Brightness": 0.9,
+    "Range": 11
+   },
+   "Bubbles": true
+  },
+  "Specimen": {
+   "Material": "Slate",
+   "Color": [
+    150,
+    96,
+    92
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Lights": {
+   "Material": "Neon",
+   "Color": [
+    120,
+    255,
+    150
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "SpecimenTank_2": {
+  "Frame": {
+   "Material": "Metal",
+   "Color": [
+    112,
+    118,
+    122
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Glass": {
+   "Material": "Glass",
+   "Color": [
+    176,
+    206,
+    200
+   ],
+   "Transparency": 0.62,
+   "Reflectance": 0.12,
+   "Collide": true
+  },
+  "Fluid": {
+   "Material": "Glass",
+   "Color": [
+    170,
+    120,
+    50
+   ],
+   "Transparency": 0.45,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Light": {
+    "Color": [
+     170,
+     120,
+     50
+    ],
+    "Brightness": 0.9,
+    "Range": 11
+   },
+   "Bubbles": true
+  },
+  "Specimen": {
+   "Material": "Slate",
+   "Color": [
+    150,
+    96,
+    92
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Lights": {
+   "Material": "Neon",
+   "Color": [
+    120,
+    255,
+    150
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "SpecimenTank_3": {
+  "Frame": {
+   "Material": "Metal",
+   "Color": [
+    112,
+    118,
+    122
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Glass": {
+   "Material": "Glass",
+   "Color": [
+    176,
+    206,
+    200
+   ],
+   "Transparency": 0.62,
+   "Reflectance": 0.12,
+   "Collide": true
+  },
+  "Fluid": {
+   "Material": "Glass",
+   "Color": [
+    150,
+    46,
+    40
+   ],
+   "Transparency": 0.45,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Light": {
+    "Color": [
+     150,
+     46,
+     40
+    ],
+    "Brightness": 0.9,
+    "Range": 11
+   },
+   "Bubbles": true
+  },
+  "Specimen": {
+   "Material": "Slate",
+   "Color": [
+    150,
+    96,
+    92
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Lights": {
+   "Material": "Neon",
+   "Color": [
+    120,
+    255,
+    150
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "GrowthMass": {
+  "Flesh": {
+   "Material": "Slate",
+   "Color": [
+    128,
+    52,
+    60
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true,
+   "Surface": "OrganismoFlesh"
+  },
+  "Veins": {
+   "Material": "Slate",
+   "Color": [
+    92,
+    22,
+    34
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Pustules": {
+   "Material": "Neon",
+   "Color": [
+    150,
+    60,
+    40
+   ],
+   "Transparency": 0.35,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "GrowthMass_2": {
+  "Flesh": {
+   "Material": "Slate",
+   "Color": [
+    128,
+    52,
+    60
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true,
+   "Surface": "OrganismoFlesh"
+  },
+  "Veins": {
+   "Material": "Slate",
+   "Color": [
+    92,
+    22,
+    34
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Pustules": {
+   "Material": "Neon",
+   "Color": [
+    150,
+    60,
+    40
+   ],
+   "Transparency": 0.35,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "WallGrowth": {
+  "Membrane": {
+   "Material": "Slate",
+   "Color": [
+    120,
+    44,
+    52
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Veins": {
+   "Material": "Slate",
+   "Color": [
+    88,
+    20,
+    32
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Pustules": {
+   "Material": "Neon",
+   "Color": [
+    140,
+    52,
+    36
+   ],
+   "Transparency": 0.4,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "WallGrowth_2": {
+  "Membrane": {
+   "Material": "Slate",
+   "Color": [
+    120,
+    44,
+    52
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Veins": {
+   "Material": "Slate",
+   "Color": [
+    88,
+    20,
+    32
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false,
+   "Surface": "OrganismoFlesh"
+  },
+  "Pustules": {
+   "Material": "Neon",
+   "Color": [
+    140,
+    52,
+    36
+   ],
+   "Transparency": 0.4,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ },
+ "OperatingTable": {
+  "Steel": {
+   "Material": "Metal",
+   "Color": [
+    160,
+    166,
+    168
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": true
+  },
+  "Pads": {
+   "Material": "Leather",
+   "Color": [
+    34,
+    36,
+    40
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Straps": {
+   "Material": "Leather",
+   "Color": [
+    92,
+    64,
+    42
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Cloth": {
+   "Material": "Fabric",
+   "Color": [
+    150,
+    146,
+    132
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "LampDish": {
+   "Material": "Plastic",
+   "Color": [
+    214,
+    214,
+    206
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Bulbs": {
+   "Material": "Neon",
+   "Color": [
+    255,
+    236,
+    200
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  },
+  "Tools": {
+   "Material": "Metal",
+   "Color": [
+    200,
+    204,
+    206
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.15,
+   "Collide": false
+  },
+  "Blood": {
+   "Material": "Slate",
+   "Color": [
+    88,
+    16,
+    20
+   ],
+   "Transparency": 0.0,
+   "Reflectance": 0.0,
+   "Collide": false
+  }
+ }
+}

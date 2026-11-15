@@ -1,0 +1,125 @@
+{
+ "WaterCooler": {
+  "Body": 836,
+  "Dark": 540,
+  "Metal": 404,
+  "TapHot": 308,
+  "TapCold": 308,
+  "Bottle": 896,
+  "Water": 384
+ },
+ "HospitalBed": {
+  "Frame": 1976,
+  "Wheels": 752,
+  "Panels": 376,
+  "Mattress": 840,
+  "Sheet": 3344,
+  "IVBag": 476
+ },
+ "Desk": {
+  "Wood": 660,
+  "Metal": 1426,
+  "Monitor": 700,
+  "Screen": 188,
+  "Papers": 156,
+  "Chair": 2080
+ },
+ "FilingCabinet": {
+  "Body": 456,
+  "Handles": 276,
+  "Papers": 324
+ },
+ "Bookcase": {
+  "Wood": 768,
+  "BooksRed": 2916,
+  "BooksGreen": 3564,
+  "BooksTan": 2592
+ },
+ "Sofa": {
+  "Fabric": 2232,
+  "Cushions": 3120,
+  "Legs": 144
+ },
+ "Wheelchair": {
+  "Frame": 2032,
+  "Tires": 1728,
+  "Seat": 2080
+ },
+ "TrashBin": {
+  "Bin": 1172,
+  "Bag": 656,
+  "Trash": 320
+ },
+ "Extinguisher": {
+  "Body": 280,
+  "Valve": 900,
+  "Hose": 316,
+  "Label": 172,
+  "Sign": 108
+ },
+ "Plant": {
+  "Pot": 336,
+  "Soil": 320,
+  "Stems": 2320,
+  "Leaves": 4320
+ },
+ "LabTable": {
+  "Cabinet": 968,
+  "Top": 152,
+  "Chrome": 1432,
+  "Glassware": 924,
+  "Reagents": 896,
+  "Liquids": 408
+ },
+ "SpecimenTank": {
+  "Frame": 3876,
+  "Glass": 140,
+  "Fluid": 140,
+  "Specimen": 4220,
+  "Lights": 724
+ },
+ "SpecimenTank_2": {
+  "Frame": 3876,
+  "Glass": 140,
+  "Fluid": 140,
+  "Specimen": 5732,
+  "Lights": 724
+ },
+ "SpecimenTank_3": {
+  "Frame": 3876,
+  "Glass": 140,
+  "Fluid": 140,
+  "Specimen": 7416,
+  "Lights": 724
+ },
+ "GrowthMass": {
+  "Flesh": 2890,
+  "Veins": 2248,
+  "Pustules": 960
+ },
+ "GrowthMass_2": {
+  "Flesh": 2214,
+  "Veins": 2604,
+  "Pustules": 960
+ },
+ "WallGrowth": {
+  "Membrane": 3588,
+  "Veins": 6934,
+  "Pustules": 2000
+ },
+ "WallGrowth_2": {
+  "Membrane": 4110,
+  "Veins": 6370,
+  "Pustules": 1920
+ },
+ "OperatingTable": {
+  "Steel": 1180,
+  "Pads": 2080,
+  "Straps": 324,
+  "Cloth": 3344,
+  "LampDish": 320,
+  "Bulbs": 720,
+  "Tools": 864,
+  "Blood": 720
+ }
+}

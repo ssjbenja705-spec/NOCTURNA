@@ -1,5 +1,49 @@
 # Utilería con mallas (Meshy, Tripo, Blender…)
 
+## Juego modelado en Blender (`NocturnaProps.fbx`)
+
+![Vista previa de cada objeto](previews/WaterCooler.png)
+
+`assets/blender/build_props.py` modela 19 objetos con geometría propia (biseles,
+piezas torneadas, caños barridos por curvas, telas con arrugas, carne deformada con
+ruido). Cada objeto sale partido por material: una MeshPart por grupo
+(`<Objeto>__<Grupo>`), así el dispenser son 7 piezas y no 40.
+
+| Objeto | Grupos | Triángulos |
+| --- | --- | --- |
+| `WaterCooler` | cuerpo, hueco oscuro, rejilla y serpentina, canilla roja y azul, bidón con estrías, agua | 3.676 |
+| `HospitalBed` | caños, ruedas, cabecera y pie, colchón con almohada, sábana que cae, suero | 7.764 |
+| `Desk` | madera, metal, monitor de tubo, pantalla, papeles, silla de oficina | 5.210 |
+| `FilingCabinet` | cuerpo con un cajón abierto, tiradores, carpetas | 1.056 |
+| `Bookcase` | madera, libros en tres tonos | 9.840 |
+| `Sofa` | tapizado, almohadones, patas | 5.496 |
+| `Wheelchair` | bastidor con rayos, cubiertas, asiento | 5.840 |
+| `TrashBin` | tacho con pedal, bolsa, papeles | 2.148 |
+| `Extinguisher` | cuerpo, válvula y soporte, manguera, etiquetas, cartel | 1.776 |
+| `Plant` | maceta, tierra, ramas secas, hojas | 7.296 |
+| `LabTable` | mueble, mesada, pileta y microscopio, vidrio, reactivos, líquidos | 4.780 |
+| `SpecimenTank`, `_2`, `_3` | estructura, vidrio, líquido (con luz y burbujas), espécimen, luces | 9.100 – 12.296 |
+| `GrowthMass`, `_2` | carne, venas, bolsas | 5.778 – 6.098 |
+| `WallGrowth`, `_2` | piel sobre la pared, venas, bolsas | 12.400 – 12.522 |
+| `OperatingTable` | acero, colchonetas, correas, paño, lámpara, focos, instrumental, sangre | 9.552 |
+
+Las variantes `<Nombre>_2`, `_3` se reparten solas (`PropKit.Template`): dos
+cápsulas seguidas nunca son iguales (feto en líquido verde, masa de tentáculos en un
+tanque medio vacío ámbar, cerebro con médula en líquido rojo).
+
+`props.json` dice el material de Roblox, color, transparencia y colisión de cada
+grupo. Los de carne llevan la textura `OrganismoFlesh` (SurfaceAppearance); el resto
+toma solo las texturas PBR del capítulo (MaterialVariant por material). El líquido de
+las cápsulas lleva luz y burbujas.
+
+Regenerar: `blender -b --factory-startup -P assets/blender/build_props.py -- --out C:/tmp/ntp`
+(deja el FBX, `props.json`, `triangles.json` y las vistas previas).
+
+Instalar en el lugar: subir `NocturnaProps.fbx` como modelo y correr
+`tools/studio/install_props.luau` en la barra de comandos con el id del modelo.
+
+## Cómo reemplazar un objeto a mano
+
 Todo el mundo de NOCTURNA se arma con piezas procedurales. Cualquier objeto de la
 lista de abajo se puede reemplazar por una malla **sin tocar código**:
 
