@@ -296,11 +296,11 @@ function ChaseCreature:Update(s, speed, deltaTime)
     end
 
     -- Lengua: una cadena que sale de la boca, cuelga y azota.
-    local link = head * CFrame.new(0, -2 * size, -2.6 * size) * CFrame.Angles(-0.25, 0, 0)
+    local link = head * CFrame.new(0, -2 * size, -2.6 * size) * CFrame.Angles(-0.08, 0, 0)
     for index, segment in ipairs(self.Tongue) do
         local whip = (roaring or swallow) and 0.34 or 0.2
         link = link
-            * CFrame.Angles(math.sin(now * 3.1 + index * 0.9) * whip - 0.1, math.sin(now * 2.3 + index * 0.7) * whip * 1.2, 0)
+            * CFrame.Angles(math.sin(now * 3.1 + index * 0.9) * whip - 0.045, math.sin(now * 2.3 + index * 0.7) * whip * 1.2, 0)
             * CFrame.new(0, 0, -segment.Size.Z * 0.5 * tongueOut)
         segment.CFrame = link
         link = link * CFrame.new(0, 0, -segment.Size.Z * 0.5 * tongueOut)
