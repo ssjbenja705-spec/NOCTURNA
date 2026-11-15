@@ -65,6 +65,8 @@ PropKit.Boxes = {
     GrowthMass = Vector3.new(5, 6, 4),
     Boiler = Vector3.new(4.4, 8.6, 4),
     WaterCooler = Vector3.new(1.4, 4.4, 1.4),
+    -- Banco de espera del lobby (cuatro butacas, el respaldo hacia +Z).
+    LobbyBench = Vector3.new(7, 4.2, 2.6),
     -- Tejido orgánico que cubre una pared (la espalda contra el muro, hacia +Z).
     WallGrowth = Vector3.new(12, 8.6, 1.4),
     Plant = Vector3.new(1.6, 4.2, 1.6),
@@ -436,7 +438,7 @@ end
 
 -- Clona la plantilla y la escala para que entre en la caja `size`, apoyada en el
 -- piso de `base` (centro de la base de la caja, orientado como el objeto).
-function PropKit.FitTemplate(template, parent, base, size)
+function PropKit.FitTemplate(template, parent, base, size, alignBack)
     local clone = template:Clone()
     local parts = collectParts(clone)
     if #parts == 0 then
@@ -461,6 +463,11 @@ function PropKit.FitTemplate(template, parent, base, size)
         size.Z / math.max(extent.Z, 0.05)
     )
     local anchor = Vector3.new((minimum.X + maximum.X) / 2, minimum.Y, (minimum.Z + maximum.Z) / 2)
+    if alignBack then
+        -- La espalda de la malla contra la espalda de la caja (la pared): una malla
+        -- menos profunda que su caja ya no queda flotando separada del muro.
+        anchor = Vector3.new(anchor.X, anchor.Y, maximum.Z - size.Z / 2 / scale)
+    end
 
     for _, piece in ipairs(parts) do
         local offset = (piece.Position - anchor) * scale
@@ -477,18 +484,88 @@ function PropKit.FitTemplate(template, parent, base, size)
     return clone
 end
 
+-- Objetos que van con la espalda contra la pared (+Z de su caja).
+PropKit.Backed = {
+    WallGrowth = true, GrowthMass = true, Desk = true, FilingCabinet = true, Shelf = true, Bookcase = true,
+    LabTable = true, HospitalBed = true, Sofa = true, WaterCooler = true, Extinguisher = true, Workbench = true,
+    ElectricalPanel = true, ServerRack = true, KitchenCounter = true, Dresser = true, TVStand = true,
+    Locker = true, Wardrobe = true, LobbyBench = true, CornerPipe = true,
+}
+
+-- Cuánto más hacia la pared va la malla de estos objetos: los muebles se apoyan a
+-- 0.15 del muro, pero la carne que trepa por él tiene que salir del muro mismo.
+PropKit.WallPush = {
+    GrowthMass = 0.24,
+    Extinguisher = 0.15,
+}
+
 -- Dibuja un objeto con la malla importada si existe, o con `build(parent)` si no.
 -- Devuelve true cuando usó la malla.
 function PropKit.Visual(parent, name, base, build)
     local template = PropKit.Template(name)
     if template then
         local size = PropKit.Boxes[name] or Vector3.new(4, 4, 4)
-        if PropKit.FitTemplate(template, parent, base, size) then
+        local placed = base * CFrame.new(0, 0, PropKit.WallPush[name] or 0)
+        if PropKit.FitTemplate(template, parent, placed, size, PropKit.Backed[name] == true) then
             return true
         end
     end
     build(parent)
     return false
+end
+
+-- Viste una pieza (la hoja de una puerta, por ejemplo) con una malla: cada MeshPart
+-- de la plantilla se estira para ocupar exactamente la caja de `root`, queda
+-- soldada a ella (se mueve con sus animaciones) y `root` se vuelve invisible.
+-- `flip` espeja la malla de izquierda a derecha girándola media vuelta.
+-- Devuelve true si la vistió.
+function PropKit.Dress(root, name, flip)
+    local template = PropKit.Template(name)
+    if not template then
+        return false
+    end
+    local clone = template:Clone()
+    local parts = collectParts(clone)
+    if #parts == 0 then
+        clone:Destroy()
+        return false
+    end
+    local minimum = Vector3.new(math.huge, math.huge, math.huge)
+    local maximum = -minimum
+    for _, piece in ipairs(parts) do
+        for _, corner in ipairs(CORNERS) do
+            local point = (piece.CFrame * CFrame.new(piece.Size * corner)).Position
+            minimum = minimum:Min(point)
+            maximum = maximum:Max(point)
+        end
+    end
+    local extent = (maximum - minimum):Max(Vector3.new(0.05, 0.05, 0.05))
+    local center = (minimum + maximum) / 2
+    local scale = root.Size / extent
+    local turn = flip and CFrame.Angles(0, math.pi, 0) or CFrame.identity
+    for _, piece in ipairs(parts) do
+        local offset = (piece.Position - center) * scale
+        local rotation = piece.CFrame - piece.Position
+        -- El tamaño se estira eje por eje según cómo quedó girada la pieza.
+        local axes = rotation:VectorToObjectSpace(scale)
+        piece.Size *= Vector3.new(math.abs(axes.X), math.abs(axes.Y), math.abs(axes.Z))
+        piece.CFrame = root.CFrame * turn * CFrame.new(offset) * rotation
+        piece.Anchored = false
+        piece.Massless = true
+        piece.CanCollide = false
+        piece.CanTouch = false
+        piece.CanQuery = false
+        local joint = Instance.new("WeldConstraint")
+        joint.Part0 = root
+        joint.Part1 = piece
+        joint.Parent = piece
+        piece.Parent = root
+    end
+    clone:Destroy()
+    root.Transparency = 1
+    root:SetAttribute("NocturnaMesh", true)
+    budget.Count += #parts
+    return true
 end
 
 return PropKit

@@ -370,7 +370,8 @@ end
 -- gruesas hechas con piezas.
 function Weathering.Growth(parent, face, x, _theme, _palette, rng)
     local box = PropKit.Boxes.WallGrowth
-    local base = face * CFrame.new(x, 0.6, WALL_SURFACE - box.Z / 2)
+    -- La caja se mete 0.08 en el muro: el borde de la piel nace dentro de la pared.
+    local base = face * CFrame.new(x, 0.6, WALL_SURFACE + 0.08 - box.Z / 2)
     local holder = Instance.new("Model")
     holder.Name = "WallGrowth"
     holder.Parent = parent

@@ -22,7 +22,20 @@ local SURFACES = {
 		NormalMap = "rbxassetid://82475769405359",
 		RoughnessMap = "rbxassetid://110891094884569",
 	},
+	OrganismoPlate = {
+		ColorMap = "rbxassetid://124341745303686",
+		NormalMap = "rbxassetid://85701142822629",
+		RoughnessMap = "rbxassetid://110840020343864",
+	},
 }
+
+-- Las piezas del monstruo final no son utilería: van a
+-- ReplicatedStorage.NocturnaAssets.Organismo (las arma ChaseCreature en el cliente).
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local assets = ReplicatedStorage:FindFirstChild("NocturnaAssets") or Instance.new("Folder")
+assets.Name = "NocturnaAssets"
+assets.Parent = ReplicatedStorage
+local creature = nil
 
 local was = HttpService.HttpEnabled
 HttpService.HttpEnabled = true
@@ -46,7 +59,18 @@ for _, piece in ipairs(loaded:GetDescendants()) do
 		local spec = prop and manifest[prop] and manifest[prop][group]
 		if spec then
 			local model = folder:FindFirstChild(prop)
-			if not model then
+			if prop == "Organismo" then
+				if not creature then
+					local previous = assets:FindFirstChild("Organismo")
+					if previous then
+						previous:Destroy()
+					end
+					creature = Instance.new("Model")
+					creature.Name = "Organismo"
+					creature.Parent = assets
+				end
+				model = creature
+			elseif not model then
 				model = Instance.new("Model")
 				model.Name = prop
 				model.Parent = folder
@@ -121,6 +145,13 @@ local cooler = folder:FindFirstChild("WaterCooler")
 if cooler and cooler:FindFirstChild("TapHot") and cooler:FindFirstChild("Body") then
 	local offset = cooler.TapHot.Position - cooler.Body.Position
 	print("[NocturnaProps] canilla respecto del cuerpo:", offset)
+	if creature and creature:FindFirstChild("Head") then
+		-- Si todo llegó al revés y la pieza no trae el giro en su CFrame, el giro
+		-- está en la malla misma: ChaseCreature la da vuelta al ubicarla.
+		local look = creature.Head.CFrame.LookVector
+		creature:SetAttribute("MeshTurn", offset.Z > 0 and look.Z < 0)
+		print("[NocturnaProps] Organismo MeshTurn:", creature:GetAttribute("MeshTurn"), look)
+	end
 	if offset.Z > 0 then
 		for _, model in ipairs(folder:GetChildren()) do
 			if model:IsA("Model") then

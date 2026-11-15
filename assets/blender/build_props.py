@@ -317,7 +317,8 @@ def water_cooler(P):
     hot = P.group("TapHot", mat("Plastic", (168, 38, 34)))
     cold = P.group("TapCold", mat("Plastic", (38, 84, 160)))
     bottle = P.group("Bottle", mat("Glass", (162, 198, 216), transparency=0.55, reflectance=0.08), split=None)
-    water = P.group("Water", mat("Glass", (70, 132, 184), transparency=0.3), split=None)
+    # Opaca: dos capas transparentes una dentro de otra parpadean en Roblox.
+    water = P.group("Water", mat("SmoothPlastic", (58, 116, 168), reflectance=0.18), split=None)
 
     body.box((1.22, 2.86, 1.18), (0, 1.53, 0.02), bevel=0.07, seg=3)
     body.box((1.28, 0.1, 1.24), (0, 0.05, 0.02), bevel=0.02)
@@ -404,7 +405,7 @@ def hospital_bed(P):
     # Colchón, almohada y sábana arrugada que cae por los costados.
     bedding.cushion((3.1, 0.5, 6.6), (0, 1.82, 0), round_=0.2, sag=0.02, seed=1)
     bedding.blob((0, 2.25, 2.75), (1.05, 0.2, 0.48), seed=3, amp=0.04, freq=2.5, subdiv=3)
-    sheet.cloth(-1.95, 1.95, -3.2, 1.7, 2.09, drop=0.45, edge=1.5, seed=2, wrinkle=0.05, rot_y=0.04)
+    sheet.cloth(-1.95, 1.95, -3.2, 1.7, 2.2, drop=0.45, edge=1.5, seed=2, wrinkle=0.05, rot_y=0.04)
     # Soporte de suero con la bolsa y la guía.
     frame.cyl(0.04, 4.6, (1.58, 3.75, 3.3), axis="y", segs=8)
     frame.tube([(1.58, 6.0, 3.3), (1.32, 6.05, 3.3), (1.28, 5.93, 3.3)], 0.025, segs=6)
@@ -418,7 +419,7 @@ def desk(P):
     wood = P.group("Wood", mat("Wood", (118, 88, 62), collide=True))
     metal = P.group("Metal", mat("Metal", (58, 58, 60)))
     beige = P.group("Monitor", mat("Plastic", (186, 178, 156)))
-    screen = P.group("Screen", mat("Glass", (28, 50, 40), transparency=0.1, reflectance=0.2))
+    screen = P.group("Screen", mat("Glass", (28, 50, 40), reflectance=0.2))
     paper = P.group("Papers", mat("Cardboard", (206, 196, 168)))
     fabric = P.group("Chair", mat("Fabric", (52, 50, 54)), split=None)
     rng = random.Random(4)
@@ -444,7 +445,7 @@ def desk(P):
     metal.lathe([(0.06, 0), (0.12, -0.05), (0.3, -0.35), (0.27, -0.36), (0, -0.2)], center=(1.72, 4.25, 1.3), rot=(-0.5, 0, 0), segs=18)
     # Papeles sueltos, una pila de carpetas y una taza.
     for k in range(4):
-        paper.box((0.85, 0.012, 1.1), (0.7 + rng.uniform(-0.2, 0.3), 2.93 + k * 0.013, 0.8 + rng.uniform(-0.2, 0.2)),
+        paper.box((0.85, 0.05, 1.1), (0.7 + rng.uniform(-0.2, 0.3), 2.93 + k * 0.03, 0.8 + rng.uniform(-0.2, 0.2)),
                   rot=(0, rng.uniform(-0.6, 0.6), 0))
     paper.box((0.95, 0.16, 1.25), (1.65, 3.0, 1.55), rot=(0, 0.15, 0), bevel=0.01)
     beige.lathe([(0, 2.92), (0.16, 2.92), (0.17, 3.2), (0.15, 3.2), (0.14, 2.95), (0, 2.95)], center=(0.6, 0, 1.75), segs=16)
@@ -669,7 +670,7 @@ def lab_table(P):
     chrome = P.group("Chrome", mat("Metal", (196, 200, 200), reflectance=0.1))
     glass = P.group("Glassware", mat("Glass", (205, 222, 218), transparency=0.5), split=None)
     reagents = P.group("Reagents", mat("Glass", (150, 92, 40), transparency=0.2), split=None)
-    liquids = P.group("Liquids", mat("Glass", (110, 168, 64), transparency=0.25), split=None)
+    liquids = P.group("Liquids", mat("SmoothPlastic", (96, 150, 58), reflectance=0.15), split=None)
     rng = random.Random(31)
     cab.box((7.0, 2.6, 2.7), (0, 1.55, 0.15), bevel=0.03)
     cab.box((6.86, 0.26, 2.5), (0, 0.13, 0.25))
@@ -681,8 +682,8 @@ def lab_table(P):
     # Pileta: borde de acero, fondo oscuro, desagüe y canilla de cuello de ganso.
     for dx, dz, sx, sz in ((0, -0.5, 1.4, 0.08), (0, 0.5, 1.4, 0.08), (-0.66, 0, 0.08, 1.0), (0.66, 0, 0.08, 1.0)):
         chrome.box((sx, 0.06, sz), (2.2 + dx, 3.03, 0.05 + dz), bevel=0.02)
-    chrome.box((1.26, 0.02, 0.92), (2.2, 3.005, 0.05))
-    top.cyl(0.08, 0.02, (2.2, 3.02, 0.05), axis="y", segs=12)
+    chrome.box((1.26, 0.06, 0.92), (2.2, 3.02, 0.05))
+    top.cyl(0.08, 0.04, (2.2, 3.05, 0.05), axis="y", segs=12)
     chrome.tube([(2.2, 3.0, 0.82), (2.2, 3.85, 0.8), (2.2, 3.98, 0.55), (2.2, 3.85, 0.3), (2.2, 3.7, 0.28)], 0.04, segs=8, smooth=2)
     for dx in (-0.3, 0.3):
         chrome.cyl(0.07, 0.12, (2.2 + dx, 3.06, 0.82), axis="y", segs=10)
@@ -720,9 +721,12 @@ def lab_table(P):
 
 def tank(P, fluid_color, level, organism, seed):
     frame = P.group("Frame", mat("Metal", (112, 118, 122), collide=True))
-    glass = P.group("Glass", mat("Glass", (176, 206, 200), transparency=0.62, reflectance=0.12, collide=True), split=None)
-    fluid = P.group("Fluid", mat("Glass", fluid_color, transparency=0.45,
+    # Una sola capa transparente, teñida del color del líquido (dos capas una dentro
+    # de otra parpadean, y el material Glass esconde las burbujas de adentro).
+    glass = P.group("Glass", mat("SmoothPlastic", fluid_color, transparency=0.58, reflectance=0.2, collide=True,
                                  Light={"Color": fluid_color, "Brightness": 0.9, "Range": 11}, Bubbles=True), split=None)
+    # La superficie del líquido: un disco opaco apenas ondulado a la altura del nivel.
+    fluid = P.group("Surface", mat("SmoothPlastic", fluid_color, reflectance=0.25), split=None)
     specimen = P.group("Specimen", mat("Slate", (150, 96, 92), Surface=FLESH), split=None)
     lights = P.group("Lights", mat("Neon", (120, 255, 150)))
     rng = random.Random(seed)
@@ -746,7 +750,7 @@ def tank(P, fluid_color, level, organism, seed):
         lights.box((0.12, 0.08, 0.04), (-0.25 + k * 0.25, 0.48, -1.73), bevel=0.01)
     lights.torus(1.25, 0.035, (0, 0.92, 0), axis="y", segs=40, ring=5)
     glass.cyl(1.42, 5.5, (0, 3.6, 0), axis="y", segs=36)
-    fluid.cyl(1.36, level - 0.9, (0, 0.9 + (level - 0.9) / 2, 0), axis="y", segs=36)
+    fluid.blob((0, level, 0), (1.36, 0.05, 1.36), seed=seed, amp=0.03, freq=2.0, subdiv=3)
     organism(specimen, rng, level)
 
 
@@ -889,7 +893,7 @@ def skin(group, x0, x1, y0, y1, wall, seed, bias=0.35, step=0.24, lift=0.28, low
             m = mask(x, y)
             bulge = max(0.0, m) * lift + max(0.0, noise.noise(Vector((x * 1.4, y * 1.4, 2.0)) + offset)) * 0.06
             index_of[(i, j)] = len(verts)
-            verts.append((x + jx, y + jy, wall - 0.03 - bulge))
+            verts.append((x + jx, y + jy, wall - 0.09 - bulge))
     for i in range(nx):
         for j in range(ny):
             if mask(x0 + (i + 0.5) * step, y0 + (j + 0.5) * step) > 0.05:
@@ -915,9 +919,10 @@ def skin(group, x0, x1, y0, y1, wall, seed, bias=0.35, step=0.24, lift=0.28, low
                 moved[v] = (x, y, verts[v][2])
         for v, p in moved.items():
             verts[v] = p
-    # El borde queda apoyado en la pared.
+    # El borde se mete en la pared: la piel sale del muro sin ninguna zona casi
+    # pegada a él (eso parpadeaba).
     for v in neighbors:
-        verts[v] = (verts[v][0], verts[v][1], wall - 0.02)
+        verts[v] = (verts[v][0], verts[v][1], wall + 0.1)
     used = sorted({v for f in faces for v in f})
     remap = {old: new for new, old in enumerate(used)}
     group.raw([verts[v] for v in used], [[remap[v] for v in f] for f in faces])
@@ -1002,7 +1007,7 @@ def operating_table(P):
     for zz in (-1.6, 0.3, 1.5):
         straps.box((2.42, 0.05, 0.28), (0, 2.68, zz), bevel=0.01)
         tools.box((0.18, 0.06, 0.2), (1.22, 2.68, zz), bevel=0.01)
-    cloth.cloth(-1.6, 1.6, -3.0, -0.6, 2.69, drop=0.5, edge=1.15, seed=3, wrinkle=0.05)
+    cloth.cloth(-1.6, 1.6, -3.0, -0.6, 2.8, drop=0.5, edge=1.15, seed=3, wrinkle=0.05)
     blood.blob((0.3, 2.66, 0.5), (0.6, 0.02, 0.45), seed=5, amp=0.05, subdiv=3)
     blood.blob((-0.7, 0.01, 1.4), (0.8, 0.01, 0.55), seed=6, amp=0.08, subdiv=3)
     # Lámpara cialítica colgada del techo.
@@ -1021,6 +1026,357 @@ def operating_table(P):
     for k in range(5):
         tools.box((0.06, 0.03, 0.6), (-0.1 + k * 0.2, 3.17, 2.95), rot=(0, (k - 2) * 0.12, 0), bevel=0.01)
     blood.blob((0.6, 3.16, 3.15), (0.25, 0.015, 0.2), seed=8, amp=0.03, subdiv=2)
+
+
+# ---------------------------------------------------------------------------
+# Lobby, puertas y depósito
+# ---------------------------------------------------------------------------
+
+@prop("LobbyBench")
+def lobby_bench(P):
+    """Banco de sala de espera: cuatro butacas de cuerina sobre una viga de metal."""
+    seats = P.group("Seats", mat("Leather", (30, 30, 34), reflectance=0.06, collide=True), split=None)
+    frame = P.group("Frame", mat("Metal", (96, 98, 100)))
+    for k in range(4):
+        x = -2.55 + k * 1.7
+        seats.cushion((1.55, 0.34, 1.6), (x, 1.62, -0.15), round_=0.3, sag=0.03, seed=k)
+        seats.cushion((1.55, 1.75, 0.3), (x, 2.75, 0.72), rot=(-0.16, 0, 0), round_=0.3, sag=0.03, seed=k + 9)
+        frame.box((1.2, 0.08, 1.2), (x, 1.42, -0.1), bevel=0.02)
+        frame.tube([(x, 1.4, 0.45), (x, 1.9, 0.78), (x, 2.3, 0.82)], 0.05, segs=6)
+    frame.box((6.9, 0.22, 0.3), (0, 1.25, 0.1), bevel=0.04)
+    for x in (-2.9, 2.9):
+        frame.box((0.22, 1.2, 0.26), (x, 0.65, 0.1), bevel=0.03)
+        frame.box((0.3, 0.1, 1.9), (x, 0.05, -0.05), bevel=0.03)
+        frame.tube([(x * 1.17, 1.5, -0.8), (x * 1.17, 2.2, -0.75), (x * 1.17, 2.2, 0.55), (x * 1.17, 1.5, 0.6)], 0.05, segs=6, smooth=1)
+
+
+def door_bolts(g, w, h, z, step=0.9, r=0.05):
+    y = -h / 2 + 0.25
+    while y < h / 2:
+        for x in (-w / 2 + 0.2, w / 2 - 0.2):
+            g.cyl(r, 0.06, (x, y, z), axis="z", segs=8)
+        y += step
+
+
+@prop("DoorOffice")
+def door_office(P):
+    """Hoja de puerta de clínica (5 x 9 x 0.4): bastidor, tableros, vidrio armado."""
+    wood = P.group("Wood", mat("Wood", (150, 156, 142), collide=False))
+    glass = P.group("Glass", mat("Glass", (150, 160, 150), transparency=0.45, reflectance=0.05))
+    metal = P.group("Metal", mat("Metal", (110, 112, 110)))
+    w, h, d = 5.0, 9.0, 0.4
+    for x in (-w / 2 + 0.35, w / 2 - 0.35):
+        wood.box((0.7, h, d), (x, 0, 0), bevel=0.03)
+    for y, t in ((h / 2 - 0.4, 0.8), (0.6, 0.7), (-h / 2 + 0.55, 1.1)):
+        wood.box((w - 1.4, t, d), (0, y, 0), bevel=0.03)
+    wood.box((w - 1.4, 3.0, 0.2), (0, -1.75, 0), bevel=0.02)
+    wood.box((w - 2.2, 2.2, 0.3), (0, -1.75, 0), bevel=0.06)
+    glass.box((w - 1.4, 2.9, 0.08), (0, 2.4, 0))
+    for k in range(5):
+        metal.box((0.03, 2.9, 0.1), (-1.5 + k * 0.75, 2.4, 0))
+    for k in range(4):
+        metal.box((w - 1.4, 0.03, 0.1), (0, 1.2 + k * 0.8, 0))
+    metal.box((w - 0.3, 1.0, d + 0.06), (0, -h / 2 + 0.6, 0), bevel=0.02)
+    for z in (-0.3, 0.3):
+        metal.tube([(1.7, -0.9, z * 0.7), (1.7, -0.9, z), (1.7, 0.5, z), (1.7, 0.5, z * 0.7)], 0.05, segs=6)
+        metal.box((0.5, 1.9, 0.03), (1.7, -0.2, z * 0.72))
+    for y in (-3.2, 0, 3.2):
+        metal.cyl(0.07, 0.5, (-w / 2, y, 0), axis="y", segs=8)
+
+
+@prop("DoorAirlock")
+def door_airlock(P):
+    steel = P.group("Steel", mat("Metal", (158, 162, 160)))
+    hazard = P.group("Hazard", mat("Metal", (196, 158, 40)))
+    glass = P.group("Glass", mat("Glass", (70, 90, 80), transparency=0.35))
+    growth = P.group("Growth", mat("Slate", (96, 30, 40), Surface=FLESH), split=None)
+    w, h, d = 5.0, 9.0, 0.4
+    steel.box((w, h, d * 0.7), (0, 0, 0), bevel=0.03)
+    for y in (-2.9, 0.0):
+        steel.box((w - 1.3, 2.3, d), (0.25, y, 0), bevel=0.08)
+    for y in (-4.2, -1.45, 1.4, 4.2):
+        steel.box((w - 0.7, 0.22, d + 0.08), (0.25, y, 0), bevel=0.03)
+    door_bolts(steel, w - 0.9, h, d / 2 + 0.01)
+    door_bolts(steel, w - 0.9, h, -d / 2 - 0.01)
+    k = -h / 2 + 0.3
+    while k < h / 2 - 0.3:
+        hazard.box((0.5, 0.42, d + 0.04), (-w / 2 + 0.26, k, 0), rot=(0, 0, 0.6))
+        k += 0.9
+    for z in (-1, 1):
+        steel.torus(0.72, 0.12, (0.25, 2.9, z * d / 2), axis="z", segs=24, ring=6)
+    glass.cyl(0.66, d * 0.5, (0.25, 2.9, 0), axis="z", segs=24)
+    steel.box((0.5, 1.5, d + 0.3), (w / 2 - 0.5, -0.3, 0), bevel=0.05)
+    for s in (-1, 1):
+        growth.blob((0.2, -h / 2 + 0.45, s * 0.22), (1.9, 0.5, 0.2), seed=3 + s, amp=0.1, subdiv=3)
+        growth.tube([(-1.2, -h / 2 + 0.6, s * 0.3), (-0.6, -2.4, s * 0.28), (0.3, -1.2, s * 0.27), (0.1, 0.2, s * 0.26)],
+                    lambda t: 0.1 * (1 - t) + 0.02, segs=5, smooth=1, wobble=0.3, seed=s)
+
+
+@prop("DoorVault")
+def door_vault(P):
+    steel = P.group("Steel", mat("DiamondPlate", (92, 100, 112)))
+    parts = P.group("Fittings", mat("Metal", (70, 76, 86)))
+    w, h, d = 10.0, 9.0, 0.5
+    steel.box((w, h, d * 0.7), (0, 0, 0), bevel=0.04)
+    for x in (-3.3, 0, 3.3):
+        parts.box((0.45, h - 0.4, d + 0.14), (x, 0, 0), bevel=0.05)
+    for y in (-h / 2 + 0.3, h / 2 - 0.3):
+        parts.box((w - 0.2, 0.4, d + 0.1), (0, y, 0), bevel=0.04)
+    door_bolts(parts, w, h, d / 2 + 0.05, step=0.7, r=0.07)
+    door_bolts(parts, w, h, -d / 2 - 0.05, step=0.7, r=0.07)
+    for z in (-1, 1):
+        zc = z * (d / 2 + 0.3)
+        parts.torus(0.9, 0.09, (1.65, 0, zc), axis="z", segs=28, ring=6)
+        for k in range(5):
+            a = k * 2 * math.pi / 5
+            parts.tube([(1.65, 0, zc), (1.65 + math.cos(a) * 0.9, math.sin(a) * 0.9, zc)], 0.05, segs=5, caps=False)
+        parts.cyl(0.18, 0.4, (1.65, 0, z * (d / 2 + 0.15)), axis="z", segs=12)
+        for y in (-2.6, 2.6):
+            parts.box((1.4, 0.5, 0.2), (-2.0, y, z * (d / 2 + 0.08)), bevel=0.04)
+            parts.cyl(0.14, 0.3, (-1.2, y, z * (d / 2 + 0.15)), axis="z", segs=10)
+
+
+@prop("DoorHome")
+def door_home(P):
+    wood = P.group("Wood", mat("WoodPlanks", (112, 80, 56)))
+    brass = P.group("Brass", mat("Metal", (176, 150, 90), reflectance=0.1), split=None)
+    w, h, d = 4.9, 9.0, 0.35
+    for x in (-w / 2 + 0.4, w / 2 - 0.4):
+        wood.box((0.8, h, d), (x, 0, 0), bevel=0.03)
+    wood.box((0.6, h, d), (0, 0, 0), bevel=0.03)
+    for y, t in ((h / 2 - 0.45, 0.9), (0.9, 0.7), (-0.9, 0.7), (-h / 2 + 0.55, 1.1)):
+        wood.box((w - 1.6, t, d), (0, y, 0), bevel=0.03)
+    wood.box((w - 1.6, h - 2.0, 0.16), (0, 0, 0))
+    for x in (-1.0, 1.0):
+        for y, ph in ((2.65, 2.2), (0.0, 0.8), (-2.6, 2.1)):
+            wood.box((1.1, ph, 0.26), (x, y, 0), bevel=0.07)
+    for z in (-1, 1):
+        brass.cyl(0.2, 0.05, (1.8, -0.4, z * (d / 2 + 0.02)), axis="z", segs=14)
+        brass.cyl(0.06, 0.22, (1.8, -0.4, z * (d / 2 + 0.12)), axis="z", segs=8)
+        brass.sphere((0.17, 0.17, 0.15), (1.8, -0.4, z * (d / 2 + 0.28)), segs=12, rings=8)
+        brass.box((0.12, 0.45, 0.03), (1.8, -1.1, z * (d / 2 + 0.01)), bevel=0.01)
+
+
+@prop("DoorShutter")
+def door_shutter(P):
+    slats = P.group("Slats", mat("CorrodedMetal", (86, 84, 80)), split=50)
+    bar = P.group("Bar", mat("Metal", (52, 52, 50)))
+    w, h, d = 10.0, 9.0, 0.3
+    n = 22
+    for k in range(n):
+        y = -h / 2 + 0.5 + (k + 0.5) * (h - 0.5) / n
+        slats.cyl(0.21, w, (0, y, 0), axis="x", segs=8)
+    slats.box((w, h - 0.5, 0.12), (0, 0.25, 0))
+    bar.box((w, 0.5, d + 0.2), (0, -h / 2 + 0.25, 0), bevel=0.04)
+    for z in (-1, 1):
+        bar.tube([(-0.5, -h / 2 + 0.3, z * 0.25), (-0.5, -h / 2 + 0.3, z * 0.45), (0.5, -h / 2 + 0.3, z * 0.45), (0.5, -h / 2 + 0.3, z * 0.25)], 0.05, segs=6)
+    for x in (-w / 2 + 0.08, w / 2 - 0.08):
+        bar.box((0.16, h, d + 0.16), (x, 0, 0))
+
+
+@prop("ElevatorDoor")
+def elevator_door(P):
+    steel = P.group("Steel", mat("Metal", (146, 150, 152), reflectance=0.12))
+    trim = P.group("Trim", mat("Metal", (70, 72, 74)))
+    w, h, d = 4.0, 12.0, 0.4
+    steel.box((w, h, d * 0.6), (0, 0, 0), bevel=0.02)
+    for z in (-1, 1):
+        steel.box((w - 0.9, h - 1.6, 0.1), (0, 0.2, z * 0.14), bevel=0.04)
+        for k in range(6):
+            trim.box((w - 1.3, 0.03, 0.03), (0, -4.5 + k * 1.9, z * 0.2))
+        trim.box((w - 0.2, 0.9, 0.06), (0, -h / 2 + 0.55, z * 0.14), bevel=0.02)
+    for x in (-w / 2 + 0.06, w / 2 - 0.06):
+        trim.box((0.12, h, d), (x, 0, 0))
+
+
+@prop("Crate")
+def crate(P):
+    wood = P.group("Wood", mat("WoodPlanks", (104, 82, 58), collide=True))
+    metal = P.group("Metal", mat("CorrodedMetal", (84, 74, 66)))
+    rng = random.Random(71)
+
+    def one(center, size, yaw):
+        cx, cy, cz = center
+        sx, sy, sz = size
+        wood.box((sx - 0.2, sy - 0.2, sz - 0.2), center, rot=(0, yaw, 0))
+        c, s = math.cos(yaw), math.sin(yaw)
+        def at(x, y, z):
+            return (cx + x * c + z * s, cy + y, cz - x * s + z * c)
+        n = 5
+        for k in range(n):
+            x = -sx / 2 + (k + 0.5) * sx / n
+            for z in (-sz / 2, sz / 2):
+                wood.box((sx / n - 0.04, sy - 0.1, 0.1), at(x, 0, z), rot=(0, yaw, 0))
+            z = -sz / 2 + (k + 0.5) * sz / n
+            for x2 in (-sx / 2, sx / 2):
+                wood.box((0.1, sy - 0.1, sz / n - 0.04), at(x2, 0, z), rot=(0, yaw, 0))
+            wood.box((sx / n - 0.04, 0.1, sz), at(x, sy / 2, 0), rot=(0, yaw, 0))
+        for y in (-sy / 2 + 0.25, sy / 2 - 0.25):
+            for z in (-sz / 2 - 0.06, sz / 2 + 0.06):
+                wood.box((sx + 0.1, 0.3, 0.1), at(0, y, z), rot=(0, yaw, 0))
+            for x2 in (-sx / 2 - 0.06, sx / 2 + 0.06):
+                wood.box((0.1, 0.3, sz + 0.1), at(x2, y, 0), rot=(0, yaw, 0))
+        for x2 in (-sx / 2, sx / 2):
+            for z in (-sz / 2, sz / 2):
+                metal.box((0.3, sy + 0.04, 0.3), at(x2 * 0.99, 0, z * 0.99), rot=(0, yaw, 0), bevel=0.03)
+
+    one((-0.6, 1.3, 0.5), (2.6, 2.6, 2.6), 0.0)
+    one((1.2, 0.9, -0.9), (1.6, 1.8, 1.6), 0.4)
+    one((-0.5, 3.6, 0.5), (2.0, 2.0, 2.0), 0.25)
+
+
+@prop("Barrel")
+def barrel(P):
+    drum = P.group("Drum", mat("CorrodedMetal", (96, 62, 44), collide=True), split=40)
+    lid = P.group("Lid", mat("Metal", (60, 60, 58)))
+    profile = [(0, 0), (1.2, 0), (1.26, 0.06), (1.26, 0.18), (1.2, 0.22)]
+    for y in (1.45, 2.95):
+        profile += [(1.2, y - 0.12), (1.27, y - 0.05), (1.27, y + 0.05), (1.2, y + 0.12)]
+    profile += [(1.2, 4.2), (1.26, 4.26), (1.26, 4.4), (1.18, 4.42), (1.16, 4.3), (0, 4.3)]
+    drum.lathe(profile, center=(0, 0, 0), segs=28)
+    lid.cyl(0.16, 0.1, (0.6, 4.34, 0.3), axis="y", segs=12)
+    lid.cyl(0.09, 0.1, (-0.7, 4.34, -0.2), axis="y", segs=10)
+    lid.torus(1.22, 0.035, (0, 4.38, 0), axis="y", segs=28, ring=5)
+
+
+@prop("CornerPipe")
+def corner_pipe(P):
+    pipe = P.group("Pipe", mat("CorrodedMetal", (104, 76, 60), collide=True), split=45)
+    steel = P.group("Fittings", mat("Metal", (70, 72, 72)))
+    pipe.cyl(0.55, 13, (0.2, 6.5, 0.2), axis="y", segs=16)
+    pipe.tube([(-0.6, 0, 0.5), (-0.6, 4.2, 0.5), (-0.6, 4.8, 0.2), (-0.6, 4.8, -0.9)], 0.22, segs=10, smooth=2)
+    pipe.tube([(-0.6, 13, 0.5), (-0.6, 9.0, 0.5), (-0.3, 8.4, 0.5), (0.2, 8.4, 0.4)], 0.18, segs=8, smooth=2)
+    for y in (0.25, 3.3, 6.5, 9.7, 12.75):
+        steel.cyl(0.72, 0.22, (0.2, y, 0.2), axis="y", segs=16, bevel=0.03)
+        for k in range(8):
+            a = k * math.pi / 4
+            steel.cyl(0.05, 0.3, (0.2 + math.cos(a) * 0.63, y, 0.2 + math.sin(a) * 0.63), axis="y", segs=6)
+    steel.torus(0.42, 0.05, (-0.6, 2.4, 0.5), axis="z", segs=20, ring=6)
+    for k in range(4):
+        a = k * math.pi / 2
+        steel.tube([(-0.6, 2.4, 0.5), (-0.6 + math.cos(a) * 0.42, 2.4 + math.sin(a) * 0.42, 0.5)], 0.03, segs=5, caps=False)
+    steel.cyl(0.06, 0.6, (-0.6, 2.4, 0.3), axis="z", segs=8)
+    for y in (1.5, 7.2, 11.2):
+        steel.box((1.9, 0.14, 0.12), (-0.1, y, 0.82), bevel=0.02)
+
+
+@prop("Shelf")
+def shelf(P):
+    steel = P.group("Frame", mat("Metal", (104, 108, 106), collide=True))
+    boxes = P.group("Boxes", mat("Cardboard", (150, 122, 86)))
+    cans = P.group("Cans", mat("CorrodedMetal", (96, 70, 56)), split=45)
+    rng = random.Random(81)
+    for x in (-2.9, 2.9):
+        for z in (-0.85, 0.85):
+            steel.box((0.14, 7.2, 0.14), (x, 3.6, z), bevel=0.02)
+            y = 0.5
+            while y < 7:
+                steel.cyl(0.03, 0.16, (x, y, z), axis="z", segs=6)
+                y += 0.5
+    for x in (-2.9, 2.9):
+        steel.tube([(x, 0.6, -0.85), (x, 3.4, 0.85)], 0.03, segs=5)
+        steel.tube([(x, 3.8, 0.85), (x, 6.6, -0.85)], 0.03, segs=5)
+    levels = (0.5, 2.2, 3.9, 5.6)
+    for y in levels:
+        steel.box((5.9, 0.1, 1.84), (0, y, 0), bevel=0.02)
+        steel.box((5.9, 0.2, 0.06), (0, y - 0.05, -0.92))
+    for y in levels:
+        x = -2.6
+        while x < 2.3:
+            if rng.random() < 0.55:
+                w, h2, d2 = rng.uniform(0.8, 1.5), rng.uniform(0.6, 1.3), rng.uniform(1.0, 1.5)
+                boxes.box((w, h2, d2), (x + w / 2, y + 0.05 + h2 / 2, rng.uniform(-0.1, 0.1)), rot=(0, rng.uniform(-0.15, 0.15), 0), bevel=0.02)
+                boxes.box((w + 0.02, 0.03, 0.2), (x + w / 2, y + 0.05 + h2, 0), rot=(0, 0, 0))
+                x += w + 0.15
+            elif rng.random() < 0.6:
+                r = rng.uniform(0.2, 0.32)
+                h2 = rng.uniform(0.6, 1.0)
+                cans.lathe([(0, 0), (r, 0), (r + 0.02, 0.03), (r + 0.02, h2 - 0.03), (r, h2), (0, h2)], center=(x + r, y + 0.05, rng.uniform(-0.4, 0.4)), segs=14)
+                x += 2 * r + 0.12
+            else:
+                x += rng.uniform(0.4, 0.9)
+
+
+# ---------------------------------------------------------------------------
+# El Organismo (persecución final): un cuadrúpedo colosal. Cada grupo es una pieza
+# que anima ChaseCreature.lua, con sus ejes: largo de las patas en Y, frente -Z.
+# ---------------------------------------------------------------------------
+
+PLATE = "OrganismoPlate"
+
+
+@prop("Organismo")
+def organismo(P):
+    def flesh(name, color=(150, 96, 92)):
+        return P.group(name, mat("Slate", color, Surface=FLESH), split=None)
+
+    def bone(name):
+        return P.group(name, mat("Slate", (170, 156, 138), Surface=PLATE), split=None)
+
+    # Torso largo con costillas marcadas (10 x 7 x 17).
+    g = flesh("Body")
+    for k in range(6):
+        z = -7 + k * 2.8
+        r = 4.6 - abs(k - 2) * 0.45
+        g.blob((0, 0.2 - k * 0.12, z), (r, r * 0.68, 2.3), seed=k + 1, amp=0.3, freq=1.8, subdiv=3)
+    for k in range(7):
+        z = -6.5 + k * 2.0
+        for s in (-1, 1):
+            g.tube([(s * 0.8, 3.0, z), (s * 3.6, 2.2, z + 0.2), (s * 4.7, -0.3, z + 0.4), (s * 3.4, -2.8, z + 0.5)],
+                   lambda t: 0.34 * (1 - 0.5 * t), segs=6, smooth=2)
+    # Pecho y hombros (13 x 8.5 x 8).
+    g = flesh("Chest")
+    g.blob((0, 0, 0), (5.4, 3.9, 3.8), seed=11, amp=0.35, freq=1.6, subdiv=4)
+    for s in (-1, 1):
+        g.blob((s * 4.6, 1.2, -0.4), (2.6, 2.7, 2.9), seed=12 + s, amp=0.3, subdiv=3)
+        g.blob((s * 2.2, -2.2, -1.6), (2.4, 1.8, 2.2), seed=15 + s, amp=0.2, subdiv=3)
+    # Cabeza sin ojos, larga, con arcos de hueso y dientes arriba (6.5 x 5 x 7.5).
+    g = flesh("Head")
+    g.blob((0, 0.3, 0.6), (3.0, 2.3, 3.4), seed=21, amp=0.22, freq=2.2, subdiv=4)
+    g.blob((0, -0.3, -2.2), (2.5, 1.6, 2.0), seed=22, amp=0.15, subdiv=3)
+    for s in (-1, 1):
+        g.tube([(s * 0.5, 1.9, -2.8), (s * 1.9, 2.0, -0.6), (s * 2.7, 1.3, 1.8), (s * 2.2, 0.2, 3.4)], lambda t: 0.42 * (1 - 0.4 * t), segs=6, smooth=2)
+    for k in range(11):
+        a = -1.3 + k * 0.26
+        g.cyl(0.02, 1.15, (math.sin(a) * 2.2, -1.75, -3.1 - math.cos(a) * 0.75), axis="y", radius2=0.19, segs=6)
+    # Mandíbula en U con dientes hacia arriba (5.6 x 1.5 x 6).
+    g = flesh("Jaw", (120, 70, 70))
+    pts = [(-2.5, 0, 2.8), (-2.6, -0.1, 0), (-2.0, -0.2, -2.3), (0, -0.25, -3.0), (2.0, -0.2, -2.3), (2.6, -0.1, 0), (2.5, 0, 2.8)]
+    g.tube(pts, 0.55, segs=8, smooth=2)
+    g.blob((0, -0.35, 0.4), (2.3, 0.3, 2.6), seed=31, amp=0.08, subdiv=3)
+    for k in range(13):
+        a = -1.45 + k * 0.24
+        g.cyl(0.17, 1.0, (math.sin(a) * 2.35, 0.55, -0.3 - math.cos(a) * 2.5), axis="y", radius2=0.02, segs=6)
+    # Saco nervioso (punto débil).
+    g = P.group("WeakPoint", mat("Neon", (255, 120, 60)), split=None)
+    g.blob((0, 0, 0), (1.5, 1.2, 1.5), seed=41, amp=0.28, freq=3.0, subdiv=4, octaves=3)
+    # Placa de la cresta.
+    g = bone("Spine")
+    g.lathe([(0, -1.2), (0.75, -1.1), (0.6, -0.2), (0.32, 0.7), (0, 1.3)], rot=(0.0, 0, 0), segs=8)
+    # Brazo y muslo: músculo que se afina (largo en Y).
+    for name, top, low in (("Arm", 1.4, 1.0), ("Thigh", 1.7, 1.1)):
+        g = flesh(name)
+        g.blob((0, 1.3, 0), (top, 1.9, top), seed=51, amp=0.2, subdiv=3)
+        g.blob((0.1, -0.5, 0.1), (top * 0.85, 1.9, top * 0.8), seed=52, amp=0.18, subdiv=3)
+        g.blob((0, -2.1, 0), (low, 0.9, low), seed=53, amp=0.12, subdiv=3)
+    for name in ("Forearm", "Shin"):
+        g = flesh(name, (110, 62, 62))
+        g.blob((0, 1.2, 0), (1.1, 1.7, 1.1), seed=61, amp=0.15, subdiv=3)
+        g.blob((0, -1.2, 0), (0.8, 1.7, 0.8), seed=62, amp=0.1, subdiv=3)
+        for k in range(4):
+            a = k * 1.57 + 0.4
+            g.tube([(math.cos(a) * 0.8, 2.3, math.sin(a) * 0.8), (math.cos(a) * 0.95, 0.4, math.sin(a) * 0.95), (math.cos(a) * 0.6, -2.5, math.sin(a) * 0.6)], 0.14, segs=5, smooth=2)
+    # Mano y pie: palma y garras largas hacia adelante (-Z).
+    for name, count, reach in (("Claw", 4, 4.0), ("Foot", 3, 2.9)):
+        g = bone(name)
+        g.blob((0, 0, 1.4), (1.9, 0.6, 1.5), seed=71, amp=0.15, subdiv=3)
+        for k in range(count):
+            x = (k - (count - 1) / 2) * (3.6 / count)
+            g.tube([(x * 0.7, 0.1, 0.6), (x, 0.45, -0.6), (x * 1.15, 0.2, -reach * 0.7), (x * 1.2, -0.55, -reach)],
+                   lambda t: 0.42 * (1 - t) + 0.03, segs=7, smooth=2)
+    # Tramo de lengua (a lo largo de Z).
+    g = flesh("Tongue", (190, 80, 96))
+    g.blob((0, 0, 0), (0.62, 0.42, 1.45), seed=81, amp=0.06, freq=3.0, subdiv=3)
 
 
 # ---------------------------------------------------------------------------

@@ -74,21 +74,21 @@
  "SpecimenTank": {
   "Frame": 3876,
   "Glass": 140,
-  "Fluid": 140,
+  "Surface": 320,
   "Specimen": 4220,
   "Lights": 724
  },
  "SpecimenTank_2": {
   "Frame": 3876,
   "Glass": 140,
-  "Fluid": 140,
+  "Surface": 320,
   "Specimen": 5732,
   "Lights": 724
  },
  "SpecimenTank_3": {
   "Frame": 3876,
   "Glass": 140,
-  "Fluid": 140,
+  "Surface": 320,
   "Specimen": 7416,
   "Lights": 724
  },
@@ -121,5 +121,68 @@
   "Bulbs": 720,
   "Tools": 864,
   "Blood": 720
+ },
+ "LobbyBench": {
+  "Seats": 4160,
+  "Frame": 1284
+ },
+ "DoorOffice": {
+  "Wood": 756,
+  "Glass": 12,
+  "Metal": 412
+ },
+ "DoorAirlock": {
+  "Steel": 2560,
+  "Hazard": 120,
+  "Glass": 92,
+  "Growth": 792
+ },
+ "DoorVault": {
+  "Steel": 108,
+  "Fittings": 3432
+ },
+ "DoorHome": {
+  "Wood": 1416,
+  "Brass": 712
+ },
+ "DoorShutter": {
+  "Slats": 628,
+  "Bar": 220
+ },
+ "ElevatorDoor": {
+  "Steel": 324,
+  "Trim": 384
+ },
+ "Crate": {
+  "Wood": 1224,
+  "Metal": 1296
+ },
+ "Barrel": {
+  "Drum": 952,
+  "Lid": 360
+ },
+ "CornerPipe": {
+  "Pipe": 628,
+  "Fittings": 2372
+ },
+ "Shelf": {
+  "Frame": 2016,
+  "Boxes": 1680,
+  "Cans": 224
+ },
+ "Organismo": {
+  "Body": 4552,
+  "Chest": 2560,
+  "Head": 2196,
+  "Jaw": 1024,
+  "WeakPoint": 1280,
+  "Spine": 48,
+  "Arm": 960,
+  "Thigh": 960,
+  "Forearm": 1104,
+  "Shin": 1104,
+  "Claw": 1200,
+  "Foot": 980,
+  "Tongue": 320
  }
 }

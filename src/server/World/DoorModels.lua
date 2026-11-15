@@ -67,6 +67,9 @@ function BUILDERS.Shutter(holder, frame, width, height, style, color, locked)
     local material = M(style.Material)
     local closed = frame * CFrame.new(0, height / 2, 0)
     local root = leafRoot(holder, "ShutterLeaf", Vector3.new(width, height, 0.3), closed, color, material)
+    if PropKit.Dress(root, "DoorShutter") then
+        return {{Root = root, Closed = closed, Open = closed * CFrame.new(0, height - 0.8, 0)}}, locked and root or nil
+    end
     -- Lamas de la cortina, a los dos lados, y la barra de abajo con la manija.
     for index = 1, 4 do
         local y = -height / 2 + index * height / 5
@@ -79,13 +82,16 @@ function BUILDERS.Shutter(holder, frame, width, height, style, color, locked)
 end
 
 -- Dos hojas que se corren hacia adentro de los muros.
-local function slidingPair(holder, frame, width, height, style, color, decorate)
+local function slidingPair(holder, frame, width, height, style, color, decorate, meshName)
     local material = M(style.Material)
     local leaves = {}
     for _, side in ipairs({-1, 1}) do
         local closed = frame * CFrame.new(side * width / 4, height / 2, 0)
         local root = leafRoot(holder, "DoorLeaf", Vector3.new(width / 2, height, 0.4), closed, color, material)
-        decorate(root, side)
+        -- La hoja modelada en Blender si está (espejada en la hoja derecha).
+        if not PropKit.Dress(root, meshName, side > 0) then
+            decorate(root, side)
+        end
         table.insert(leaves, {Root = root, Closed = closed, Open = closed * CFrame.new(side * (width / 2 - 0.3), 0, 0)})
     end
     return leaves
@@ -99,7 +105,7 @@ function BUILDERS.Office(holder, frame, width, height, style, color, locked)
         glass.Reflectance = 0.05
         detail(root, "KickPlate", Vector3.new(width / 2 - 0.2, 1.1, 0.46), CFrame.new(0, -height / 2 + 0.6, 0), Color3.fromRGB(120, 122, 118), M("Metal"))
         detail(root, "Handle", Vector3.new(0.18, 1.4, 0.6), CFrame.new(-side * (width / 4 - 0.5), 0, 0), Color3.fromRGB(70, 72, 74), M("Metal"))
-    end)
+    end, "DoorOffice")
     return leaves, locked and leaves[1].Root or nil
 end
 
@@ -109,7 +115,7 @@ function BUILDERS.Airlock(holder, frame, width, height, style, color, locked)
         detail(root, "Hazard", Vector3.new(0.5, height, 0.46), CFrame.new(-side * (width / 4 - 0.25), 0, 0), HAZARD, M("Metal"))
         detail(root, "Porthole", Vector3.new(0.46, 1.2, 1.2), CFrame.new(0, height * 0.2, 0) * CFrame.Angles(0, math.pi / 2, 0), Color3.fromRGB(70, 90, 80), M("Glass"), {Shape = Enum.PartType.Cylinder, Transparency = 0.35})
         detail(root, "Growth", Vector3.new(width / 2 - 1, 0.8, 0.5), CFrame.new(0, -height / 2 + 0.4, 0), Color3.fromRGB(96, 30, 40), M("Slate"))
-    end)
+    end, "DoorAirlock")
     return leaves, locked and leaves[1].Root or nil
 end
 
@@ -117,6 +123,9 @@ function BUILDERS.Vault(holder, frame, width, height, style, color, locked)
     local material = M(style.Material)
     local closed = frame * CFrame.new(0, height / 2, 0)
     local root = leafRoot(holder, "VaultLeaf", Vector3.new(width, height, 0.5), closed, color, material)
+    if PropKit.Dress(root, "DoorVault") then
+        return {{Root = root, Closed = closed, Open = closed * CFrame.new(width - 0.4, 0, 0)}}, locked and root or nil
+    end
     for _, x in ipairs({-width / 3, 0, width / 3}) do
         detail(root, "Rib", Vector3.new(0.4, height - 0.4, 0.64), CFrame.new(x, 0, 0), Shade(color, 0.8), M("Metal"))
     end
@@ -135,11 +144,13 @@ function BUILDERS.Home(holder, frame, width, height, style, color, locked)
         local root = PropKit.Part(holder, "Hinge", Vector3.new(0.2, height, 0.2), hinge, Shade(color, 0.6), M("Metal"))
         local leaf = detail(root, "DoorLeaf", Vector3.new(width / 2 - 0.1, height, 0.35), CFrame.new(-side * width / 4, 0, 0), color, material)
         leaf.CastShadow = true
-        -- Tableros rehundidos, pintura gastada en el borde y el picaporte.
-        for _, y in ipairs({height * 0.22, -height * 0.2}) do
-            detail(root, "Panel", Vector3.new(width / 2 - 1.4, height * 0.3, 0.42), CFrame.new(-side * width / 4, y, 0), Shade(color, 0.86), material)
+        if not PropKit.Dress(leaf, "DoorHome", side > 0) then
+            -- Tableros rehundidos, pintura gastada en el borde y el picaporte.
+            for _, y in ipairs({height * 0.22, -height * 0.2}) do
+                detail(root, "Panel", Vector3.new(width / 2 - 1.4, height * 0.3, 0.42), CFrame.new(-side * width / 4, y, 0), Shade(color, 0.86), material)
+            end
+            detail(root, "Knob", Vector3.new(0.3, 0.3, 0.6), CFrame.new(-side * (width / 2 - 0.5), -0.4, 0), Color3.fromRGB(176, 150, 90), M("Metal"), {Shape = Enum.PartType.Ball})
         end
-        detail(root, "Knob", Vector3.new(0.3, 0.3, 0.6), CFrame.new(-side * (width / 2 - 0.5), -0.4, 0), Color3.fromRGB(176, 150, 90), M("Metal"), {Shape = Enum.PartType.Ball})
         table.insert(leaves, {Root = root, Closed = hinge, Open = hinge * CFrame.Angles(0, -side * math.rad(92), 0)})
     end
     return leaves, locked and leaves[1].Root or nil

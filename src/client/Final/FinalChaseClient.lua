@@ -38,6 +38,8 @@ local LIGHT_TAG = "NocturnaChaseLight"
 
 local FinalChaseClient = {}
 local view = nil
+-- Corta la escena de "se lo traga" si la persecución termina a mitad (se asigna abajo).
+local stopDevour = nil
 local ui: {[string]: any} = {}
 local creature = nil
 local poses = {}
@@ -705,6 +707,9 @@ local function cleanup()
         return
     end
     view = nil
+    if stopDevour then
+        stopDevour()
+    end
     for character in pairs(poses) do
         restorePose(character)
     end
@@ -883,6 +888,92 @@ function EVENTS.Catch(data)
     end
 end
 
+-- La criatura se traga a alguien. Todos ven cómo baja la cabeza y abre la boca; la
+-- víctima lo ve desde adentro: la cámara gira hacia la boca abierta, es arrastrada
+-- hasta meterse entre las mandíbulas y, cuando cierran, queda todo negro.
+local devour = nil
+
+local function endDevour()
+    if not devour then
+        return
+    end
+    local camera = workspace.CurrentCamera
+    if camera then
+        camera.FieldOfView = devour.Fov
+    end
+    devour = nil
+    pcall(FirstPerson.ResetCamera)
+    fade(0, 1.2)
+end
+
+local function updateDevour()
+    if not devour then
+        return
+    end
+    local camera = workspace.CurrentCamera
+    local p = (os.clock() - devour.Started) / devour.Time
+    if not camera or not creature or not view or p >= 1.5 then
+        endDevour()
+        return
+    end
+    local mouth = creature:MouthPosition()
+    local turn = math.clamp(p / 0.28, 0, 1)
+    turn = turn * turn * (3 - 2 * turn)
+    local pull = math.clamp((p - 0.3) / 0.5, 0, 1)
+    pull = pull * pull
+    local position = devour.Eye:Lerp(mouth, pull * 0.92)
+    local toMouth = mouth - position
+    toMouth = toMouth.Magnitude > 0.05 and toMouth.Unit or devour.Look
+    local look = devour.Look:Lerp(toMouth, turn)
+    if look.Magnitude < 0.05 then
+        look = toMouth
+    end
+    local tremble = math.sin(os.clock() * 31) * 0.03 * (0.3 + pull)
+    camera.CameraType = Enum.CameraType.Scriptable
+    camera.CFrame = CFrame.lookAt(position, position + look) * CFrame.Angles(tremble, 0, tremble * 1.5)
+    camera.FieldOfView = devour.Fov + 22 * pull
+    if p >= 0.76 and not devour.Dark then
+        -- Las mandíbulas cierran: negro.
+        devour.Dark = true
+        fade(1, 0.18)
+        ChaseScore.Hit("Stinger")
+    end
+end
+
+stopDevour = endDevour
+
+function EVENTS.Devour(data)
+    if not view then
+        return
+    end
+    local duration = tonumber(data.Time) or FinalChaseConfig.Creature.DevourTime
+    local monster = ensureCreature()
+    monster:StartSwallow(duration)
+    ChaseScore.Hit("CreatureRoar", monster:Position(view.Display or view.Target))
+    local _, owner = characterOf(data.UserId)
+    if owner ~= player then
+        return
+    end
+    local camera = workspace.CurrentCamera
+    if not camera then
+        return
+    end
+    FirstPerson.Shake(9, 0.5)
+    caption("", 0.1)
+    devour = {
+        Started = os.clock(),
+        Time = duration,
+        Eye = camera.CFrame.Position,
+        Look = camera.CFrame.LookVector,
+        Fov = camera.FieldOfView,
+        Dark = false,
+    }
+end
+
+function FinalChaseClient.IsDevouring()
+    return devour ~= nil
+end
+
 function EVENTS.Safe(data)
     local _, owner = characterOf(data.UserId)
     if owner == player then
@@ -972,6 +1063,7 @@ local function update(deltaTime)
     view.Display += math.clamp(predicted - view.Display, -limit, limit)
     if creature then
         creature:Update(view.Display, view.Recoil and 2 or view.Speed, deltaTime)
+        updateDevour()
     end
 
     -- Lo que ya quedó atrás no se vuelve a pedir.

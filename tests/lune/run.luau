@@ -5339,6 +5339,51 @@ T.Test("Mundo: ninguna cara visible queda en el mismo plano que otra (no parpade
     T.Equal(#problems, 0, table.concat(problems, "\n"))
 end)
 
+T.Test("Mundo: las mallas quedan contra la pared y las hojas de puerta ocupan su caja", function()
+    Engine.Reset()
+    local PropKit = Engine.RequireServer("World.PropKit")
+    local folder = Engine.New("Folder", "NocturnaProps")
+    folder.Parent = Engine.Services.ServerStorage
+    local function template(name, size)
+        local model = Engine.New("Model", name)
+        local mesh = Engine.New("MeshPart", "Piece")
+        mesh.Size = size
+        mesh.Anchored = true
+        mesh.Parent = model
+        model.Parent = folder
+    end
+    -- El tejido es mucho menos profundo que su caja: antes quedaba flotando.
+    template("WallGrowth", Vector3.new(14, 10, 0.9))
+    template("TrashBin", Vector3.new(1.4, 1.8, 0.7))
+    template("DoorOffice", Vector3.new(5, 9, 0.4))
+
+    local holder = Engine.New("Model", "Holder")
+    holder.Parent = Engine.Workspace
+    T.True(PropKit.Visual(holder, "WallGrowth", roblox.CFrame.new(0, 0, 0), function() end), "usa la malla")
+    local growth = holder:FindFirstChild("Piece", true)
+    local box = PropKit.Boxes.WallGrowth
+    T.True(math.abs(growth.Position.Z + growth.Size.Z / 2 - box.Z / 2) < 0.01, "la espalda del tejido toca la espalda de la caja (la pared)")
+    T.True(math.abs(growth.Position.Y - growth.Size.Y / 2) < 0.01, "apoyado en la base")
+
+    local free = Engine.New("Model", "Free")
+    free.Parent = Engine.Workspace
+    PropKit.Visual(free, "TrashBin", roblox.CFrame.new(0, 0, 0), function() end)
+    T.True(math.abs(free:FindFirstChild("Piece", true).Position.Z) < 0.01, "lo que no va contra la pared sigue centrado")
+
+    local root = Engine.New("Part", "Leaf")
+    root.Size = Vector3.new(4, 8, 0.5)
+    root.CFrame = roblox.CFrame.new(10, 4, 3)
+    root.Anchored = true
+    root.Parent = Engine.Workspace
+    T.True(PropKit.Dress(root, "DoorOffice"), "viste la hoja")
+    local leaf = root:FindFirstChild("Piece")
+    T.True((leaf.Size - root.Size).Magnitude < 0.01, "la malla ocupa justo la caja de la hoja")
+    T.True((leaf.Position - root.Position).Magnitude < 0.01, "en el mismo lugar")
+    T.True(root.Transparency == 1 and leaf.Anchored == false and leaf:FindFirstChildOfClass("WeldConstraint") ~= nil, "soldada a la hoja, que queda invisible")
+    T.False(PropKit.Dress(root, "NoExiste"), "sin malla no cambia nada")
+    T.NoEngineErrors(Engine)
+end)
+
 T.Test("Mundo: cada capítulo queda debajo de 2500 piezas, con salas amuebladas y distintas", function()
     bootServer(1)
     Engine.Run(0.5)
@@ -7047,6 +7092,30 @@ T.Test("persecución: la criatura alcanza a quien se queda quieto, con el daño 
     local hp = healthOf(player)
     Engine.Run(config.Creature.CatchCooldown * 0.5)
     T.Equal(healthOf(player), hp, "no golpea dos veces seguidas")
+    T.NoEngineErrors(Engine)
+end)
+
+T.Test("persecución: el golpe que lo mataría se lo traga: escena, arrastre y recién entonces muere", function()
+    local players = chaseMatch(1)
+    local player = players[1]
+    T.True(waitChasePhase("Run", 20), "carrera")
+    local config = Engine.RequireShared("Config.FinalChaseConfig")
+    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    local root = player.Character.HumanoidRootPart
+    humanoid.Health = 10
+    local devoured = Engine.RunUntil(function()
+        return lastChaseEvent("Devour") ~= nil
+    end, 20)
+    T.True(devoured, "aviso de que se lo traga")
+    T.True(lastChaseEvent("Devour").Time == config.Creature.DevourTime, "dura lo que dice la configuración")
+    T.True(humanoid.Health > 0, "todavía vive: primero va la escena")
+    T.True(root.Anchored, "queda quieto")
+    local before = root.Position
+    Engine.Run(config.Creature.DevourTime * 0.8)
+    T.True(humanoid.Health > 0, "sigue vivo durante la escena")
+    T.True(root.Position.Z < before.Z - 1 and root.Position.Y > before.Y + 0.5, "lo arrastra hacia la boca")
+    Engine.Run(config.Creature.DevourTime * 0.5)
+    T.True(humanoid.Health <= 0, "muere al cerrar la boca")
     T.NoEngineErrors(Engine)
 end)
 

@@ -59,6 +59,8 @@ FinalChaseConfig.Creature = {
     -- Después de alcanzar a alguien ruge y se frena: la víctima tiene con qué escapar.
     RecoilTime = 1.2,
     CatchCooldown = 2.4,
+    -- Cuánto dura la escena en que se traga a quien ya no aguanta otro golpe.
+    DevourTime = 2.8,
     Damage = 34,
     Height = 17,
 }

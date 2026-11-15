@@ -510,12 +510,52 @@ local function updateDebris(c, frontS, runners, now)
     end
 end
 
+-- El golpe que lo mataría no lo mata de una: la criatura se lo traga. Queda quieto,
+-- es arrastrado hacia la boca durante DevourTime (los clientes muestran la escena:
+-- la cámara gira hacia la boca abierta y entra en ella) y recién entonces muere,
+-- por el camino normal de muerte del juego.
+local function devourPlayer(c, player, root, humanoid)
+    local entry = c.Players[player]
+    local duration = CREATURE.DevourTime
+    entry.Devouring = true
+    entry.CatchReadyAt = os.clock() + duration + CREATURE.CatchCooldown
+    c.Creature.Recoil = duration
+    root.Anchored = true
+    Remotes.FireAll("ChaseState", {Event = "Devour", UserId = player.UserId, S = c.Creature.S, Time = duration})
+
+    local started = os.clock()
+    local from = root.CFrame
+    local rotation = from - from.Position
+    -- La boca queda detrás y arriba de quien corre (corre hacia +Z).
+    local mouth = from.Position + Vector3.new(0, 3.5, -6)
+    task.spawn(function()
+        while os.clock() - started < duration and root.Parent and humanoid.Health > 0 do
+            local pull = math.clamp(((os.clock() - started) / duration - 0.35) / 0.5, 0, 1)
+            root.CFrame = CFrame.new(from.Position:Lerp(mouth, pull * pull)) * rotation
+            task.wait()
+        end
+        entry.Devouring = nil
+        if root.Parent then
+            root.Anchored = false
+        end
+        if player.Parent and humanoid.Parent and humanoid.Health > 0 then
+            ChaseHit.Apply(player, 100, root.Position, CREATURE.Kind)
+        end
+    end)
+end
+
 local function catchPlayer(c, player, root)
     local entry = c.Players[player]
+    local damage = difficultyDamage(CREATURE.Damage)
+    local humanoid = root.Parent and root.Parent:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health > 0 and humanoid.Health <= damage and not entry.Devouring then
+        devourPlayer(c, player, root, humanoid)
+        return
+    end
     entry.CatchReadyAt = os.clock() + CREATURE.CatchCooldown
     c.Creature.Recoil = CREATURE.RecoilTime
     Remotes.FireAll("ChaseState", {Event = "Catch", UserId = player.UserId, S = c.Creature.S})
-    ChaseHit.Apply(player, difficultyDamage(CREATURE.Damage), root.Position, CREATURE.Kind)
+    ChaseHit.Apply(player, damage, root.Position, CREATURE.Kind)
 end
 
 -- Dónde reaparece quien cae: con el grupo, siempre por delante de la criatura.

@@ -310,11 +310,15 @@ local function buildWaitingArea(lobby)
     local benches = {{-34, 6, 1}, {-34, 16, 1}, {-22, 6, -1}, {-22, 16, -1}}
     for _, bench in ipairs(benches) do
         local x, z, facing = bench[1], bench[2], bench[3]
+        -- Banco de butacas modelado en Blender (el respaldo hacia -facing en X).
+        local seatFrame = CFrame.new(at(x - facing * 0.2, 0, z)) * CFrame.Angles(0, -facing * math.pi / 2, 0)
+        PropKit.Visual(lobby, "LobbyBench", seatFrame, function()
         part(lobby, "BenchSeat", Vector3.new(2.2, 0.5, 7), at(x, 1.8, z), COLORS.Leather, M.Leather)
         detail(lobby, "BenchBack", Vector3.new(0.4, 2.2, 7.08), at(x - facing * 1.2, 3.1, z), COLORS.Leather, M.Leather)
         for _, offset in ipairs({-3, 3}) do
             detail(lobby, "BenchLeg", Vector3.new(2, 1.6, 0.3), at(x, 0.8, z + offset), COLORS.Iron, M.Metal)
         end
+        end)
     end
 
     part(lobby, "Table", Vector3.new(3, 0.3, 5), at(-28, 1.6, 11), COLORS.Wood, M.Wood)
@@ -417,6 +421,7 @@ local function buildElevator(lobby, index, x)
         -- Abierta, la hoja asoma 0.15 en el vano: su canto no queda en el plano del muro.
         local open = CFrame.new(at(x + side * (DOOR_WIDTH / 4 + DOOR_WIDTH / 2 - 0.15), DOOR_HEIGHT / 2, doorZ))
         local door = part(lobby, "ElevatorDoor", Vector3.new(DOOR_WIDTH / 2, DOOR_HEIGHT, 0.4), open, COLORS.Steel, M.Metal)
+        PropKit.Dress(door, "ElevatorDoor", side > 0)
         table.insert(doors, {Part = door, Open = open, Closed = closed})
         -- El marco se mete 0.12 en el vano: así ninguna de sus caras queda en el
         -- plano del canto del muro (parpadeaba al mover la cámara).
