@@ -237,6 +237,8 @@ return {
             Damp = 0.3,
             Puddles = 0.35,
             Liquid = Color3.fromRGB(52, 12, 16),
+            -- Paredes tomadas por venas y piel (malla WallGrowth de Blender).
+            Growth = 0.6,
         },
         -- Quirófano rojo: luz cruda sobre algunas camillas y bruma espesa.
         Mood = {

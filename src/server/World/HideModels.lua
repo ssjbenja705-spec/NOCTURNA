@@ -66,7 +66,7 @@ function BUILDERS.Locker(parent, base, style)
     local width, depth, height = 3.4, 2.8, 7.6
 
     PropKit.Visual(parent, "Locker", base, function(target)
-        box(target, base, "Back", Vector3.new(width, height, 0.12), CFrame.new(0, height / 2, depth / 2 - 0.06), shell, metal)
+        box(target, base, "Back", Vector3.new(width - 0.2, height - 0.04, 0.12), CFrame.new(0, height / 2 - 0.02, depth / 2 - 0.06), shell, metal)
         for _, side in ipairs({-1, 1}) do
             box(target, base, "Side", Vector3.new(0.12, height, depth), CFrame.new(side * (width / 2 - 0.06), height / 2, 0), shell, metal)
         end
@@ -101,7 +101,7 @@ function BUILDERS.Wardrobe(parent, base, style)
     local width, depth, height = 4.6, 2.6, 7.8
 
     PropKit.Visual(parent, "Wardrobe", base, function(target)
-        box(target, base, "Back", Vector3.new(width, height, 0.12), CFrame.new(0, height / 2, depth / 2 - 0.06), shell, material)
+        box(target, base, "Back", Vector3.new(width - 0.2, height - 0.04, 0.12), CFrame.new(0, height / 2 - 0.02, depth / 2 - 0.06), shell, material)
         for _, side in ipairs({-1, 1}) do
             box(target, base, "Side", Vector3.new(0.14, height, depth), CFrame.new(side * (width / 2 - 0.07), height / 2, 0), shell, material)
         end
@@ -198,7 +198,7 @@ function BUILDERS.Vent(parent, base, style)
     local z = -depth / 2 + 0.05
 
     PropKit.Visual(parent, "VentDuct", base, function(target)
-        box(target, base, "Back", Vector3.new(width, height, 0.1), CFrame.new(0, height / 2, depth / 2 - 0.05), color, material)
+        box(target, base, "Back", Vector3.new(width - 0.16, height - 0.04, 0.1), CFrame.new(0, height / 2 - 0.02, depth / 2 - 0.05), color, material)
         for _, side in ipairs({-1, 1}) do
             box(target, base, "Side", Vector3.new(0.1, height, depth), CFrame.new(side * (width / 2 - 0.05), height / 2, 0), color, material)
         end

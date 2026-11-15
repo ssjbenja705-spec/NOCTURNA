@@ -65,6 +65,8 @@ PropKit.Boxes = {
     GrowthMass = Vector3.new(5, 6, 4),
     Boiler = Vector3.new(4.4, 8.6, 4),
     WaterCooler = Vector3.new(1.4, 4.4, 1.4),
+    -- Tejido orgánico que cubre una pared (la espalda contra el muro, hacia +Z).
+    WallGrowth = Vector3.new(12, 8.6, 1.4),
     Plant = Vector3.new(1.6, 4.2, 1.6),
     Extinguisher = Vector3.new(1, 2.6, 0.8),
     TrashBin = Vector3.new(1.4, 1.8, 1.4),
@@ -381,13 +383,33 @@ end
 
 -- Gancho de mallas ----------------------------------------------------------------
 
+local function usable(instance)
+    return instance ~= nil and (instance:IsA("Model") or instance:IsA("BasePart"))
+end
+
+-- Cuántas veces se pidió cada objeto: con variantes (<Nombre>_2, <Nombre>_3...) se
+-- reparten en orden, así dos cápsulas seguidas nunca son iguales.
+local variantTurn = {}
+
 function PropKit.Template(name)
     local folder = ServerStorage:FindFirstChild(PropKit.FOLDER)
-    local template = folder and folder:FindFirstChild(name)
-    if template and (template:IsA("Model") or template:IsA("BasePart")) then
-        return template
+    if not folder then
+        return nil
     end
-    return nil
+    local options = {}
+    if usable(folder:FindFirstChild(name)) then
+        table.insert(options, folder:FindFirstChild(name))
+    end
+    local index = 2
+    while usable(folder:FindFirstChild(name .. "_" .. index)) do
+        table.insert(options, folder:FindFirstChild(name .. "_" .. index))
+        index += 1
+    end
+    if #options == 0 then
+        return nil
+    end
+    variantTurn[name] = (variantTurn[name] or 0) % #options + 1
+    return options[variantTurn[name]]
 end
 
 local CORNERS = {}

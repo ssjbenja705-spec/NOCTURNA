@@ -145,7 +145,7 @@ FURNITURE.Shelf = {Width = 6, Depth = 2, Build = function(p, b, pal, rng)
 end}
 
 FURNITURE.Bookcase = {Width = 6, Depth = 1.8, Build = function(p, b, pal, rng)
-    solid(p, b, "Back", Vector3.new(6, 8, 0.15), at(0, 4, 0.82), Shade(pal.Wood, 0.8), M("Wood"))
+    solid(p, b, "Back", Vector3.new(5.66, 7.94, 0.15), at(0, 3.97, 0.82), Shade(pal.Wood, 0.8), M("Wood"))
     for _, side in ipairs({-1, 1}) do
         solid(p, b, "Side", Vector3.new(0.18, 8, 1.8), at(side * 2.91, 4, 0), pal.Wood, M("Wood"))
     end
@@ -255,9 +255,9 @@ end}
 FURNITURE.Sofa = {Width = 7, Depth = 3, Build = function(p, b, pal, rng)
     local fabric = pal.Fabric
     solid(p, b, "SofaBase", Vector3.new(7, 1.4, 3), at(0, 0.9, 0), fabric, M("Fabric"))
-    solid(p, b, "SofaBack", Vector3.new(7, 1.9, 0.7), at(0, 2.4, 1.15), Shade(fabric, 0.92), M("Fabric"))
+    solid(p, b, "SofaBack", Vector3.new(6.9, 1.9, 0.74), at(0, 2.4, 1.17), Shade(fabric, 0.92), M("Fabric"))
     for _, side in ipairs({-1, 1}) do
-        solid(p, b, "SofaArm", Vector3.new(0.7, 1, 3), at(side * 3.15, 2.1, 0), Shade(fabric, 0.9), M("Fabric"))
+        solid(p, b, "SofaArm", Vector3.new(0.76, 1, 3.04), at(side * 3.16, 2.1, 0), Shade(fabric, 0.9), M("Fabric"))
     end
     piece(p, b, "Cushion", Vector3.new(2.8, 0.45, 2.1), at(-1.4, 1.83, -0.25) * turn(rng, 0.08), Shade(fabric, 1.1), M("Fabric"))
     -- Un almohadón tirado en el piso, como si alguien hubiera salido corriendo.
@@ -498,7 +498,8 @@ function CEILING.Grid(parent, center, palette, rng, narrow, theme)
     end
     for _, offset in ipairs({-10, 10}) do
         Part(parent, "TBar", Vector3.new(38, 0.12, 0.25), CFrame.new(center + Vector3.new(0, 12.94, offset)), palette.Metal, M("Metal"))
-        Part(parent, "TBar", Vector3.new(0.25, 0.12, 38), CFrame.new(center + Vector3.new(offset, 12.94, 0)), palette.Metal, M("Metal"))
+        -- Más alta que la otra para que sus caras no queden en el mismo plano en el cruce.
+        Part(parent, "TBar", Vector3.new(0.25, 0.12, 38), CFrame.new(center + Vector3.new(offset, 12.92, 0)), palette.Metal, M("Metal"))
     end
     -- Placa caída: queda el hueco negro arriba y la placa rota en el piso.
     if rng:Chance(0.4) then
@@ -587,27 +588,39 @@ end
 -- `cframe` es el centro de la pared a nivel del piso; `length` corre a lo largo de su X.
 function RoomDecor.WallTrim(parent, style, cframe, length, thickness, theme, palette)
     local trimMaterial = M(theme.TrimMaterial or "Wood")
+    -- En las esquinas se cruzan las molduras de dos paredes: las de las paredes que
+    -- corren a lo largo de Z van un poco más altas, así sus caras de arriba no
+    -- quedan en el mismo plano (parpadeaban).
+    local lift = math.abs(cframe.RightVector.Z) > 0.5 and 0.03 or 0
     if style == "Band" then
-        Part(parent, "GrimeBand", Vector3.new(length, 2.4, thickness + 0.1), cframe * at(0, 1.2, 0), Shade(theme.Wall, 0.55), M(theme.WallMaterial))
+        Part(parent, "GrimeBand", Vector3.new(length, 2.4 + lift, thickness + 0.1), cframe * at(0, (2.4 + lift) / 2, 0), Shade(theme.Wall, 0.55), M(theme.WallMaterial))
         return 1
     elseif style == "Kick" then
-        Part(parent, "Kickplate", Vector3.new(length, 1.4, thickness + 0.16), cframe * at(0, 0.7, 0), palette.Trim, trimMaterial)
-        Part(parent, "KickRail", Vector3.new(length, 0.2, thickness + 0.22), cframe * at(0, 1.45, 0), Shade(palette.Trim, 1.2), M("Metal"))
+        Part(parent, "Kickplate", Vector3.new(length, 1.4 + lift, thickness + 0.16), cframe * at(0, (1.4 + lift) / 2, 0), palette.Trim, trimMaterial)
+        Part(parent, "KickRail", Vector3.new(length, 0.2, thickness + 0.22), cframe * at(0, 1.45 + lift, 0), Shade(palette.Trim, 1.2), M("Metal"))
         return 2
     end
-    Part(parent, "Wainscot", Vector3.new(length, 3.6, thickness + 0.12), cframe * at(0, 1.8, 0), palette.WallLower, trimMaterial)
-    Part(parent, "ChairRail", Vector3.new(length, 0.25, thickness + 0.3), cframe * at(0, 3.7, 0), palette.Trim, trimMaterial)
-    Part(parent, "Baseboard", Vector3.new(length, 0.6, thickness + 0.26), cframe * at(0, 0.3, 0), Shade(palette.Trim, 0.8), trimMaterial)
+    Part(parent, "Wainscot", Vector3.new(length, 3.6 + lift, thickness + 0.12), cframe * at(0, (3.6 + lift) / 2, 0), palette.WallLower, trimMaterial)
+    Part(parent, "ChairRail", Vector3.new(length, 0.25, thickness + 0.3), cframe * at(0, 3.7 + lift, 0), palette.Trim, trimMaterial)
+    Part(parent, "Baseboard", Vector3.new(length, 0.6 + lift, thickness + 0.26), cframe * at(0, (0.6 + lift) / 2, 0), Shade(palette.Trim, 0.8), trimMaterial)
     return 3
 end
+
+-- Cuánto se mete un marco dentro del vano. Si la cara interior del marco quedara en
+-- el mismo plano que el canto de la pared (o la del dintel con la del muro de
+-- arriba), la placa de video no sabría cuál dibujar y el marco parpadearía al
+-- mover la cámara. Con este margen el canto de la pared queda tapado.
+RoomDecor.FrameInset = 0.12
 
 -- Marco de una abertura de `width` x `height` en una pared centrada en `cframe`.
 function RoomDecor.DoorFrame(parent, cframe, width, height, thickness, theme, palette)
     local material = M(theme.TrimMaterial or "Wood")
+    local inset = RoomDecor.FrameInset
+    local post = 0.5 + inset
     for _, side in ipairs({-1, 1}) do
-        Part(parent, "Jamb", Vector3.new(0.5, height, thickness + 0.5), cframe * at(side * (width / 2 + 0.25), height / 2, 0), palette.Trim, material)
+        Part(parent, "Jamb", Vector3.new(post, height - inset, thickness + 0.5), cframe * at(side * (width / 2 - inset + post / 2), (height - inset) / 2, 0), palette.Trim, material)
     end
-    Part(parent, "Lintel", Vector3.new(width + 1, 0.5, thickness + 0.5), cframe * at(0, height + 0.25, 0), palette.Trim, material)
+    Part(parent, "Lintel", Vector3.new(width + 1, post, thickness + 0.56), cframe * at(0, height - inset + post / 2, 0), palette.Trim, material)
 end
 
 -- Suciedad: manchas, charcos, papeles, sangre y chorreaduras -------------------------------
@@ -658,9 +671,12 @@ function RoomDecor.Passage(parent, cframe, thickness, palette)
     local width, height = RoomDecor.PassageWidth, RoomDecor.PassageHeight
     local sleeve = thickness + 3.2
     local metal = Shade(palette.Metal, 0.75)
-    Part(parent, "PassageTop", Vector3.new(width + 0.6, 0.3, sleeve), cframe * at(0, height + 0.15, 0), metal, M("CorrodedMetal"), SOLID)
+    -- Las mangas se meten un poco en el hueco para no quedar en el plano del canto
+    -- de la pared (ver FrameInset).
+    local inset = RoomDecor.FrameInset
+    Part(parent, "PassageTop", Vector3.new(width + 0.7, 0.3 + inset, sleeve + 0.04), cframe * at(0, height + (0.3 - inset) / 2, 0), metal, M("CorrodedMetal"), SOLID)
     for _, side in ipairs({-1, 1}) do
-        Part(parent, "PassageSide", Vector3.new(0.3, height, sleeve), cframe * at(side * (width / 2 + 0.15), height / 2, 0), metal, M("CorrodedMetal"), SOLID)
+        Part(parent, "PassageSide", Vector3.new(0.3 + inset, height, sleeve), cframe * at(side * (width / 2 + (0.3 - inset) / 2), height / 2, 0), metal, M("CorrodedMetal"), SOLID)
     end
     Part(parent, "LooseGrate", Vector3.new(width - 0.4, 0.12, 3), cframe * at(1.2, 0.08, -(sleeve / 2 + 1.6)) * CFrame.Angles(0, 0.5, 0.06), palette.Metal, M("DiamondPlate"))
     Part(parent, "Plank", Vector3.new(width + 1.4, 0.5, 0.15), cframe * at(0, height - 0.4, -(sleeve / 2 + 0.1)) * CFrame.Angles(0, 0, 0.18), palette.Wood, M("WoodPlanks"))

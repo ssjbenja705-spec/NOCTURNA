@@ -5184,6 +5184,161 @@ T.Test("Mundo: pasadizos secretos sin romper ningún mapa y fuera del camino de 
     end
 end)
 
+-- Busca caras de bloques que miran al mismo lado, están en el mismo plano y se
+-- tapan entre sí: eso es lo que parpadea (z-fighting) al mover la cámara.
+local DEBUG_FACES = false
+local function coplanarFaces(root)
+    local AXES = {"X", "Y", "Z"}
+    local buckets = {}
+    local function axisOf(vector)
+        for index, name in ipairs(AXES) do
+            local value = vector[name]
+            if math.abs(math.abs(value) - 1) < 1e-3 then
+                return index, value > 0 and 1 or -1
+            end
+        end
+        return nil
+    end
+    local boxes = {}
+    for _, part in ipairs(root:GetDescendants()) do
+        if part.ClassName == "Part" and part.Shape == roblox.Enum.PartType.Block and part.Transparency < 0.95 then
+            local cf = part.CFrame
+            local ok = true
+            local world = {}
+            for index, vector in ipairs({cf.RightVector, cf.UpVector, -cf.LookVector}) do
+                local axis = axisOf(vector)
+                if not axis then
+                    ok = false
+                    break
+                end
+                world[axis] = part.Size[AXES[index]]
+            end
+            if ok then
+                local center = cf.Position
+                local box = {Part = part, Min = {}, Max = {}}
+                for axis = 1, 3 do
+                    box.Min[axis] = center[AXES[axis]] - world[axis] / 2
+                    box.Max[axis] = center[AXES[axis]] + world[axis] / 2
+                end
+                table.insert(boxes, box)
+                for axis = 1, 3 do
+                    for _, sign in ipairs({-1, 1}) do
+                        local plane = sign > 0 and box.Max[axis] or box.Min[axis]
+                        local key = string.format("%d:%d:%d", axis, sign, math.floor(plane * 200 + 0.5))
+                        buckets[key] = buckets[key] or {}
+                        table.insert(buckets[key], {Box = box, Axis = axis, Sign = sign, Plane = plane})
+                    end
+                end
+            end
+        end
+    end
+    -- Un punto justo delante de la cara: si cae dentro de otro bloque, no se ve.
+    local function hidden(point)
+        for _, box in ipairs(boxes) do
+            if point[1] > box.Min[1] and point[1] < box.Max[1] and point[2] > box.Min[2] and point[2] < box.Max[2]
+                and point[3] > box.Min[3] and point[3] < box.Max[3] then
+                return true
+            end
+        end
+        return false
+    end
+    -- Lo que nadie ve: las caras de abajo apoyadas en el piso y las de afuera del
+    -- borde del mapa.
+    local outerMin, outerMax = {math.huge, math.huge, math.huge}, {-math.huge, -math.huge, -math.huge}
+    for _, box in ipairs(boxes) do
+        for axis = 1, 3 do
+            outerMin[axis] = math.min(outerMin[axis], box.Min[axis])
+            outerMax[axis] = math.max(outerMax[axis], box.Max[axis])
+        end
+    end
+    local function unseen(face)
+        if face.Axis == 2 and face.Sign < 0 and math.abs(face.Plane) < 0.06 then
+            return true
+        end
+        return (face.Sign < 0 and math.abs(face.Plane - outerMin[face.Axis]) < 0.01)
+            or (face.Sign > 0 and math.abs(face.Plane - outerMax[face.Axis]) < 0.01)
+    end
+    local found = {}
+    for _, faces in pairs(buckets) do
+        for i = 1, #faces do
+            for j = i + 1, #faces do
+                local a, b = faces[i], faces[j]
+                if a.Box ~= b.Box and not unseen(a) then
+                    local low, high = {}, {}
+                    local overlapping = true
+                    for axis = 1, 3 do
+                        if axis ~= a.Axis then
+                            low[axis] = math.max(a.Box.Min[axis], b.Box.Min[axis])
+                            high[axis] = math.min(a.Box.Max[axis], b.Box.Max[axis])
+                            if high[axis] - low[axis] <= 0.05 then
+                                overlapping = false
+                            end
+                        end
+                    end
+                    if overlapping then
+                        local visible = false
+                        for _, t in ipairs({{0.5, 0.5}, {0.1, 0.1}, {0.9, 0.1}, {0.1, 0.9}, {0.9, 0.9}}) do
+                            local point = {}
+                            local k = 1
+                            for axis = 1, 3 do
+                                if axis == a.Axis then
+                                    point[axis] = a.Plane + a.Sign * 0.03
+                                else
+                                    point[axis] = low[axis] + (high[axis] - low[axis]) * t[k]
+                                    k += 1
+                                end
+                            end
+                            local inside = point[1] > outerMin[1] + 2.1 and point[1] < outerMax[1] - 2.1 and point[3] > outerMin[3] + 2.1 and point[3] < outerMax[3] - 2.1
+                            if inside and not hidden(point) then
+                                visible = true
+                                break
+                            end
+                        end
+                        if visible then
+                            table.insert(found, a.Box.Part.Name .. " / " .. b.Box.Part.Name)
+                            if DEBUG_FACES and #found < 40 then
+                                print(a.Box.Part.Name, b.Box.Part.Name, a.Axis, a.Sign, a.Plane, a.Box.Part.Position, a.Box.Part.Size, b.Box.Part.Position, b.Box.Part.Size)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return found
+end
+
+T.Test("Mundo: ninguna cara visible queda en el mismo plano que otra (no parpadea)", function()
+    bootServer(1)
+    Engine.Run(0.5)
+    local WorldService = Engine.RequireServer("World.WorldService")
+    local problems = {}
+    local function report(label, found)
+        local kinds = {}
+        for _, pair in ipairs(found) do
+            kinds[pair] = (kinds[pair] or 0) + 1
+        end
+        local list = {}
+        for pair, count in pairs(kinds) do
+            table.insert(list, pair .. " x" .. count)
+        end
+        table.sort(list)
+        if #list > 0 then
+            table.insert(problems, label .. ": " .. table.concat(list, ", "))
+        end
+    end
+    for chapterIndex = 1, 5 do
+        for _, seed in ipairs({300 + chapterIndex, 9100 + chapterIndex}) do
+            WorldService.LoadChapter(chapterIndex, seed)
+            report("capítulo " .. chapterIndex, coplanarFaces(Engine.Workspace:FindFirstChild("NOCTURNA_MAP")))
+        end
+    end
+    local lobby = Engine.Workspace:FindFirstChild("NOCTURNA_LOBBY")
+    T.True(lobby ~= nil, "lobby armado")
+    report("lobby", coplanarFaces(lobby))
+    T.Equal(#problems, 0, table.concat(problems, "\n"))
+end)
+
 T.Test("Mundo: cada capítulo queda debajo de 2500 piezas, con salas amuebladas y distintas", function()
     bootServer(1)
     Engine.Run(0.5)

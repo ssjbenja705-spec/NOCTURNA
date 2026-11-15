@@ -43,7 +43,9 @@ Weathering.Cost = {
     Blood = 3,
     Puddle = 3,
     Wear = 1,
+    Growth = 4,
 }
+
 
 local DEFAULT_WEAR = {
     Peel = "Paint",
@@ -362,6 +364,32 @@ local function takeSpot(wall, rng, width)
     return x
 end
 
+-- Tejido que tomó una pared entera (malla de Blender "WallGrowth"): venas que se
+-- ramifican, piel con relieve y bolsas. `face` mira a la sala (-Z) desde 0.15 delante
+-- del muro; la malla apoya la espalda contra el muro. Sin la malla quedan unas venas
+-- gruesas hechas con piezas.
+function Weathering.Growth(parent, face, x, _theme, _palette, rng)
+    local box = PropKit.Boxes.WallGrowth
+    local base = face * CFrame.new(x, 0.6, WALL_SURFACE - box.Z / 2)
+    local holder = Instance.new("Model")
+    holder.Name = "WallGrowth"
+    holder.Parent = parent
+    local meshed = PropKit.Visual(holder, "WallGrowth", base, function(target)
+        local color = Color3.fromRGB(96, 24, 36)
+        for index = 1, 4 do
+            local length = between(rng, 4, 7)
+            local tilt = math.rad(between(rng, -50, 50))
+            Part(target, "Vein", Vector3.new(between(rng, 0.25, 0.45), length, 0.3),
+                onWall(face, x + between(rng, -4, 4), between(rng, 2.5, 8), 0.15, 0.3, tilt), color, M("Slate"))
+            if index == 1 then
+                Part(target, "Vein", Vector3.new(0.2, length * 0.6, 0.22),
+                    onWall(face, x + between(rng, -4, 4), between(rng, 2.5, 8), 0.1, 0.22, -tilt), color, M("Slate"))
+            end
+        end
+    end)
+    return meshed and 3 or 5
+end
+
 -- Daña una sala con hasta `allowance` piezas. `walls` son las paredes cerradas con
 -- sus huecos libres: {{Frame = CFrame, Free = {{desde, hasta}, ...}}}.
 function Weathering.Room(parent, center, walls, theme, palette, rng, allowance, options)
@@ -371,6 +399,15 @@ function Weathering.Room(parent, center, walls, theme, palette, rng, allowance, 
     local used = 0
     local function afford(amount)
         return used + amount <= allowance and PropKit.Fits(amount)
+    end
+
+    -- Tejido sobre una pared libre (capítulo del organismo): lo más grande, va primero.
+    if #walls > 0 and rng:Chance(wear.Growth or 0) and afford(cost.Growth) then
+        local wall = walls[rng:Int(1, #walls)]
+        local x = takeSpot(wall, rng, PropKit.Boxes.WallGrowth.X)
+        if x then
+            used += Weathering.Growth(parent, wall.Frame, x, theme, palette, rng)
+        end
     end
 
     -- Charco primero: es lo que más se nota con la linterna.

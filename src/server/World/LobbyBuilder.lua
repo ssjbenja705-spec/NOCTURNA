@@ -10,6 +10,7 @@ local Shared = game:GetService("ReplicatedStorage").Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local LobbyConfig = require(Shared.Config.LobbyConfig)
 local ServerMode = require(script.Parent.Parent.Lobby.ServerMode)
+local PropKit = require(script.Parent.PropKit)
 
 local ORIGIN = GameConfig.Map.LobbyOrigin
 local HALF_X = 40
@@ -247,7 +248,7 @@ local function buildFront(lobby)
         })
         dripsOnGlass(glass)
         detail(lobby, "Mullion", Vector3.new(0.35, 9, 0.6), at(x, 7.5, HALF_Z + 1), COLORS.Iron, M.Metal)
-        detail(lobby, "Transom", Vector3.new(10, 0.35, 0.6), at(x, 9.5, HALF_Z + 1), COLORS.Iron, M.Metal)
+        detail(lobby, "Transom", Vector3.new(10, 0.35, 0.66), at(x, 9.5, HALF_Z + 1), COLORS.Iron, M.Metal)
         rainOutside(lobby, x, 12)
     end
 
@@ -278,7 +279,7 @@ local function buildReception(lobby)
     part(lobby, "Desk", Vector3.new(16, 4, 1), at(0, 2, -6), COLORS.Wood, M.WoodPlanks)
     part(lobby, "DeskTop", Vector3.new(17, 0.4, 3.2), at(0, 4.2, -7.1), Color3.fromRGB(112, 108, 98), M.Marble)
     for _, side in ipairs({-1, 1}) do
-        part(lobby, "DeskSide", Vector3.new(1, 4, 3), at(side * 7.5, 2, -7.5), COLORS.Wood, M.WoodPlanks)
+        part(lobby, "DeskSide", Vector3.new(1.06, 4, 3), at(side * 7.53, 2, -7.5), COLORS.Wood, M.WoodPlanks)
     end
 
     local plate = detail(lobby, "DeskPlate", Vector3.new(8, 1.4, 0.1), at(0, 2.6, -5.45), COLORS.Brass, M.Metal)
@@ -310,7 +311,7 @@ local function buildWaitingArea(lobby)
     for _, bench in ipairs(benches) do
         local x, z, facing = bench[1], bench[2], bench[3]
         part(lobby, "BenchSeat", Vector3.new(2.2, 0.5, 7), at(x, 1.8, z), COLORS.Leather, M.Leather)
-        detail(lobby, "BenchBack", Vector3.new(0.4, 2.2, 7), at(x - facing * 1.2, 3.1, z), COLORS.Leather, M.Leather)
+        detail(lobby, "BenchBack", Vector3.new(0.4, 2.2, 7.08), at(x - facing * 1.2, 3.1, z), COLORS.Leather, M.Leather)
         for _, offset in ipairs({-3, 3}) do
             detail(lobby, "BenchLeg", Vector3.new(2, 1.6, 0.3), at(x, 0.8, z + offset), COLORS.Iron, M.Metal)
         end
@@ -321,13 +322,20 @@ local function buildWaitingArea(lobby)
     detail(lobby, "Magazine", Vector3.new(1, 0.08, 1.4), CFrame.new(at(-28.3, 1.8, 10)) * CFrame.Angles(0, math.rad(20), 0), Color3.fromRGB(150, 60, 50), M.Cardboard)
     detail(lobby, "Magazine", Vector3.new(1, 0.08, 1.4), CFrame.new(at(-27.6, 1.8, 12.2)) * CFrame.Angles(0, math.rad(-8), 0), Color3.fromRGB(60, 80, 110), M.Cardboard)
 
-    part(lobby, "PlantPot", Vector3.new(2, 2, 2), at(-38, 1, 27), Color3.fromRGB(70, 66, 60), M.Concrete)
-    for _, angle in ipairs({-18, 14}) do
-        detail(lobby, "DeadStem", Vector3.new(0.2, 3.4, 0.2), CFrame.new(at(-38, 3.6, 27)) * CFrame.Angles(math.rad(angle), 0, math.rad(-angle)), Color3.fromRGB(64, 50, 36), M.Wood)
-    end
+    -- Planta seca y dispenser: las mallas de Blender si están (mirando a la sala, +X),
+    -- o las piezas simples de siempre.
+    local facingRoom = CFrame.Angles(0, math.rad(-90), 0)
+    PropKit.Visual(lobby, "Plant", CFrame.new(at(-38, 0, 27)) * facingRoom, function()
+        part(lobby, "PlantPot", Vector3.new(2, 2, 2), at(-38, 1, 27), Color3.fromRGB(70, 66, 60), M.Concrete)
+        for _, angle in ipairs({-18, 14}) do
+            detail(lobby, "DeadStem", Vector3.new(0.2, 3.4, 0.2), CFrame.new(at(-38, 3.6, 27)) * CFrame.Angles(math.rad(angle), 0, math.rad(-angle)), Color3.fromRGB(64, 50, 36), M.Wood)
+        end
+    end)
 
-    part(lobby, "WaterCooler", Vector3.new(1.8, 3.5, 1.8), at(-38, 1.75, -20), Color3.fromRGB(168, 168, 162), M.Metal)
-    detail(lobby, "WaterBottle", Vector3.new(1.4, 2, 1.4), at(-38, 4.5, -20), Color3.fromRGB(120, 150, 170), M.Glass, {Transparency = 0.4})
+    PropKit.Visual(lobby, "WaterCooler", CFrame.new(at(-38, 0, -20)) * facingRoom, function()
+        part(lobby, "WaterCooler", Vector3.new(1.8, 3.5, 1.8), at(-38, 1.75, -20), Color3.fromRGB(168, 168, 162), M.Metal)
+        detail(lobby, "WaterBottle", Vector3.new(1.4, 2, 1.4), at(-38, 4.5, -20), Color3.fromRGB(120, 150, 170), M.Glass, {Transparency = 0.4})
+    end)
 
     local clock = detail(lobby, "Clock", Vector3.new(0.2, 2.2, 2.2), at(-HALF_X + 0.1, 11, 11), COLORS.Wood, M.Wood)
     text(surface(clock, NORMAL.Right, 60), "Text", "3:00", 0.2, 0.6, {Font = Enum.Font.Antique})
@@ -406,12 +414,15 @@ local function buildElevator(lobby, index, x)
     local doors = {}
     for _, side in ipairs({-1, 1}) do
         local closed = CFrame.new(at(x + side * DOOR_WIDTH / 4, DOOR_HEIGHT / 2, doorZ))
-        local open = CFrame.new(at(x + side * (DOOR_WIDTH / 4 + DOOR_WIDTH / 2), DOOR_HEIGHT / 2, doorZ))
+        -- Abierta, la hoja asoma 0.15 en el vano: su canto no queda en el plano del muro.
+        local open = CFrame.new(at(x + side * (DOOR_WIDTH / 4 + DOOR_WIDTH / 2 - 0.15), DOOR_HEIGHT / 2, doorZ))
         local door = part(lobby, "ElevatorDoor", Vector3.new(DOOR_WIDTH / 2, DOOR_HEIGHT, 0.4), open, COLORS.Steel, M.Metal)
         table.insert(doors, {Part = door, Open = open, Closed = closed})
-        detail(lobby, "DoorTrim", Vector3.new(0.6, DOOR_HEIGHT, 0.5), at(x + side * (DOOR_WIDTH / 2 + 0.3), DOOR_HEIGHT / 2, frontZ), COLORS.Brass, M.Metal)
+        -- El marco se mete 0.12 en el vano: así ninguna de sus caras queda en el
+        -- plano del canto del muro (parpadeaba al mover la cámara).
+        detail(lobby, "DoorTrim", Vector3.new(0.72, DOOR_HEIGHT - 0.12, 0.6), at(x + side * (DOOR_WIDTH / 2 + 0.24), (DOOR_HEIGHT - 0.12) / 2, frontZ + 0.05), COLORS.Brass, M.Metal)
     end
-    detail(lobby, "DoorTrim", Vector3.new(DOOR_WIDTH + 1.2, 0.6, 0.5), at(x, DOOR_HEIGHT + 0.3, frontZ), COLORS.Brass, M.Metal)
+    detail(lobby, "DoorTrim", Vector3.new(DOOR_WIDTH + 1.2, 0.72, 0.6), at(x, DOOR_HEIGHT + 0.24, frontZ + 0.05), COLORS.Brass, M.Metal)
 
     local sign = detail(lobby, "ElevatorSign", Vector3.new(DOOR_WIDTH, 2.4, 0.3), at(x, DOOR_HEIGHT + 1.9, -HALF_Z + 0.15), COLORS.Iron, M.Metal)
     sign:SetAttribute("Elevator", index)
