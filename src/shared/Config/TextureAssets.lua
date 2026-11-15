@@ -58,8 +58,8 @@ TextureAssets.Variants = {
     },
     NocturnaFleshWall = {
         BaseMaterial = "Pebble", StudsPerTile = 6, Pattern = "Regular", Tint = WHITE,
-        Mean = Color3.fromRGB(101, 62, 53),
-        Color = 108353415000971, Normal = 96093031651746, Roughness = 97113485542318, Metalness = 0,
+        Mean = Color3.fromRGB(146, 68, 62),
+        Color = 118469721526675, Normal = 132245404332254, Roughness = 108724117939750, Metalness = 0,
     },
     NocturnaStainedSlate = {
         BaseMaterial = "Slate", StudsPerTile = 8, Pattern = "Regular", Tint = WHITE,

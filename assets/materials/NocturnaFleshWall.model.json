@@ -2,9 +2,9 @@
   "attributes": {
     "NocturnaMean": {
       "Color3": [
-        0.396078431372549,
-        0.24313725490196078,
-        0.20784313725490197
+        0.5725490196078431,
+        0.26666666666666666,
+        0.24313725490196078
       ]
     },
     "NocturnaTexture": true,
@@ -19,10 +19,10 @@
   "className": "MaterialVariant",
   "properties": {
     "BaseMaterial": "Pebble",
-    "ColorMap": "rbxassetid://108353415000971",
+    "ColorMap": "rbxassetid://118469721526675",
     "MaterialPattern": "Regular",
-    "NormalMap": "rbxassetid://96093031651746",
-    "RoughnessMap": "rbxassetid://97113485542318",
+    "NormalMap": "rbxassetid://132245404332254",
+    "RoughnessMap": "rbxassetid://108724117939750",
     "StudsPerTile": 6
   }
 }
