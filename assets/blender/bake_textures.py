@@ -545,31 +545,116 @@ def stained_plaster(g):
     return result(color, g.clamp(g.add(height, 0.45)), g.clamp(rough))
 
 
+def vein_lines(g, f, seed, width, detail=4.0, dist=0.9):
+    """Venas que serpentean y se ramifican: la curva de nivel del medio de un ruido
+    (no una red de celdas)."""
+    n = g.noise(f, detail, 0.55, seed=seed, dist=dist)
+    return g.inv(g.ss(g.absv(g.sub(n, 0.5)), 0.0, width))
+
+
 @material("NocturnaFleshWall", strength=6.0)
 def flesh_wall(g):
-    # Azulejo de abajo, tapado por tejido que crece.
-    t = g.grid(6, 6)
-    tile_face = g.ss(t["edge"], 0.002, 0.01)
-    tile = g.mixc(g.noise(9, 3, seed=61), "#69725f", "#7f8873")
-    tile = g.mixc(g.mul(grime(g, 3, 69, 0.4, 0.8), 0.7), tile, "#2e2a20")
-    tile = g.mixc(g.inv(tile_face), tile, "#2c2a24")
-    cover = g.ss(g.noise(2.4, 6, 0.6, seed=62, dist=0.5), 0.42, 0.52)
-    lumps = g.voronoi(9, feature="SMOOTH_F1", seed=63)
-    bulge = g.inv(g.ss(lumps, 0.0, 0.7))
-    flesh = g.ramp(g.add(g.mul(bulge, 0.6), g.mul(g.noise(14, 5, seed=64), 0.4)),
-                   [(0.0, "#3e1418"), (0.4, "#6a2628"), (0.75, "#8f4440"), (1.0, "#a8605a")])
-    veins = g.inv(g.ss(g.voronoi(6, feature="DISTANCE_TO_EDGE", seed=65), 0.0, 0.03))
-    veins_small = g.inv(g.ss(g.voronoi(18, feature="DISTANCE_TO_EDGE", seed=66), 0.0, 0.02))
-    vein = g.mx(veins, g.mul(veins_small, 0.6))
-    flesh = g.mixc(g.mul(vein, 0.8), flesh, "#2a0c16")
-    # Bordes del tejido: amarillento, como fibra seca.
-    rim = g.mul(g.ss(g.noise(2.4, 6, 0.6, seed=62, dist=0.5), 0.38, 0.44), g.inv(cover))
-    tile = g.mixc(g.mul(rim, 0.7), tile, "#7a6a3e")
-    color = g.mixc(cover, tile, flesh)
-    height = g.lerp(cover, g.add(g.mul(tile_face, 0.3), 0.2), g.add(0.55, g.mul(bulge, 0.35)))
-    height = g.add(height, g.mul(g.mul(vein, cover), 0.08))
-    rough = g.lerp(cover, 0.3, g.add(0.12, g.mul(vein, 0.25)))
+    # Tejido vivo que tapa toda la pared: haces de músculo en distintas
+    # direcciones (ruido estirado y torcido), membranas, venas que se ramifican,
+    # nódulos de grasa pálida y moco brillante en los pliegues. Nada de celdas
+    # repetidas: todo sale de ruido deformado.
+    bundles = g.noise(3, 6, 0.62, seed=601, dist=1.6)
+    fibers_a = g.noise(4, 3, 0.5, seed=602, fv=40, dist=0.35)
+    fibers_b = g.noise(36, 3, 0.5, seed=603, fv=5, dist=0.35)
+    direction = g.ss(g.noise(2, 3, 0.5, seed=604, dist=0.8), 0.4, 0.6)
+    fibers = g.lerp(direction, fibers_a, fibers_b)
+    folds = g.noise(5, 7, 0.68, seed=605, kind="RIDGED_MULTIFRACTAL", dist=0.9, gain=2.0, offset=1.0)
+    crevice = g.ss(g.noise(3, 6, 0.6, seed=606, dist=1.2), 0.62, 0.72)
+    fat = g.inv(g.ss(g.voronoi(14, feature="SMOOTH_F1", seed=607, rand=1.0), 0.0, 0.32))
+    fat = g.mul(fat, g.ss(g.noise(3, 4, 0.5, seed=608, dist=1.0), 0.55, 0.7))
+    vein_big = vein_lines(g, 3, 609, 0.012)
+    vein_small = vein_lines(g, 9, 610, 0.008, detail=3.0)
+    vein_mask = g.ss(g.noise(4, 5, 0.6, seed=611, dist=1.4), 0.38, 0.6)
+    vein = g.mul(g.mx(vein_big, g.mul(vein_small, 0.55)), vein_mask)
+    mucus = g.ss(g.noise(6, 6, 0.6, seed=612, dist=1.8), 0.6, 0.7)
+
+    shade = g.add(g.mul(bundles, 0.45), g.mul(fibers, 0.35))
+    shade = g.add(shade, g.mul(folds, 0.2))
+    flesh = g.ramp(shade, [(0.0, "#2a0a0e"), (0.3, "#5a1a1e"), (0.55, "#7e2c2b"), (0.8, "#9c4a42"), (1.0, "#b4685a")])
+    flesh = g.mixc(g.mul(fat, 0.85), flesh, "#c9a27c")
+    flesh = g.mixc(g.mul(vein, 0.85), flesh, "#331028")
+    flesh = g.mixc(g.mul(crevice, 0.8), flesh, "#14050a")
+    flesh = g.mixc(g.mul(mucus, 0.35), flesh, "#c48a7a")
+
+    height = g.add(g.mul(bundles, 0.45), g.mul(fibers, 0.12))
+    height = g.add(height, g.mul(folds, 0.25))
+    height = g.add(height, g.mul(fat, 0.18))
+    height = g.add(height, g.mul(vein, 0.06))
+    height = g.sub(height, g.mul(crevice, 0.3))
+    rough = g.sub(0.5, g.mul(mucus, 0.38))
+    rough = g.add(rough, g.mul(fat, 0.15))
+    rough = g.sub(rough, g.mul(crevice, 0.15))
+    return result(flesh, g.clamp(height), g.clamp(rough))
+
+
+@material("OrganismoFlesh", strength=7.0)
+def organismo_flesh(g):
+    # Músculo expuesto de El Organismo: fibras largas en una dirección (se ven
+    # como músculo, no como piel), tendones pálidos, venas violáceas, cicatrices
+    # y zonas húmedas.
+    fibers = g.noise(6, 4, 0.55, seed=701, fv=64, dist=0.25)
+    bundles = g.noise(4, 5, 0.6, seed=702, fv=12, dist=0.6)
+    tendon = g.ss(g.noise(3, 3, 0.5, seed=703, fv=20, dist=0.3), 0.66, 0.74)
+    vein = g.mx(vein_lines(g, 3, 704, 0.012), g.mul(vein_lines(g, 8, 710, 0.008, detail=3.0), 0.6))
+    vein = g.mul(vein, g.ss(g.noise(3, 4, 0.6, seed=705, dist=1.2), 0.4, 0.62))
+    scar = vein_lines(g, 2, 706, 0.01, detail=2.0, dist=0.4)
+    scar = g.mul(scar, g.ss(g.noise(2, 4, 0.6, seed=707, dist=1.0), 0.55, 0.7))
+    wet = g.ss(g.noise(5, 6, 0.6, seed=708, dist=1.5), 0.55, 0.68)
+    gap = g.ss(g.noise(8, 3, 0.5, seed=709, fv=60, dist=0.2), 0.7, 0.8)
+
+    shade = g.add(g.mul(fibers, 0.5), g.mul(bundles, 0.5))
+    color = g.ramp(shade, [(0.0, "#2c080b"), (0.35, "#621a1c"), (0.6, "#8a2e2a"), (0.85, "#a84a3c"), (1.0, "#c06a52")])
+    color = g.mixc(g.mul(tendon, 0.8), color, "#d8c4a4")
+    color = g.mixc(g.mul(vein, 0.8), color, "#3a1638")
+    color = g.mixc(g.mul(scar, 0.7), color, "#c79a8a")
+    color = g.mixc(g.mul(gap, 0.6), color, "#1a0507")
+    height = g.add(g.mul(bundles, 0.5), g.mul(fibers, 0.3))
+    height = g.add(height, g.mul(tendon, 0.12))
+    height = g.add(height, g.mul(vein, 0.08))
+    height = g.sub(height, g.mul(gap, 0.18))
+    height = g.sub(height, g.mul(scar, 0.08))
+    rough = g.sub(0.45, g.mul(wet, 0.33))
+    rough = g.add(rough, g.mul(scar, 0.25))
     return result(color, g.clamp(height), g.clamp(rough))
+
+
+@material("OrganismoPlate", strength=6.0)
+def organismo_plate(g):
+    # Coraza de hueso y quitina que crece sobre la carne: bandas de crecimiento,
+    # poros, pocas grietas y sangre seca en los bordes.
+    growth = g.noise(4, 6, 0.6, seed=811, kind="RIDGED_MULTIFRACTAL", fv=14, dist=0.6, gain=2.0, offset=1.0)
+    layers = g.noise(3, 7, 0.62, seed=802, dist=1.1)
+    grain = g.noise(5, 4, 0.5, seed=809, fv=48, dist=0.3)
+    stain = g.ss(g.noise(3, 5, 0.6, seed=812, dist=1.3), 0.5, 0.75)
+    pores = g.inv(g.ss(g.voronoi(30, feature="F1", seed=803), 0.0, 0.18))
+    pores = g.mul(pores, g.ss(g.noise(4, 4, 0.5, seed=804), 0.5, 0.7))
+    seam = g.inv(g.ss(g.voronoi(3, feature="DISTANCE_TO_EDGE", seed=801, rand=0.9), 0.0, 0.012))
+    seam = g.mul(seam, g.ss(g.noise(3, 4, 0.6, seed=808, dist=1.0), 0.5, 0.7))
+    crack = vein_lines(g, 4, 805, 0.006, detail=3.0, dist=0.6)
+    crack = g.mul(crack, g.ss(g.noise(3, 5, 0.6, seed=806, dist=1.0), 0.6, 0.72))
+    blood = g.ss(g.noise(4, 6, 0.6, seed=807, dist=1.4), 0.64, 0.76)
+
+    shade = g.add(g.add(g.mul(layers, 0.45), g.mul(growth, 0.35)), g.mul(grain, 0.2))
+    color = g.ramp(shade, [(0.0, "#3a2c1e"), (0.3, "#6e5a40"), (0.55, "#9d8761"), (0.8, "#c2ae86"), (1.0, "#ddd0b0")])
+    color = g.mixc(g.mul(stain, 0.6), color, "#4a3a26")
+    color = g.mixc(g.mul(pores, 0.75), color, "#2a2016")
+    color = g.mixc(g.mul(seam, 0.85), color, "#2e1210")
+    color = g.mixc(g.mul(crack, 0.85), color, "#18100a")
+    color = g.mixc(g.mul(blood, 0.6), color, "#5a1612")
+    height = g.add(g.mul(layers, 0.4), g.mul(growth, 0.3))
+    height = g.add(height, g.mul(grain, 0.08))
+    height = g.sub(height, g.mul(seam, 0.3))
+    height = g.sub(height, g.mul(pores, 0.15))
+    height = g.sub(height, g.mul(crack, 0.2))
+    rough = g.add(0.58, g.mul(pores, 0.25))
+    rough = g.sub(rough, g.mul(blood, 0.25))
+    rough = g.add(rough, g.mul(stain, 0.08))
+    return result(color, g.clamp(g.add(height, 0.3)), g.clamp(rough))
 
 
 @material("NocturnaStainedSlate", strength=3.5)
