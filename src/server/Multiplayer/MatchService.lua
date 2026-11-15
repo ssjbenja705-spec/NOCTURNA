@@ -360,6 +360,7 @@ local function runChapter(chapterIndex, withPrologue)
     end
 
     MatchAnalytics.StartChapter(chapterIndex, #Players:GetPlayers())
+    GameState.AdminAssisted = false
     Analytics.ChapterStarted(chapterIndex)
 
     task.wait(TITLE_CARD_TIME - 1)
@@ -410,7 +411,7 @@ local function onChapterCompleted(chapterIndex)
 
     -- Victoria y tiempo de cada jugador presente (antes de la escena de cierre).
     local elapsed = MatchAnalytics.GetSummary().Elapsed
-    local records = RecordsService.RecordChapter(chapterIndex, elapsed, "c" .. chapterIndex .. ":" .. token)
+    local records = GameState.AdminAssisted and {} or RecordsService.RecordChapter(chapterIndex, elapsed, "c" .. chapterIndex .. ":" .. token)
 
     GameState.SetPhase("Cutscene")
     MonsterService.Clear()

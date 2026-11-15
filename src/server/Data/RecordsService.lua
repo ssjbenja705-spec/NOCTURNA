@@ -27,6 +27,9 @@ local MIN_TIME = 20
 
 local serverBest = {} -- [capítulo] = {{UserId, Name, Time}} ordenada
 local globalCache = {} -- [capítulo] = {List = {...}, Fetched = os.clock()}
+local names = {} -- [UserId] = nombre (no se le pregunta a Roblox cada vez)
+-- Si el ranking falla, no se reintenta enseguida: protege el cupo de DataStore.
+local FAIL_CACHE_TIME = 30
 local recorded = {} -- [token .. ":" .. userId] = true
 local storeCache = {}
 local storesOff = false
@@ -113,20 +116,24 @@ function RecordsService.Global(chapter, fresh)
     end)
     if not ok then
         warn("[NOCTURNA] No se pudo leer el ranking del capítulo " .. chapter .. ": " .. tostring(page))
-        return cached and cached.List or {}
+        local list = cached and cached.List or {}
+        globalCache[chapter] = {List = list, Fetched = os.clock() - CACHE_TIME + FAIL_CACHE_TIME}
+        return list
     end
     local list = {}
     for _, item in ipairs(page) do
         local userId = tonumber(item.key)
-        local name = "Jugador"
+        local name = userId and names[userId] or "Jugador"
         local player = userId and Players:GetPlayerByUserId(userId)
         if player then
             name = player.DisplayName
-        elseif userId then
+            names[userId] = name
+        elseif userId and not names[userId] then
             local found, result = pcall(function()
                 return Players:GetNameFromUserIdAsync(userId)
             end)
             name = found and result or name
+            names[userId] = name
         end
         table.insert(list, {UserId = userId, Name = name, Time = item.value / 100})
     end
@@ -175,8 +182,6 @@ function RecordsService.RecordChapter(chapter, seconds, token)
                 result.Chapter = chapter
                 result.ServerRank = rankIn(serverBest[chapter], player.UserId)
                 results[player] = result
-                -- No se pierde si sale enseguida: se guarda ya.
-                task.spawn(ProgressionService.Save, player)
                 task.spawn(function()
                     if result.PersonalBest then
                         submitGlobal(player, chapter, result.Time)

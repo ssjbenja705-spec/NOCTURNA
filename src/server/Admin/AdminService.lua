@@ -279,6 +279,9 @@ local function sendPanel(player)
     Remotes.FireClient("AdminData", player, buildPanel())
 end
 
+-- Acciones que cambian el resultado de una partida (para los récords).
+local ASSISTS = {skip = true, setchapter = true, heal = true, give = true, freeze = true, clearmonsters = true, spawn = true}
+
 function AdminService.Execute(moderator, action, args)
     if not AdminService.IsAdmin(moderator) then
         return false
@@ -292,6 +295,10 @@ function AdminService.Execute(moderator, action, args)
     local success, detail = handler(moderator, args)
     if success then
         record(moderator, action, detail)
+        -- Un capítulo con ayuda de administrador no cuenta para los récords.
+        if ASSISTS[action] then
+            GameState.AdminAssisted = true
+        end
     else
         Remotes.FireClient("StoryNotice", moderator, tostring(detail or "No se pudo completar."))
     end

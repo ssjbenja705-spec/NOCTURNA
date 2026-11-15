@@ -896,6 +896,30 @@ T.Test("récords: una victoria por capítulo, récord personal, ranking del serv
     T.NoEngineErrors(Engine)
 end)
 
+T.Test("récords: un ranking caído no se reintenta sin parar y la ayuda de administrador no da récords", function()
+    local fails = {NOCTURNA_BEST_TIME_C4 = 1000}
+    local players = bootServer(1, {CreatorId = 2001, FailStore = fails})
+    Engine.Run(1)
+    local Records = Engine.RequireServer("Data.RecordsService")
+    local first, left = nil, nil
+    Engine.Task.spawn(function()
+        first = Records.Global(4)
+        left = fails.NOCTURNA_BEST_TIME_C4
+        for _ = 1, 5 do
+            Records.Global(4)
+        end
+    end)
+    Engine.Run(10)
+    T.Equal(first and #first, 0, "ranking caído: lista vacía")
+    T.Equal(fails.NOCTURNA_BEST_TIME_C4, left, "no vuelve a pedir enseguida")
+
+    local Admin = Engine.RequireServer("Admin.AdminService")
+    local GameState = Engine.RequireServer("Core.GameState")
+    GameState.AdminAssisted = false
+    Admin.Execute(players[1], "heal", {players[1].Name})
+    T.True(GameState.AdminAssisted, "curar con el panel marca la partida")
+end)
+
 T.Test("el final verdadero sólo aparece con los 15 documentos", function()
     local players = bootServer(1)
     Engine.Run(1)

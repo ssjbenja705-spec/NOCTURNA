@@ -16,6 +16,8 @@ local GameState = {
     Nav = nil,
     Tracker = nil,
     Checkpoint = nil,
+    -- El capítulo en curso tuvo ayuda del panel de administrador (no da récords).
+    AdminAssisted = false,
     Powered = true,
 }
 

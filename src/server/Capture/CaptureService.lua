@@ -358,6 +358,15 @@ local function fadeVictim(capture, alpha)
     if not character then
         return
     end
+    -- Sólo cuando cambia de verdad: cada cambio de propiedad viaja a todos los
+    -- clientes, y en cada cuadro serían cientos por segundo.
+    if alpha > 0 and alpha < 1 and math.abs(alpha - (capture.FadeAlpha or 0)) < 0.04 then
+        return
+    end
+    if alpha == (capture.FadeAlpha or 0) then
+        return
+    end
+    capture.FadeAlpha = alpha
     capture.Faded = capture.Faded or {}
     for _, item in ipairs(character:GetDescendants()) do
         if (item:IsA("BasePart") and item.Name ~= "HumanoidRootPart") or item:IsA("Decal") then
@@ -370,6 +379,7 @@ local function fadeVictim(capture, alpha)
 end
 
 restoreVictim = function(capture)
+    capture.FadeAlpha = nil
     for item, transparency in pairs(capture.Faded or {}) do
         if item.Parent then
             item.Transparency = transparency
