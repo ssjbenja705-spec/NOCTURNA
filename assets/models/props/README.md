@@ -141,6 +141,8 @@ Medidas en studs: ancho (X) × alto (Y) × profundidad (Z).
 | `Plant` | 1.6 × 4.2 × 1.6 | Planta seca en maceta. |
 | `Extinguisher` | 1 × 2.6 × 0.8 | Matafuego con cartel. |
 | `TrashBin` | 1.4 × 1.8 × 1.4 | Tacho de basura. |
+| `LobbyBench` | 7 × 4.2 × 2.6 | Banco de espera del lobby: cuatro butacas, respaldo hacia +Z. |
+| `WallGrowth` | 12 × 8.6 × 1.4 | Tejido que cubre una pared del capítulo del organismo; la espalda nace dentro del muro. |
 
 ## Utilería de rincón
 
@@ -154,3 +156,19 @@ Medidas en studs: ancho (X) × alto (Y) × profundidad (Z).
 En los rincones también se usan `Desk`, `Plant`, `GrowthMass` y `SpecimenTank` de
 la tabla de muebles. Los rincones con varios muebles juntos (archiveros dobles, mesa
 con silla) se arman siempre con piezas procedurales.
+
+## Hojas de puerta (se estiran a la caja de la hoja)
+
+`PropKit.Dress` viste la hoja de cada puerta con una malla que se estira hasta ocupar
+exactamente su caja y queda soldada a ella (se mueve con la animación de abrir):
+`DoorShutter` (10 × 9 × 0.3), `DoorOffice` y `DoorAirlock` (5 × 9 × 0.4, media hoja),
+`DoorVault` (10 × 9 × 0.5), `DoorHome` (4.9 × 9 × 0.35) y `ElevatorDoor` (4 × 12 × 0.4,
+ascensores del lobby). Sin la malla se usa la hoja de piezas simples.
+
+## El Organismo (persecución final)
+
+El grupo `Organismo` del FBX son las piezas del monstruo final (`Body`, `Chest`,
+`Head`, `Jaw`, `WeakPoint`, `Spine`, `Arm`, `Forearm`, `Claw`, `Thigh`, `Shin`,
+`Foot`, `Tongue`). El instalador las deja en
+`ReplicatedStorage.NocturnaAssets.Organismo`; las arma y anima
+`src/client/Final/ChaseCreature.lua`.

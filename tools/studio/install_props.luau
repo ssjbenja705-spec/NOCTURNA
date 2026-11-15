@@ -44,7 +44,12 @@ local manifest = HttpService:JSONDecode(HttpService:GetAsync(url))
 HttpService.HttpEnabled = was
 
 local loaded = InsertService:LoadAsset(ASSET)
-local folder = ServerStorage:FindFirstChild("NocturnaProps") or Instance.new("Folder")
+-- Se arma de cero: no quedan piezas de una versión anterior del modelo.
+local stale = ServerStorage:FindFirstChild("NocturnaProps")
+if stale then
+	stale:Destroy()
+end
+local folder = Instance.new("Folder")
 folder.Name = "NocturnaProps"
 folder.Parent = ServerStorage
 
