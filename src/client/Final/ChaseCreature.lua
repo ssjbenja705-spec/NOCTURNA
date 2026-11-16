@@ -350,14 +350,17 @@ function RigCreature.new(parent, origin, scale, template)
     model.Name = "ElOrganismo"
     local mesh = template:Clone()
     mesh.Name = "Rig"
-    mesh.Size = template.Size * (RIG_HEIGHT * size / template.Size.Y)
     mesh.Anchored = true
     mesh.CanCollide = false
     mesh.CanTouch = false
     mesh.CanQuery = false
     mesh.CastShadow = false
-    mesh.CFrame = CFrame.new(origin + Vector3.new(0, mesh.Size.Y / 2, 0))
     mesh.Parent = model
+    model.Parent = parent
+    -- Se escala como modelo y no cambiando Size: así los huesos se mueven con la
+    -- malla. (Cambiar sólo Size deja los huesos donde estaban y la piel se estira.)
+    model:ScaleTo(RIG_HEIGHT * size / template.Size.Y)
+    mesh.CFrame = CFrame.new(origin + Vector3.new(0, mesh.Size.Y / 2, 0))
 
     local bones, rest = {}, {}
     for _, bone in ipairs(mesh:GetDescendants()) do
