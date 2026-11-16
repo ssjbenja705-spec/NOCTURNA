@@ -1,0 +1,91 @@
+{
+ "Bones": [
+  {
+   "Name": "Root",
+   "Parent": null
+  },
+  {
+   "Name": "Hips",
+   "Parent": "Root"
+  },
+  {
+   "Name": "Chest",
+   "Parent": "Hips"
+  },
+  {
+   "Name": "Neck",
+   "Parent": "Chest"
+  },
+  {
+   "Name": "Head",
+   "Parent": "Neck"
+  },
+  {
+   "Name": "Jaw",
+   "Parent": "Head"
+  },
+  {
+   "Name": "Tongue1",
+   "Parent": "Jaw"
+  },
+  {
+   "Name": "Tongue2",
+   "Parent": "Tongue1"
+  },
+  {
+   "Name": "RightUpperArm",
+   "Parent": "Chest"
+  },
+  {
+   "Name": "RightForearm",
+   "Parent": "RightUpperArm"
+  },
+  {
+   "Name": "RightHand",
+   "Parent": "RightForearm"
+  },
+  {
+   "Name": "RightThigh",
+   "Parent": "Hips"
+  },
+  {
+   "Name": "RightShin",
+   "Parent": "RightThigh"
+  },
+  {
+   "Name": "RightFoot",
+   "Parent": "RightShin"
+  },
+  {
+   "Name": "LeftUpperArm",
+   "Parent": "Chest"
+  },
+  {
+   "Name": "LeftForearm",
+   "Parent": "LeftUpperArm"
+  },
+  {
+   "Name": "LeftHand",
+   "Parent": "LeftForearm"
+  },
+  {
+   "Name": "LeftThigh",
+   "Parent": "Hips"
+  },
+  {
+   "Name": "LeftShin",
+   "Parent": "LeftThigh"
+  },
+  {
+   "Name": "LeftFoot",
+   "Parent": "LeftShin"
+  }
+ ],
+ "Triangles": 17730,
+ "Size": [
+  17.7,
+  19.003,
+  14.927
+ ],
+ "Scale": 10.0
+}

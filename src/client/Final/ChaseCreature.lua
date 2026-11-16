@@ -60,6 +60,10 @@ end
 
 -- origin: posición del piso en S = 0 (FinalChaseConfig.Arena.Origin).
 function ChaseCreature.new(parent, origin, scale)
+    local rig = ChaseCreature.RigTemplate and ChaseCreature.RigTemplate()
+    if rig then
+        return ChaseCreature.Rig.new(parent, origin, scale, rig)
+    end
     local model = Instance.new("Model")
     model.Name = "ElOrganismo"
     local size = scale or 1
@@ -319,5 +323,258 @@ end
 function ChaseCreature:Destroy()
     self.Model:Destroy()
 end
+
+-- Versión con esqueleto -------------------------------------------------------------
+-- Si existe ReplicatedStorage.NocturnaAssets.OrganismoRig (el modelo de Meshy con
+-- huesos, assets/blender/rig_organismo.py), la criatura es esa única malla con piel
+-- y se anima girando sus huesos (Bone.Transform). Misma interfaz que la de piezas.
+local RigCreature = {}
+RigCreature.__index = RigCreature
+
+local RIG_HEIGHT = 15.5
+local UP = Vector3.new(0, 1, 0)
+
+local function rigTemplate()
+    local assets = game:GetService("ReplicatedStorage"):FindFirstChild("NocturnaAssets")
+    local rig = assets and assets:FindFirstChild("OrganismoRig")
+    if rig and rig:IsA("MeshPart") and rig:FindFirstChildWhichIsA("Bone", true) then
+        return rig
+    end
+    return nil
+end
+ChaseCreature.RigTemplate = rigTemplate
+
+function RigCreature.new(parent, origin, scale, template)
+    local size = scale or 1
+    local model = Instance.new("Model")
+    model.Name = "ElOrganismo"
+    local mesh = template:Clone()
+    mesh.Name = "Rig"
+    mesh.Size = template.Size * (RIG_HEIGHT * size / template.Size.Y)
+    mesh.Anchored = true
+    mesh.CanCollide = false
+    mesh.CanTouch = false
+    mesh.CanQuery = false
+    mesh.CastShadow = false
+    mesh.CFrame = CFrame.new(origin + Vector3.new(0, mesh.Size.Y / 2, 0))
+    mesh.Parent = model
+
+    local bones, rest = {}, {}
+    for _, bone in ipairs(mesh:GetDescendants()) do
+        if bone:IsA("Bone") then
+            bones[bone.Name] = bone
+            bone.Transform = CFrame.identity
+        end
+    end
+    for name, bone in pairs(bones) do
+        rest[name] = mesh.CFrame:ToObjectSpace(bone.WorldCFrame).Rotation
+    end
+
+    -- Hacia dónde mira la malla dentro de su propia pieza: de la cadera a la cabeza.
+    -- El importador puede dejarla al derecho o al revés; así da igual.
+    local front = Vector3.new(0, 0, -1)
+    if bones.Head and bones.Hips then
+        local toHead = mesh.CFrame:PointToObjectSpace(bones.Head.WorldPosition) - mesh.CFrame:PointToObjectSpace(bones.Hips.WorldPosition)
+        front = Vector3.new(0, 0, toHead.Z >= 0 and 1 or -1)
+    end
+
+    local glowPart = Instance.new("Part")
+    glowPart.Name = "WeakPoint"
+    glowPart.Size = Vector3.new(0.4, 0.4, 0.4)
+    glowPart.Transparency = 1
+    glowPart.Anchored = true
+    glowPart.CanCollide = false
+    glowPart.CanTouch = false
+    glowPart.CanQuery = false
+    glowPart.Parent = model
+    local mouthPart = glowPart:Clone()
+    mouthPart.Name = "Mouth"
+    mouthPart.Parent = model
+    local weakGlow = Instance.new("PointLight")
+    weakGlow.Color = WEAK
+    weakGlow.Range = 18 * size
+    weakGlow.Brightness = 1.5
+    weakGlow.Shadows = false
+    weakGlow.Parent = glowPart
+    local glow = Instance.new("PointLight")
+    glow.Color = MOUTH
+    glow.Range = 16 * size
+    glow.Brightness = 1.2
+    glow.Shadows = false
+    glow.Parent = mouthPart
+
+    local self = setmetatable({
+        Model = model,
+        Mesh = mesh,
+        Origin = origin,
+        Scale = size,
+        Bones = bones,
+        Rest = rest,
+        Front = front,
+        -- Girar alrededor de este eje un ángulo positivo levanta el frente (y lleva
+        -- una pata hacia adelante); negativo lo baja.
+        Lateral = front:Cross(UP),
+        -- Con el frente de la pieza en -Z (lo normal en Roblox) hay que darla vuelta
+        -- para que corra hacia +Z, como la galería.
+        Facing = front.Z < 0 and CFrame.Angles(0, math.pi, 0) or CFrame.identity,
+        Phase = 0,
+        Roar = 0,
+        Lunge = 0,
+        Swallow = nil,
+        LastStepSign = 1,
+        OnStep = nil,
+        Glow = glow,
+        WeakGlow = weakGlow,
+        GlowPart = glowPart,
+        MouthPart = mouthPart,
+        Mouth = CFrame.new(origin + Vector3.new(0, 6 * size, 9 * size)),
+        IsRig = true,
+    }, RigCreature)
+    model.Parent = parent
+    return self
+end
+
+function RigCreature:SetVisible(visible)
+    self.Mesh.LocalTransparencyModifier = visible and 0 or 1
+    self.Glow.Enabled = visible
+    self.WeakGlow.Enabled = visible
+end
+
+RigCreature.StartRoar = ChaseCreature.StartRoar
+RigCreature.StartLunge = ChaseCreature.StartLunge
+RigCreature.StartSwallow = ChaseCreature.StartSwallow
+RigCreature.IsSwallowing = ChaseCreature.IsSwallowing
+RigCreature.MouthPosition = ChaseCreature.MouthPosition
+RigCreature.Position = ChaseCreature.Position
+
+-- Gira un hueso: `pitch` levanta (+) o baja (-) su frente, `yaw` lo lleva a los
+-- lados y `roll` lo inclina. Los ángulos están en el espacio de la criatura.
+function RigCreature:Turn(name, pitch, yaw, roll)
+    local bone = self.Bones[name]
+    if not bone then
+        return
+    end
+    local rotation = CFrame.fromAxisAngle(self.Lateral, pitch or 0)
+    if yaw and yaw ~= 0 then
+        rotation = CFrame.fromAxisAngle(UP, yaw) * rotation
+    end
+    if roll and roll ~= 0 then
+        rotation = CFrame.fromAxisAngle(self.Front, roll) * rotation
+    end
+    local restRotation = self.Rest[name]
+    bone.Transform = restRotation:Inverse() * rotation * restRotation
+end
+
+function RigCreature:Update(s, speed, deltaTime)
+    local size = self.Scale
+    speed = speed or 0
+    self.Phase += speed * deltaTime / STRIDE * math.pi * 2
+    self.Roar = math.max(0, self.Roar - deltaTime)
+    self.Lunge = math.max(0, self.Lunge - deltaTime)
+    local swallow = self.Swallow
+    local gulp = nil
+    if swallow then
+        swallow.Elapsed += deltaTime
+        gulp = swallow.Elapsed / swallow.Time
+        if gulp >= 1.2 then
+            self.Swallow = nil
+            swallow, gulp = nil, nil
+        end
+    end
+
+    local phase = self.Phase
+    local stepSign = math.sin(phase) >= 0 and 1 or -1
+    if stepSign ~= self.LastStepSign then
+        self.LastStepSign = stepSign
+        if self.OnStep and speed > 1 then
+            self.OnStep(self:Position(s))
+        end
+    end
+
+    local now = os.clock()
+    local roaring = self.Roar > 0 and not swallow
+    local moving = math.clamp(speed / 12, 0, 1)
+    local bob = math.abs(math.sin(phase)) * 0.6 * size * moving
+    local sway = math.sin(phase * 0.5) * 0.9 * size * moving
+    -- En el mundo corre hacia +Z: girar alrededor de X un ángulo positivo baja el frente.
+    local lean = 0.05 * moving
+    if roaring then
+        lean = -0.2
+    elseif swallow then
+        lean = 0.16 * ease(gulp / 0.3)
+    end
+    local lunge = self.Lunge > 0 and math.sin(self.Lunge / 0.5 * math.pi) * 3 * size or 0
+    if swallow then
+        lunge = ease(gulp / 0.4) * 2.5 * size
+    end
+
+    local origin = self.Origin
+    local mesh = self.Mesh
+    mesh.CFrame = CFrame.new(origin.X + sway, origin.Y + mesh.Size.Y / 2 + bob, origin.Z + s + lunge)
+        * CFrame.Angles(lean, 0, math.sin(phase * 0.5) * 0.04 * moving) * self.Facing
+
+    -- Columna, cuello y cabeza.
+    local breath = math.sin(now * 1.7) * 0.03
+    self:Turn("Hips", math.sin(phase) * 0.06 * moving, math.sin(phase * 0.5) * 0.07 * moving, 0)
+    self:Turn("Chest", -math.sin(phase) * 0.08 * moving + breath, -math.sin(phase * 0.5) * 0.09 * moving, 0)
+    local headLift = math.sin(phase) * 0.07 * moving + breath
+    local headYaw = math.sin(now * 0.9) * 0.12
+    -- En reposo la boca ya está entreabierta: negativo la abre más, positivo la cierra.
+    local jaw = -0.1 - math.abs(math.sin(phase * 1.5)) * 0.12 * moving
+    local whip = 0.3
+    if roaring then
+        headLift, headYaw, jaw, whip = 0.4, math.sin(now * 14) * 0.05, -0.6, 0.6
+    elseif swallow then
+        headLift = -0.25 * ease(gulp / 0.3)
+        headYaw = 0
+        -- Abre de a poco hasta el 72 % y cierra de golpe.
+        jaw = gulp < 0.72 and -0.15 - 0.75 * ease(gulp / 0.72) or math.min(0.22, -0.9 + (gulp - 0.72) / 0.08 * 1.12)
+        whip = gulp < 0.72 and 0.7 or 0.1
+    end
+    self:Turn("Neck", headLift * 0.5, headYaw * 0.5, 0)
+    self:Turn("Head", headLift * 0.6, headYaw * 0.6, 0)
+    self:Turn("Jaw", jaw, 0, 0)
+    self:Turn("Tongue1", math.sin(now * 3.1) * whip * 0.6, math.sin(now * 2.3) * whip, 0)
+    self:Turn("Tongue2", math.sin(now * 3.1 + 0.9) * whip, math.sin(now * 2.3 + 0.7) * whip * 1.3, 0)
+
+    -- Patas: galope con las cruzadas juntas. Adelante se estira el brazo y se
+    -- recoge la mano; atrás empuja el muslo.
+    local reach = (roaring or swallow) and 0.25 or 0
+    local armGain = math.max(moving, reach > 0 and 1 or 0)
+    for _, limb in ipairs({{"Right", 0}, {"Left", math.pi}}) do
+        local side, offset = limb[1], limb[2]
+        local front = math.sin(phase + offset)
+        local frontLift = math.max(0, math.cos(phase + offset))
+        self:Turn(side .. "UpperArm", (front * 0.42 * moving + reach) * armGain, 0, 0)
+        self:Turn(side .. "Forearm", (-front * 0.3 - frontLift * 0.25) * moving - reach * 0.6, 0, 0)
+        self:Turn(side .. "Hand", (frontLift * 0.5 - front * 0.15) * moving, 0, 0)
+        local back = math.sin(phase + offset + math.pi)
+        local backLift = math.max(0, math.cos(phase + offset + math.pi))
+        self:Turn(side .. "Thigh", back * 0.38 * moving, 0, 0)
+        self:Turn(side .. "Shin", (-back * 0.3 + backLift * 0.3) * moving, 0, 0)
+        self:Turn(side .. "Foot", (backLift * 0.35 - back * 0.1) * moving, 0, 0)
+    end
+
+    -- Boca y saco de la nuca (luces que siguen a los huesos ya animados).
+    local bones = self.Bones
+    local tongue = bones.Tongue1 or bones.Jaw or bones.Head
+    if tongue then
+        self.Mouth = CFrame.new(tongue.TransformedWorldCFrame.Position)
+        self.MouthPart.CFrame = self.Mouth
+    end
+    local neck = bones.Neck or bones.Head
+    if neck then
+        self.GlowPart.CFrame = CFrame.new(neck.TransformedWorldCFrame.Position + UP * 1.5 * size)
+    end
+    self.Glow.Brightness = (roaring or swallow) and 3 or 1.2 + math.sin(now * 7) * 0.2
+    local beat = (math.sin(now * ((roaring or swallow) and 9 or 4)) + 1) / 2
+    self.WeakGlow.Brightness = 0.8 + beat * 1.6
+end
+
+function RigCreature:Destroy()
+    self.Model:Destroy()
+end
+
+ChaseCreature.Rig = RigCreature
 
 return ChaseCreature
