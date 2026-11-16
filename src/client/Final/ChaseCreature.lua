@@ -357,9 +357,16 @@ function RigCreature.new(parent, origin, scale, template)
     mesh.CastShadow = false
     mesh.Parent = model
     model.Parent = parent
-    -- Se escala como modelo y no cambiando Size: así los huesos se mueven con la
-    -- malla. (Cambiar sólo Size deja los huesos donde estaban y la piel se estira.)
-    model:ScaleTo(RIG_HEIGHT * size / template.Size.Y)
+    -- Escala: la pieza y, uno por uno, la posición de cada hueso respecto de su
+    -- padre. (Cambiar sólo Size, o Model:ScaleTo, deja los huesos donde estaban y la
+    -- piel se estira cientos de studs.)
+    local factor = RIG_HEIGHT * size / template.Size.Y
+    mesh.Size = template.Size * factor
+    for _, bone in ipairs(mesh:GetDescendants()) do
+        if bone:IsA("Bone") then
+            bone.Position *= factor
+        end
+    end
     mesh.CFrame = CFrame.new(origin + Vector3.new(0, mesh.Size.Y / 2, 0))
 
     local bones, rest = {}, {}
